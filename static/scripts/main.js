@@ -108,7 +108,7 @@ const getJobStatus = async (jobId) => {
       case 200:
         const result = await res.text();
         hideProgressBar();
-        const downloadUrl = "/api/v1/clip?videoName=" + result;
+        const downloadUrl = "/api/v1/clip?jobId=" + jobId;
         showDownloadLink(downloadUrl);
         window.open(downloadUrl);
         enableClipButton();

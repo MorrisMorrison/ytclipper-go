@@ -13,5 +13,7 @@ func RegisterRoutes(e *echo.Echo) {
     })
 
     e.POST("/api/v1/clip", handlers.DownloadAndSlice)
+    e.GET("/api/v1/clip", handlers.DownloadFile)
+    e.GET("/api/v1/jobs/status", handlers.GetJobStatus)
     e.GET("/api/v1/video/duration", handlers.GetVideoDuration)
 }

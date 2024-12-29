@@ -10,6 +10,8 @@ import (
 
 func main() {
     e := echo.New()
+    e.Logger.Debug(true)
+    e.Logger.Info("start ytclipper-go")
 
 	e.Static("/static", "static")
 

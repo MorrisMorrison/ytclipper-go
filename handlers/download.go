@@ -9,13 +9,16 @@ import (
 	"strconv"
 	"strings"
 
+	"ytclipper-go/jobmanager"
+
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
 type VideoForm struct {
-    URL       string
-    StartTime string
-    EndTime   string
+    Url  string `json:"url" form:"url" validate:"required,url"`
+    From string `json:"from" form:"from" validate:"required"`
+    To   string `json:"to" form:"to" validate:"required"`
 }
 
 func RenderHomePage(c echo.Context) error {
@@ -23,37 +26,158 @@ func RenderHomePage(c echo.Context) error {
     return tmpl.Execute(c.Response().Writer, nil)
 }
 
+
 func DownloadAndSlice(c echo.Context) error {
     form := new(VideoForm)
     if err := c.Bind(form); err != nil {
         return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid input"})
     }
 
-    outputPath := "./videos/clip.mp4"
-
-    cmdArgs := []string{
-        "-o", outputPath,
-        "-f", "136",
-        "-v",
-        "--downloader", "ffmpeg",
-        "--downloader-args", fmt.Sprintf("ffmpeg_i:-ss %s -to %s", form.StartTime, form.EndTime),
-        form.URL,
-    }
-
-
+    cmdArgs := []string{"-F", form.Url}
     cmd := exec.Command("yt-dlp", cmdArgs...)
     output, err := cmd.CombinedOutput()
     if err != nil {
         return c.JSON(http.StatusInternalServerError, map[string]string{
-            "error":   "Failed to download and slice video",
+            "error":   "Failed to fetch available formats",
             "details": string(output),
         })
     }
 
-    return c.JSON(http.StatusOK, map[string]string{
-        "message":  "Video downloaded and sliced successfully",
-        "filePath": outputPath,
-    })
+    selectedFormat, parseErr := selectMidQualityFormat(string(output))
+    if parseErr != nil {
+        return c.JSON(http.StatusInternalServerError, map[string]string{
+            "error":   "Failed to select a suitable format",
+            "details": parseErr.Error(),
+        })
+    }
+
+
+    jobID := uuid.New().String()
+
+    job := &jobmanager.Job{
+        ID:     jobID,
+        Status: jobmanager.StatusQueued,
+    }
+    jobmanager.JobsLock.Lock()
+    jobmanager.Jobs[jobID] = job
+    jobmanager.JobsLock.Unlock()
+
+    go func(jobID string, form *VideoForm) {
+        processDownloadAndSlice(jobID, form, selectedFormat)
+    }(jobID, form)
+
+    return c.String(http.StatusCreated, jobID,)
+}
+
+
+func processDownloadAndSlice(jobID string, form *VideoForm, selectedFormat string) {
+    jobmanager.JobsLock.Lock()
+    job := jobmanager.Jobs[jobID]
+    job.Status = jobmanager.StatusProcessing
+    jobmanager.JobsLock.Unlock()
+
+    outputPath := fmt.Sprintf("./videos/%s_clip.mp4", jobID)
+    
+    cmdArgs := []string{
+        "-o", outputPath,
+        "-f", "298",
+        "-v",
+        "--downloader", "ffmpeg",
+        "--downloader-args", fmt.Sprintf("ffmpeg_i:-ss %s -to %s", form.From, form.To),
+        form.Url,
+    }
+    cmd := exec.Command("yt-dlp", cmdArgs...)
+    output, err := cmd.CombinedOutput()
+    if err != nil {
+        jobmanager.JobsLock.Lock()
+        job.Status = jobmanager.StatusError
+        job.Error = fmt.Sprintf("Failed to download video: %s", string(output))
+        jobmanager.JobsLock.Unlock()
+        return
+    }
+
+    // sliceCmd := exec.Command("ffmpeg", "-i", outputPath, "-ss", form.From, "-to", form.To, "-c", "copy", slicedPath)
+    // sliceOutput, err := sliceCmd.CombinedOutput()
+    // if err != nil {
+    //     jobmanager.JobsLock.Lock()
+    //     job.Status = jobmanager.StatusError
+    //     job.Error = fmt.Sprintf("Failed to slice video locally: %s", string(sliceOutput))
+    //     jobmanager.JobsLock.Unlock()
+    //     return
+    // }
+
+    jobmanager.JobsLock.Lock()
+    job.Status = jobmanager.StatusCompleted
+    job.FilePath = outputPath
+    jobmanager.JobsLock.Unlock()
+}
+
+func selectMidQualityFormat(output string) (string, error) {
+    lines := strings.Split(output, "\n")
+    var formats []map[string]string
+
+    formatRegex := regexp.MustCompile(`(?m)^\s*(\d+)\s+(\w+)\s+(\d+x\d+|\d+p|audio only)\s+(.*)$`)
+
+    for _, line := range lines {
+        matches := formatRegex.FindStringSubmatch(line)
+        if len(matches) > 0 {
+            formats = append(formats, map[string]string{
+                "id":       matches[1], 
+                "ext":      matches[2], 
+                "quality":  matches[3], 
+                "features": matches[4], 
+            })
+        }
+    }
+
+    var selectedFormat string
+    for _, format := range formats {
+        if strings.Contains(format["features"], "audio") && format["ext"] == "mp4" {
+            selectedFormat = format["id"]
+            break
+        }
+    }
+
+    if selectedFormat == "" {
+        return "", fmt.Errorf("no suitable format found")
+    }
+
+    return selectedFormat, nil
+}
+
+func GetJobStatus(c echo.Context) error {
+    jobID := c.QueryParam("jobId")
+
+    jobmanager.JobsLock.Lock()
+    job, exists := jobmanager.Jobs[jobID]
+    jobmanager.JobsLock.Unlock()
+
+    if !exists {
+        return c.JSON(http.StatusNotFound, map[string]string{"error": "Job not found"})
+    }
+
+    if (job.Status== jobmanager.StatusProcessing){
+        return c.JSON(http.StatusCreated, nil)
+    } else if (job.Status == jobmanager.StatusCompleted){
+        return c.JSON(http.StatusOK, job.FilePath)        
+    }
+
+    return c.JSON(http.StatusOK, job)
+}
+
+
+func DownloadFile(c echo.Context) error {
+    jobID := c.QueryParam("jobId")
+
+    jobmanager.JobsLock.Lock()
+    job, exists := jobmanager.Jobs[jobID]
+    jobmanager.JobsLock.Unlock()
+
+    if !exists || job.Status != jobmanager.StatusCompleted {
+        return c.JSON(http.StatusNotFound, map[string]string{"error": "File not available"})
+    }
+
+    return c.File(job.FilePath)
 }
 
 func GetVideoDuration(c echo.Context) error {
@@ -64,7 +188,7 @@ func GetVideoDuration(c echo.Context) error {
 
     cmdArgs := []string{
         "--get-duration",
-        "--no-warnings", // Suppress warnings
+        "--no-warnings", 
         url,
     }
     cmd := exec.Command("yt-dlp", cmdArgs...)
