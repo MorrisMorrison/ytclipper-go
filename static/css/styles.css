@@ -1,54 +1,83 @@
-/* General styles */
+/* styles.css */
 body {
+    height: 100%;
+    width: 100%;
+    background-color: white;
     font-family: Arial, sans-serif;
-    background-color: #f9f9f9;
-    margin: 0;
-    padding: 0;
+}
+
+body.dark {
+    background-color: #2d3748; /* dark:bg-gray-800 */
+    color: #cbd5e0; /* dark:text-gray-400 */
 }
 
 h1 {
-    text-align: center;
-    margin: 20px 0;
-    color: #333;
-}
-
-form {
-    max-width: 400px;
-    margin: 0 auto;
-    padding: 20px;
-    background: #fff;
-    border: 1px solid #ccc;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-label {
-    font-weight: bold;
-    color: #555;
-    display: block;
-    margin-bottom: 8px;
+    color: #38a169; /* text-green-500 */
+    font-size: 1.875rem;
+    padding-bottom: 0.75rem;
 }
 
 input {
+    height: 2.5rem; /* h-10 */
     width: 100%;
-    padding: 8px;
-    margin-bottom: 15px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    box-sizing: border-box;
+    margin: 0 0.625rem 0 0; /* mr-5, rl-5 */
+    padding: 0.5rem;
+    background-color: white;
+    color: black;
+    border: 1px solid #e2e8f0;
+}
+
+input.dark {
+    background-color: #2d3748; /* dark:bg-gray-800 */
+    color: #cbd5e0; /* dark:text-gray-400 */
 }
 
 button {
-    width: 100%;
-    padding: 10px 15px;
-    background-color: #007BFF;
+    background-color: #38a169; /* bg-green-500 */
     color: white;
-    border: none;
-    border-radius: 4px;
+    padding: 0.75rem;
+    border-radius: 0.375rem;
+    text-align: center;
     cursor: pointer;
-    font-size: 16px;
 }
 
 button:hover {
-    background-color: #0056b3;
+    background-color: #2f855a; /* Darker green for hover */
+}
+
+.progress-bar-custom {
+    height: 1rem;
+    background-color: #38a169; /* bg-green-500 */
+}
+
+.hidden {
+    display: none;
+}
+
+.flex {
+    display: flex;
+}
+
+.flex-col {
+    flex-direction: column;
+}
+
+.items-center {
+    align-items: center;
+}
+
+.items-end {
+    align-items: flex-end;
+}
+
+.justify-center {
+    justify-content: center;
+}
+
+.justify-end {
+    justify-content: flex-end;
+}
+
+.rounded-lg {
+    border-radius: 0.375rem;
 }
