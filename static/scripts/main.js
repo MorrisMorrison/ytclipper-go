@@ -42,15 +42,25 @@ async function fetchAndPopulateFormats(url) {
       if (!response.ok) {
           throw new Error(await response.text());
       }
-
       const formats = await response.json();
+      
+      const uniqueFormats = [];
+      const seenLabels = new Set();
       dropdown.innerHTML = ""; 
-      formats.forEach((format) => {
-          const option = document.createElement("option");
-          option.value = format.id;
-          option.textContent = `${format.label} (${format.extension})`;
-          dropdown.appendChild(option);
-      });
+     formats.forEach((format) => {
+      const label = `${format.label} (${format.extension}, ${format.codec}, ${format.bitrate}kbps)`;
+      if (!seenLabels.has(label)) {
+          seenLabels.add(label);
+          uniqueFormats.push(format);
+      }
+  });
+  
+  uniqueFormats.forEach((format) => {
+      const option = document.createElement("option");
+      option.value = format.id;
+      option.textContent = `${format.label} (${format.extension}, ${format.codec}, ${format.bitrate}kbps)`;
+      dropdown.appendChild(option);
+  });
 
       dropdown.disabled = false;
   } catch (err) {

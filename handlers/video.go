@@ -94,16 +94,19 @@ func GetAvailableFormats(c echo.Context) error {
 
 func parseFormats(output string) []map[string]string {
     lines := strings.Split(output, "\n")
-    formatRegex := regexp.MustCompile(`(?m)^\s*(\d+)\s+(\w+)\s+(\d+x\d+|\d+p|audio only)\s+(.*)$`)
+
+    formatRegex := regexp.MustCompile(`(?m)^\s*(\d+)\s+(\w+)\s+(\d+x\d+|\d+p|audio only)\s+([a-zA-Z0-9\.\-\_]+)\s+([\d\.]+[a-zA-Z]+)?\s+.*$`)
     var formats []map[string]string
 
     for _, line := range lines {
         matches := formatRegex.FindStringSubmatch(line)
         if len(matches) > 0 {
             formats = append(formats, map[string]string{
-                "id":        matches[1],
-                "extension": matches[2], 
-                "label":     matches[3],
+                "id":        matches[1], // Format ID
+                "extension": matches[2], // File extension (e.g., mp4)
+                "label":     matches[3], // Resolution or audio-only
+                "codec":     matches[4], // Codec (e.g., avc1, vp9)
+                "bitrate":   matches[5], // Bitrate (e.g., 128k, 1.5M)
             })
         }
     }
