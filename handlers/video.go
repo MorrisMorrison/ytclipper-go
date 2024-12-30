@@ -53,7 +53,11 @@ func GetVideoDuration(c echo.Context) error {
         minutes, _ := strconv.Atoi(parts[0])
         seconds, _ := strconv.Atoi(parts[1])
         totalSeconds = minutes*60 + seconds
+    }else if len(parts) == 1 {
+        seconds, _ := strconv.Atoi(parts[1])
+        totalSeconds = seconds
     } else {
+
         return c.JSON(http.StatusInternalServerError, map[string]string{
             "error": "Invalid duration format received",
             "details": durationStr,
