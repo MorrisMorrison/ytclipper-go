@@ -72,3 +72,41 @@ func ExtractDuration(output string) string {
     }
     return ""
 }
+
+func GetAvailableFormats(c echo.Context) error {
+    url := c.QueryParam("youtubeUrl")
+    if url == "" {
+        return c.JSON(http.StatusBadRequest, map[string]string{"error": "URL is required"})
+    }
+
+    cmd := exec.Command("yt-dlp", "-F", url)
+    output, err := cmd.CombinedOutput()
+    if err != nil {
+        return c.JSON(http.StatusInternalServerError, map[string]string{
+            "error":   "Failed to fetch formats",
+            "details": string(output),
+        })
+    }
+
+    formats := parseFormats(string(output))
+    return c.JSON(http.StatusOK, formats)
+}
+
+func parseFormats(output string) []map[string]string {
+    lines := strings.Split(output, "\n")
+    formatRegex := regexp.MustCompile(`(?m)^\s*(\d+)\s+(\w+)\s+(\d+x\d+|\d+p|audio only)\s+(.*)$`)
+    var formats []map[string]string
+
+    for _, line := range lines {
+        matches := formatRegex.FindStringSubmatch(line)
+        if len(matches) > 0 {
+            formats = append(formats, map[string]string{
+                "id":        matches[1],
+                "extension": matches[2], 
+                "label":     matches[3],
+            })
+        }
+    }
+
+    return formats
+}

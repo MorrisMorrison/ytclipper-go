@@ -3,7 +3,6 @@ package jobs
 import (
 	"fmt"
 	"sync"
-	"ytclipper-go/handlers"
 )
 
 type JobStatus string
@@ -37,14 +36,12 @@ func StartWorkerPool(workerCount int) {
 func worker(workerID int) {
     for jobID := range JobQueue {
         JobsLock.Lock()
-        job, exists := Jobs[jobID]
+        _, exists := Jobs[jobID]
         JobsLock.Unlock()
 
         if !exists {
             fmt.Printf("Worker %d: Job %s not found\n", workerID, jobID)
             continue
         }
-
-        handlers.ProcessClip(jobId, )
     }
 }

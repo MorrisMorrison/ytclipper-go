@@ -15,5 +15,7 @@ func RegisterRoutes(e *echo.Echo) {
     e.POST("/api/v1/clip", handlers.CreateClip)
     e.GET("/api/v1/clip", handlers.GetClip)
     e.GET("/api/v1/jobs/status", handlers.GetJobStatus)
+
     e.GET("/api/v1/video/duration", handlers.GetVideoDuration)
+    e.GET("/api/v1/video/formats", handlers.GetAvailableFormats)
 }

@@ -1,3 +1,67 @@
+function debounce(func, delay) {
+    let timeout;
+    return function (...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), delay);
+    };
+}
+function disableDropdown() {
+    const dropdown = document.getElementById("formatSelect");
+    dropdown.disabled = true;
+    dropdown.innerHTML = '<option value="">Loading formats...</option>';
+}
+
+function enableDropdown() {
+  const dropdown = document.getElementById("formatSelect");
+  dropdown.disabled = true;
+  dropdown.innerHTML = '<option value="">Loading formats...</option>';
+}
+
+const onUrlInputChange = debounce(async (event) => {
+    const url = event.target.value;
+
+    if (!isYoutubeUrlValid(url)) {
+        toastr.error("Please enter a valid YouTube URL");
+        disableDropdown();
+        return;
+    }
+
+    try {
+        await fetchAndPopulateFormats(url);
+    } catch (err) {
+        toastr.error("Failed to fetch formats: " + err.message);
+    }
+}, 500);
+
+async function fetchAndPopulateFormats(url) {
+  const dropdown = document.getElementById("formatSelect");
+  disableDropdown();
+
+  try {
+      const response = await fetch(`/api/v1/video/formats?youtubeUrl=${encodeURIComponent(url)}`);
+      if (!response.ok) {
+          throw new Error(await response.text());
+      }
+
+      const formats = await response.json();
+      dropdown.innerHTML = ""; 
+      formats.forEach((format) => {
+          const option = document.createElement("option");
+          option.value = format.id;
+          option.textContent = `${format.label} (${format.extension})`;
+          dropdown.appendChild(option);
+      });
+
+      dropdown.disabled = false;
+  } catch (err) {
+      dropdown.innerHTML = '<option value="">Error loading formats</option>';
+      dropdown.disabled = true;
+      throw err;
+  }
+}
+
+
+
 const getVideoDuration = async (youtubeUrl) => {
   const url =
     window.location.href + "api/v1/video/duration?youtubeUrl=" + youtubeUrl;

@@ -7,6 +7,6 @@ import (
 )
 
 func RenderHomePage(c echo.Context) error {
-    tmpl := template.Must(template.ParseFiles("templates/index.html"))
-    return tmpl.Execute(c.Response().Writer, nil)
+    homePage := template.Must(template.ParseFiles("templates/index.html"))
+    return homePage.Execute(c.Response().Writer, nil)
 }

@@ -16,6 +16,7 @@ type CreateClipDTO struct {
     Url  string `json:"url" form:"url" validate:"required,url"`
     From string `json:"from" form:"from" validate:"required"`
     To   string `json:"to" form:"to" validate:"required"`
+    Format string `json:"format" form:"format" validate:"required"`
 }
 
 func CreateClip(c echo.Context) error {
@@ -23,6 +24,8 @@ func CreateClip(c echo.Context) error {
     if err := c.Bind(form); err != nil {
         return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid input"})
     }
+
+    // TODO Validate input
 
     cmdArgs := []string{"-F", form.Url}
     cmd := exec.Command("yt-dlp", cmdArgs...)
@@ -33,15 +36,6 @@ func CreateClip(c echo.Context) error {
             "details": string(output),
         })
     }
-
-    selectedFormat, parseErr := selectAvailableMp4FormatIncludingAudio(string(output))
-    if parseErr != nil {
-        return c.JSON(http.StatusInternalServerError, map[string]string{
-            "error":   "Failed to select a suitable format",
-            "details": parseErr.Error(),
-        })
-    }
-
 
     jobID := uuid.New().String()
 
@@ -54,7 +48,7 @@ func CreateClip(c echo.Context) error {
     jobs.JobsLock.Unlock()
 
     go func(jobID string, createClipDTO *CreateClipDTO) {
-        ProcessClip(jobID, createClipDTO.Url, createClipDTO.From, createClipDTO.To, selectedFormat)
+        ProcessClip(jobID, createClipDTO.Url, createClipDTO.From, createClipDTO.To, createClipDTO.Format)
     }(jobID, form)
 
     return c.String(http.StatusCreated, jobID,)

@@ -6,21 +6,21 @@
     <link rel="icon" href="/static/icons/favicon.ico" type="image/x-icon">
     <link rel='stylesheet' href='/static/css/toastr.min.css' />
     <link rel="stylesheet" href="/static/css/video-js.min.css">
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/css/styles.css">
     <script type='text/javascript' src="/static/scripts/jquery.min.js"></script>
     <script type='text/javascript' src='/static/scripts/time-utils.js'></script>
     <script type='text/javascript' src='/static/scripts/main.js'></script>
     <script type='text/javascript' src='/static/scripts/toastr.min.js'></script>
 </head>
 
-<body class="h-full w-full">
-    <div id="main" class="w-full h-full bg-white dark:bg-gray-800">
+<body class="dark">
+    <div id="main" class="flex-col items-center justify-center">
         <div id="searchGroup" class="flex flex-col items-center justify-center w-full" style="height:90%">
             <div class="pb-14 flex flex-col w-auto">
                 <h1 class="text-green-500 text-3xl pb-3">ytclipper</h1>
                 <div class="flex flex-row items-center">
                     <input autocomplete="off" class="h-10 dark:bg-gray-800 dark:text-gray-400 flex-grow" type="text" id="url"
-                        placeholder="Paste your youtube url here." title='Only valid youtube links will work'>
+                        placeholder="Paste your youtube url here." title='Only valid youtube links will work'  oninput="onUrlInputChange(event)" >
                     <button class="bg-green-500 text-white p-3 rounded-lg align-center flex-grow-0"
                         onclick="onPreviewButtonClick()"><img class="white-icon" src="/static/icons/eye.svg"
                             alt="Icon description"></button>
@@ -28,6 +28,13 @@
                 <div id="video-player-wrapper" class="hidden pb-5 pt-5 w-full">
                     <video id="video-player" class="video-js vjs-default-skin hidden" controls autoplay width="640"
                         height="264"></video>
+                </div>
+
+                <div id="formatWrapper" class="pt-3">
+                    <label for="formatSelect" class="pr-3">Select Format:</label>
+                    <select id="formatSelect" class="input dark" disabled>
+                        <option value="">Select format...</option>
+                    </select>
                 </div>
 
                 <div class="flex w-full pb-3 pt-1">
