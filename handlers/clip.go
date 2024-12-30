@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"os/exec"
-	"regexp"
-	"strings"
 	"ytclipper-go/jobs"
 
 	"github.com/google/uuid"
@@ -110,38 +108,4 @@ func GetClip(c echo.Context) error {
     }
 
     return c.File(job.FilePath)
-}
-
-
-func selectAvailableMp4FormatIncludingAudio(output string) (string, error) {
-    lines := strings.Split(output, "\n")
-    var formats []map[string]string
-
-    formatRegex := regexp.MustCompile(`(?m)^\s*(\d+)\s+(\w+)\s+(\d+x\d+|\d+p|audio only)\s+(.*)$`)
-
-    for _, line := range lines {
-        matches := formatRegex.FindStringSubmatch(line)
-        if len(matches) > 0 {
-            formats = append(formats, map[string]string{
-                "id":       matches[1], 
-                "ext":      matches[2], 
-                "quality":  matches[3], 
-                "features": matches[4], 
-            })
-        }
-    }
-
-    var selectedFormat string
-    for _, format := range formats {
-        if strings.Contains(format["features"], "audio") && format["ext"] == "mp4" {
-            selectedFormat = format["id"]
-            break
-        }
-    }
-
-    if selectedFormat == "" {
-        return "", fmt.Errorf("no suitable format found")
-    }
-
-    return selectedFormat, nil
 }
