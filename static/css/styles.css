@@ -69,12 +69,6 @@ button:hover {
     width: 100%;
 }
 
-/* Progress Bar */
-.progress-bar-custom {
-    height: 1rem;
-    background-color: #38a169; /* Green progress bar */
-}
-
 /* Hidden Elements */
 .hidden {
     display: none !important; /* Ensure it overrides any conflicting styles */
@@ -243,10 +237,11 @@ input:checked + .slider:before {
     width: 100%;
 }
 .progress-bar-custom {
+    height: 1rem;
+    background-color: #38a169; /* Green progress bar */
     background-size: 23em 0.25em;
     height: 100%;
     position: relative;
-    background-color:var(--bg);/* #e04542;*/
     animation: cssload-width 3.45s cubic-bezier(0.45, 0, 1, 1) infinite;
     -o-animation: cssload-width 3.45s cubic-bezier(0.45, 0, 1, 1) infinite;
     -ms-animation: cssload-width 3.45s cubic-bezier(0.45, 0, 1, 1) infinite;

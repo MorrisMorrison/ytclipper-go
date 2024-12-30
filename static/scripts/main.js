@@ -192,8 +192,7 @@ const onClipButtonClick = async () => {
     console.error("CLIENT - GETJOBSTATUS - An error occurred:", error);
     enableClipButton();
   }
-};
-
+}
 
 const getJobStatus = async (jobId) => {
   const url = window.location.href + "api/v1/jobs/status?jobId=" + jobId;
