@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"os/exec"
+	"regexp"
 	"ytclipper-go/jobs"
 
 	"github.com/google/uuid"
@@ -17,13 +18,41 @@ type CreateClipDTO struct {
     Format string `json:"format" form:"format" validate:"required"`
 }
 
+// Helper function to validate YouTube URL
+func isValidYoutubeUrl(url string) bool {
+	regex := regexp.MustCompile(`http(?:s?):\/\/(?:www\.)?youtu(?:be\.com\/watch\?v=|\.be\/)([\w\-\_]*)(&(amp;)?‌​[\w\?‌​=]*)?`)
+	return regex.MatchString(url)
+}
+
+// Helper function to validate time format (HH:MM:SS)
+func isValidTimeFormat(time string) bool {
+	regex := regexp.MustCompile(`^(?:[0-1]?[0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$`)
+	return regex.MatchString(time)
+}
+
+// Helper function to validate format (numeric)
+func isValidFormat(format string) bool {
+	regex := regexp.MustCompile(`^\d+$`)
+	return regex.MatchString(format)
+}
+
 func CreateClip(c echo.Context) error {
     form := new(CreateClipDTO)
     if err := c.Bind(form); err != nil {
         return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid input"})
     }
+    
+	if !isValidYoutubeUrl(form.Url) {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid YouTube URL"})
+	}
 
-    // TODO Validate input
+	if !isValidTimeFormat(form.From) || !isValidTimeFormat(form.To) {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid time format. Use HH:MM:SS."})
+	}
+
+	if !isValidFormat(form.Format) {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid format. Must be a numeric value."})
+	}
 
     cmdArgs := []string{"-F", form.Url}
     cmd := exec.Command("yt-dlp", cmdArgs...)

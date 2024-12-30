@@ -17,6 +17,10 @@ func GetVideoDuration(c echo.Context) error {
         return c.JSON(http.StatusBadRequest, map[string]string{"error": "URL is required"})
     }
 
+    if !isValidYoutubeUrl(url) {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid YouTube URL"})
+	}
+
     cmdArgs := []string{
         "--get-duration",
         "--no-warnings", 
@@ -82,6 +86,10 @@ func GetAvailableFormats(c echo.Context) error {
     if url == "" {
         return c.JSON(http.StatusBadRequest, map[string]string{"error": "URL is required"})
     }
+
+    if !isValidYoutubeUrl(url) {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid YouTube URL"})
+	}
 
     cmd := exec.Command("yt-dlp", "-F", url)
     output, err := cmd.CombinedOutput()
