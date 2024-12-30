@@ -6,6 +6,7 @@
     <link rel="stylesheet" href="/static/css/toastr.min.css" />
     <link rel="stylesheet" href="/static/css/video-js.min.css">
     <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="stylesheet" href="/static/css/utilities.css">
     <script type="text/javascript" src="/static/scripts/jquery.min.js"></script>
     <script type="text/javascript" src="/static/scripts/time-utils.js"></script>
     <script type="text/javascript" src="/static/scripts/main.js"></script>
@@ -13,12 +14,12 @@
 </head>
 
 <body class="dark">
-    <div id="main" class="flex flex-col items-center justify-center">
+    <div class="flex flex-col items-center justify-center w-100 h-100">
         <div id="searchGroup" class="flex flex-col items-center justify-center w-100 h-90">
             <div class="pb-14 flex flex-col w-auto">
                 <h1 class="title">ytclipper</h1>
                 <div class="flex flex-row items-center">
-                    <input autocomplete="off" class="input dark mr-3" type="text" id="url" placeholder="Paste your youtube url here." title="Only valid youtube links will work" oninput="onUrlInputChange(event)" />
+                    <input autocomplete="off" class="input mr-3" type="text" id="url" placeholder="Paste your youtube url here." title="Only valid youtube links will work" oninput="onUrlInputChange(event)" />
                     <button class="button" onclick="onPreviewButtonClick()">
                         <img class="white-icon" src="/static/icons/eye.svg" alt="Icon description" />
                     </button>
@@ -28,18 +29,18 @@
                 </div>
 
                 <div id="format-wrapper" disabled class="pb-3 pt-3">
-                    <select id="formatSelect" class="input dark" disabled>
+                    <select id="formatSelect" class="input" disabled>
                         <option value="">Select format...</option>
                     </select>
                 </div>
 
                 <div class="flex w-full pb-3 pt-1">
-                    <input step="1" autocomplete="off" class="input dark mr-5" type="text" id="from" placeholder="from*" title="Provide timestamps as HH:MM:SS." />
-                    <input step="1" autocomplete="off" class="input dark rl-5" type="text" id="to" placeholder="to*" title="Provide timestamps as HH:MM:SS." />
+                    <input step="1" autocomplete="off" class="input mr-5" type="text" id="from" placeholder="from*" title="Provide timestamps as HH:MM:SS." />
+                    <input step="1" autocomplete="off" class="input rl-5" type="text" id="to" placeholder="to*" title="Provide timestamps as HH:MM:SS." />
                 </div>
                 <button id="clipButton" class="button" onclick="onClipButtonClick()">Clip!</button>
                 <p class="text-gray pt-1 pl-1">* Please provide timestamps as hh:mm:ss (e.g. 34, 1:28, 1:01:24)</p>
-                <div id="progressBarWrapper" class=" pt-3">
+                <div id="progressBarWrapper" class="hidden pt-3">
                     <div id="progress" class="progress">
                         <div id="progressBar" class="progress-bar-custom"></div>
                     </div>

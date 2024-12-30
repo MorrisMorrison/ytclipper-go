@@ -294,16 +294,18 @@ const hideDownloadLink = () =>
   document.getElementById("downloadLinkWrapper").classList.add("hidden");
 
 const handleDarkMode = () => {
+  const body = document.body; // Target the <body> element
   if (
     localStorage.theme === "dark" ||
     (!("theme" in localStorage) &&
       window.matchMedia("(prefers-color-scheme: dark)").matches)
   ) {
-    document.documentElement.classList.add("dark");
+    body.classList.add("dark"); // Apply dark mode
   } else {
-    document.documentElement.classList.remove("dark");
+    body.classList.remove("dark"); // Apply light mode
   }
 };
+
 
 const setTheme = () => {
   localStorage.theme = localStorage.theme === "dark" ? "light" : "dark";
@@ -311,6 +313,8 @@ const setTheme = () => {
 };
 
 window.onload = () => {
-  localStorage.theme = "dark";
+  if (!localStorage.theme) {
+    localStorage.theme = "dark";
+  }
   handleDarkMode();
 };
