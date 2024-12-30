@@ -4,26 +4,37 @@ import (
 	"log"
 	"os"
 	"ytclipper-go/routes"
+	"ytclipper-go/utils"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
 
-func main() {
+func checkDependencies(){
+   log.Println("Checking dependencies...")
+
+    if err := utils.CheckCommand("ffmpeg"); err != nil {
+        log.Fatalf("Dependency check failed: %v", err)
+    }
+
+    if err := utils.CheckCommand("yt-dlp"); err != nil {
+        log.Fatalf("Dependency check failed: %v", err)
+    }
+
+    log.Println("All dependencies are installed.")
+}
+
+func setupEcho(){
     e := echo.New()
 
-    // Enable debug mode
     e.Debug = true
 
-    e.Logger.Info("start ytclipper-go")
 
-    // Serve static files
     e.Static("/static", "static")
 
     e.Logger.Info("setting up routes ...")
     routes.RegisterRoutes(e)
 
-    // Define port
     port := os.Getenv("PORT")
     if port == "" {
         port = "8080"
@@ -31,9 +42,13 @@ func main() {
 
     log.Printf("Starting server on port %s", port)
 
-    // Add request logging middleware
     e.Use(middleware.Logger())
 
-    // Start the server
     e.Logger.Fatal(e.Start(":" + port))
+}
+
+func main() {
+    log.Println("Start ytclipper-go")
+    checkDependencies();
+    setupEcho();
 }

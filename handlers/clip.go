@@ -99,6 +99,7 @@ func ProcessClip(jobID string, url string, from string, to string, selectedForma
 func GetClip(c echo.Context) error {
     jobID := c.QueryParam("jobId")
 
+    // Lock the job map and retrieve the job
     jobs.JobsLock.Lock()
     job, exists := jobs.Jobs[jobID]
     jobs.JobsLock.Unlock()
@@ -107,5 +108,20 @@ func GetClip(c echo.Context) error {
         return c.JSON(http.StatusNotFound, map[string]string{"error": "File not available"})
     }
 
+    // Schedule file deletion after the response is sent
+    // c.Response().After(func() {
+    //     err := os.Remove(job.FilePath)
+    //     if err != nil {
+    //         // Log the error for debugging purposes
+    //         c.Logger().Errorf("Failed to delete file %s: %v", job.FilePath, err)
+    //     } else {
+    //         // Optionally, clean up job data
+    //         jobs.JobsLock.Lock()
+    //         delete(jobs.Jobs, jobID)
+    //         jobs.JobsLock.Unlock()
+    //     }
+    // })
+
+    // Send the file to the client
     return c.File(job.FilePath)
 }

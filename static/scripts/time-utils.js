@@ -1,7 +1,8 @@
 const timeObjectToSeconds = (time) =>
   time.hours * 60 * 60 + time.minutes * 60 + time.seconds;
-const isTimeInputValid = (time) =>
-  /([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]/g.test(time);
+const isTimeInputValid = (time) => {
+  return /^(\d+(:[0-5]?\d){0,2})$/.test(time);
+};
 const isYoutubeUrlValid = (url) =>
   /http(?:s?):\/\/(?:www\.)?youtu(?:be\.com\/watch\?v=|\.be\/)([\w\-\_]*)(&(amp;)?‌​[\w\?‌​=]*)?/.test(
     url
@@ -9,8 +10,17 @@ const isYoutubeUrlValid = (url) =>
 const isTimestampWithinDuration = (timestamp, duration) =>
   timestamp <= duration;
 const getTimeAsObject = (time) => {
-  const [hours = 0, minutes = 0, seconds = 0] = time.split(":").map(Number);
+  const parts = time.split(":").map(Number).reverse(); // Reverse for easier mapping
+  const seconds = parts[0] || 0; // Default to 0 if missing
+  const minutes = parts[1] || 0;
+  const hours = parts[2] || 0;
   return { hours, minutes, seconds };
 };
+const normalizeTimeToHHMMSS = (time) => {
+  const { hours, minutes, seconds } = getTimeAsObject(time);
+  const pad = (num) => String(num).padStart(2, "0"); // Ensure 2-digit formatting
+  return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+};
+
 const convertToSeconds = (timeString) =>
   timeObjectToSeconds(getTimeAsObject(timeString));

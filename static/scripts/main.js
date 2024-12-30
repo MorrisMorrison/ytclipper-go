@@ -86,8 +86,6 @@ async function fetchAndPopulateFormats(url) {
   }
 }
 
-
-
 const getVideoDuration = async (youtubeUrl) => {
   const url =
     window.location.href + "api/v1/video/duration?youtubeUrl=" + youtubeUrl;
@@ -112,8 +110,8 @@ const onClipButtonClick = async () => {
 
   const url = window.location.href + "api/v1/clip";
   const youtubeUrl = getUrlInput();
-  const from = document.getElementById("from").value;
-  const to = document.getElementById("to").value;
+  let from = document.getElementById("from").value;
+  let to = document.getElementById("to").value;
   const format = document.getElementById("formatSelect").value; // Get selected format
 
   if (url === "" || from === "" || to === "" || format === "") {
@@ -153,6 +151,9 @@ const onClipButtonClick = async () => {
       return;
     }
 
+    from = normalizeTimeToHHMMSS(from);
+    to = normalizeTimeToHHMMSS(to);
+
     const payload = JSON.stringify({
       url: youtubeUrl,
       from: from,
@@ -182,6 +183,9 @@ const onClipButtonClick = async () => {
         break;
       case 500:
         toastr.error("Timestamps are not within video length.");
+        break;
+      default:
+        toastr.error("An unexpected error occurred.");
         break;
     }
   } catch (error) {
