@@ -95,17 +95,15 @@ func GetAvailableFormats(c echo.Context) error {
 func parseFormats(output string) []map[string]string {
     lines := strings.Split(output, "\n")
 
-    // Updated regex to parse lines correctly
     formatRegex := regexp.MustCompile(`(?m)^\s*(\d+)\s+(\w+)\s+(audio only|video only|\d+x\d+|\d+p)\s+([a-zA-Z0-9\.\-\_]+)?\s*([\~\d\.]+(?:[kKM]i?B)?)?.*?\|\s+(.*?)$`)
     var formats []map[string]string
 
     for _, line := range lines {
         matches := formatRegex.FindStringSubmatch(line)
         if len(matches) > 0 {
-            // Extract bitrate from the "additional" column
             bitrate := extractBitrate(matches[6])
 
-            formatType := "audio and video" // Default type
+            formatType := "audio and video" 
             if matches[3] == "audio only" {
                 formatType = "audio only"
             } else if matches[3] == "video only" {
@@ -113,13 +111,13 @@ func parseFormats(output string) []map[string]string {
             }
 
             formats = append(formats, map[string]string{
-                "id":         matches[1],                 // Format ID
-                "extension":  matches[2],                 // File extension
-                "label":      matches[3],                 // Resolution or "audio only"/"video only"
-                "codec":      strings.TrimSpace(matches[4]), // Codec
-                "bitrate":    bitrate,                    // Extracted bitrate
-                "formatType": formatType,                // Format type
-                "additional": strings.TrimSpace(matches[6]), // Additional info
+                "id":         matches[1],                 
+                "extension":  matches[2],                 
+                "label":      matches[3],                
+                "codec":      strings.TrimSpace(matches[4]), 
+                "bitrate":    bitrate,                   
+                "formatType": formatType,                
+                "additional": strings.TrimSpace(matches[6]), 
             })
         }
     }
@@ -127,15 +125,13 @@ func parseFormats(output string) []map[string]string {
     return formats
 }
 
-// Helper function to extract bitrate from additional info
 func extractBitrate(additional string) string {
-    // Match patterns like "130k", "1.15MiB", etc.
     bitrateRegex := regexp.MustCompile(`([\~\d\.]+[kKM]i?B)`)
     match := bitrateRegex.FindStringSubmatch(additional)
     if len(match) > 0 {
         return match[1]
     }
-    return "N/A" // Default if no bitrate is found
+    return "N/A" 
 }
 
 
