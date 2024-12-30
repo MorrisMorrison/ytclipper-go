@@ -1,6 +1,6 @@
 body {
-    height: 100%;
-    width: 100%;
+    height: auto;
+    width: auto;
     background-color: white;
     font-family: Arial, sans-serif;
 }
