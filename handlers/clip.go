@@ -3,9 +3,11 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"ytclipper-go/jobs"
 
 	"github.com/google/uuid"
@@ -90,11 +92,21 @@ func ProcessClip(jobID string, url string, from string, to string, selectedForma
     jobs.JobsLock.Unlock()
 
     outputPath := filepath.Join("./videos", fmt.Sprintf("%s_clip.mp4", filepath.Base(jobID)))
-    
+    fileSizeLimit, err := getFileSizeLimit()
+	if err != nil {
+		fmt.Printf("Could not get file size limit: %v\n", err)
+        
+        jobs.JobsLock.Lock()
+        job.Status = jobs.StatusError
+        job.Error = fmt.Sprintf("Could not get file size limit: %v\n", err)
+        jobs.JobsLock.Unlock()
+	}
+
     cmdArgs := []string{
         "-o", outputPath,
         "-f", selectedFormat,
         "-v",
+		"--max-filesize", fmt.Sprintf("%d", fileSizeLimit),
         "--downloader", "ffmpeg",
         "--downloader-args", fmt.Sprintf("ffmpeg_i:-ss %s -to %s", from, to),
         url,
@@ -154,4 +166,24 @@ func GetClip(c echo.Context) error {
 
     // Send the file to the client
     return c.File(job.FilePath)
+}
+
+// Function to get file size limit in bytes
+func getFileSizeLimit() (int64, error) {
+	// Fetch the environment variable
+	fileSizeLimitStr := os.Getenv("FILE_SIZE_LIMIT_MB")
+
+	// Set a default value if the variable is not set
+	if fileSizeLimitStr == "" {
+		fileSizeLimitStr = "500" // Default to 500 MB
+	}
+
+	// Convert the size from MB to bytes
+	fileSizeLimitMB, err := strconv.Atoi(fileSizeLimitStr)
+	if err != nil {
+		return 0, fmt.Errorf("invalid FILE_SIZE_LIMIT_MB: %v", err)
+	}
+
+	fileSizeLimitBytes := int64(fileSizeLimitMB) * 1024 * 1024
+	return fileSizeLimitBytes, nil
 }
