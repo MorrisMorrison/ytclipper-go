@@ -65,7 +65,7 @@ func ProcessClip(jobID string, url string, from string, to string, selectedForma
     
     cmdArgs := []string{
         "-o", outputPath,
-        "-f", "298",
+        "-f", selectedFormat,
         "-v",
         "--downloader", "ffmpeg",
         "--downloader-args", fmt.Sprintf("ffmpeg_i:-ss %s -to %s", from, to),

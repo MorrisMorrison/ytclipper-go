@@ -1,36 +1,34 @@
-<html class="h-full w-full dark">
-
+<html class="dark">
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ytclipper</title>
     <link rel="icon" href="/static/icons/favicon.ico" type="image/x-icon">
-    <link rel='stylesheet' href='/static/css/toastr.min.css' />
+    <link rel="stylesheet" href="/static/css/toastr.min.css" />
     <link rel="stylesheet" href="/static/css/video-js.min.css">
     <link rel="stylesheet" href="/static/css/styles.css">
-    <script type='text/javascript' src="/static/scripts/jquery.min.js"></script>
-    <script type='text/javascript' src='/static/scripts/time-utils.js'></script>
-    <script type='text/javascript' src='/static/scripts/main.js'></script>
-    <script type='text/javascript' src='/static/scripts/toastr.min.js'></script>
+    <link rel="stylesheet" href="/static/css/custom.css">
+    <script type="text/javascript" src="/static/scripts/jquery.min.js"></script>
+    <script type="text/javascript" src="/static/scripts/time-utils.js"></script>
+    <script type="text/javascript" src="/static/scripts/main.js"></script>
+    <script type="text/javascript" src="/static/scripts/toastr.min.js"></script>
 </head>
 
 <body class="dark">
-    <div id="main" class="flex-col items-center justify-center">
-        <div id="searchGroup" class="flex flex-col items-center justify-center w-full" style="height:90%">
+    <div id="main" class="flex flex-col items-center justify-center">
+        <div id="searchGroup" class="flex flex-col items-center justify-center w-100 h-90">
             <div class="pb-14 flex flex-col w-auto">
-                <h1 class="text-green-500 text-3xl pb-3">ytclipper</h1>
+                <h1 class="title">ytclipper</h1>
                 <div class="flex flex-row items-center">
-                    <input autocomplete="off" class="h-10 dark:bg-gray-800 dark:text-gray-400 flex-grow" type="text" id="url"
-                        placeholder="Paste your youtube url here." title='Only valid youtube links will work'  oninput="onUrlInputChange(event)" >
-                    <button class="bg-green-500 text-white p-3 rounded-lg align-center flex-grow-0"
-                        onclick="onPreviewButtonClick()"><img class="white-icon" src="/static/icons/eye.svg"
-                            alt="Icon description"></button>
+                    <input autocomplete="off" class="input dark mr-3" type="text" id="url" placeholder="Paste your youtube url here." title="Only valid youtube links will work" oninput="onUrlInputChange(event)" />
+                    <button class="button" onclick="onPreviewButtonClick()">
+                        <img class="white-icon" src="/static/icons/eye.svg" alt="Icon description" />
+                    </button>
                 </div>
                 <div id="video-player-wrapper" class="hidden pb-5 pt-5 w-full">
-                    <video id="video-player" class="video-js vjs-default-skin hidden" controls autoplay width="640"
-                        height="264"></video>
+                    <video id="video-player" class="hidden" controls autoplay width="640" height="264"></video>
                 </div>
 
-                <div id="formatWrapper" class="pt-3">
+                <div id="format-wrapper" disabled class="pb-3 pt-3">
                     <label for="formatSelect" class="pr-3">Select Format:</label>
                     <select id="formatSelect" class="input dark" disabled>
                         <option value="">Select format...</option>
@@ -38,30 +36,28 @@
                 </div>
 
                 <div class="flex w-full pb-3 pt-1">
-                    <input step="1" autocomplete="off" class="h-10 w-full dark:bg-gray-800 dark:text-gray-400 mr-5" type="text"
-                        id="from" placeholder="from*" title='Provide timestamps as HH:MM:SS.'>
-                    <input step="1" autocomplete="off" class="h-10 w-full dark:bg-gray-800 dark:text-gray-400 rl-5" type="text"
-                        id="to" placeholder="to*" title='Provide timestamps as HH:MM:SS.'>
+                    <input step="1" autocomplete="off" class="input dark mr-5" type="text" id="from" placeholder="from*" title="Provide timestamps as HH:MM:SS." />
+                    <input step="1" autocomplete="off" class="input dark rl-5" type="text" id="to" placeholder="to*" title="Provide timestamps as HH:MM:SS." />
                 </div>
-                <button id="clipButton" class="bg-green-500 text-white p-3 rounded-lg align-center"
-                    onclick="onClipButtonClick()">Clip!</button>
-                <p class="text-gray-400 pt- pl-1">* Please provide timestamps as hh:mm:ss</p>
-                <div id="progressBarWrapper" class="pt-3 hidden">
+                <button id="clipButton" class="button" onclick="onClipButtonClick()">Clip!</button>
+                <p class="text-gray pt-1 pl-1">* Please provide timestamps as hh:mm:ss</p>
+                <div id="progressBarWrapper" class="hidden pt-3">
                     <div id="progress" class="progress">
-                        <div id="progressBar" class="progress-bar-custom bg-green-500">
-                        </div>
+                        <div id="progressBar" class="progress-bar-custom"></div>
                     </div>
                 </div>
-                <div id="downloadLinkWrapper" class="pt-3 pl-1 hidden flex flex-col">
-                    <span class="text-gray-400">If the download didn't pop up automatically, you can download the file
-                        <a class="text-blue-400" id="downloadLink">here</a>.</span>
+                <div id="downloadLinkWrapper" class="hidden pt-3 pl-1 flex flex-col">
+                    <span class="text-gray">
+                        If the download didn't pop up automatically, you can download the file
+                        <a class="text-blue" id="downloadLink">here</a>.
+                    </span>
                 </div>
             </div>
         </div>
-        <div class="flex items-end justify-end pb-3 pr-3" style="height:10%">
-            <label class="text-gray-400 pr-3 pt-1">DarkMode</label>
+        <div class="footer flex items-end justify-end pb-3 pr-3 h-5">
+            <label class="text-gray pr-3 pt-1">DarkMode</label>
             <label class="switch">
-                <input type="checkbox" id="enableDarkMode" name="enableDarkMode" checked onclick="setTheme()">
+                <input type="checkbox" id="enableDarkMode" name="enableDarkMode" checked onclick="setTheme()" />
                 <span class="slider round"></span>
             </label>
         </div>
@@ -70,5 +66,4 @@
     <script src="/static/scripts/video.min.js"></script>
     <script src="/static/scripts/Youtube.min.js"></script>
 </body>
-
 </html>

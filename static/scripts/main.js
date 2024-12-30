@@ -42,25 +42,41 @@ async function fetchAndPopulateFormats(url) {
       if (!response.ok) {
           throw new Error(await response.text());
       }
+
       const formats = await response.json();
-      
-      const uniqueFormats = [];
-      const seenLabels = new Set();
-      dropdown.innerHTML = ""; 
-     formats.forEach((format) => {
-      const label = `${format.label} (${format.extension}, ${format.codec}, ${format.bitrate}kbps)`;
-      if (!seenLabels.has(label)) {
-          seenLabels.add(label);
-          uniqueFormats.push(format);
+      dropdown.innerHTML = ""; // Clear existing options
+
+      // Separate formats into groups
+      const audioFormats = formats.filter(format => format.formatType === "audio only");
+      const videoFormats = formats.filter(format => format.formatType === "video only");
+      const audioVideoFormats = formats.filter(format => format.formatType === "audio and video");
+
+      // Function to create an optgroup with options
+      function createOptGroup(label, formats) {
+          const group = document.createElement("optgroup");
+          group.label = label;
+
+          formats.forEach(format => {
+              const option = document.createElement("option");
+              option.value = format.id;
+              const typeInfo = ` (${format.formatType})`;
+              option.textContent = `${format.label} (${format.extension}, ${format.codec}, ${format.bitrate || 'N/A'})${typeInfo}`;
+              group.appendChild(option);
+          });
+
+          return group;
       }
-  });
-  
-  uniqueFormats.forEach((format) => {
-      const option = document.createElement("option");
-      option.value = format.id;
-      option.textContent = `${format.label} (${format.extension}, ${format.codec}, ${format.bitrate}kbps)`;
-      dropdown.appendChild(option);
-  });
+
+      // Append groups only if they have items
+      if (audioFormats.length > 0) {
+          dropdown.appendChild(createOptGroup("Audio Only", audioFormats));
+      }
+      if (videoFormats.length > 0) {
+          dropdown.appendChild(createOptGroup("Video Only", videoFormats));
+      }
+      if (audioVideoFormats.length > 0) {
+          dropdown.appendChild(createOptGroup("Audio and Video", audioVideoFormats));
+      }
 
       dropdown.disabled = false;
   } catch (err) {
@@ -96,11 +112,12 @@ const onClipButtonClick = async () => {
 
   const url = window.location.href + "api/v1/clip";
   const youtubeUrl = getUrlInput();
-  let from = document.getElementById("from").value;
-  let to = document.getElementById("to").value;
+  const from = document.getElementById("from").value;
+  const to = document.getElementById("to").value;
+  const format = document.getElementById("formatSelect").value; // Get selected format
 
-  if (url === "" || from === "" || to === "") {
-    toastr.error("Please provide a URL and both timestamps.", "Invalid Input");
+  if (url === "" || from === "" || to === "" || format === "") {
+    toastr.error("Please provide a URL, both timestamps, and a format.", "Invalid Input");
     enableClipButton();
     return;
   }
@@ -140,6 +157,7 @@ const onClipButtonClick = async () => {
       url: youtubeUrl,
       from: from,
       to: to,
+      format: format, // Include selected format in the payload
     });
 
     const headers = {
@@ -171,6 +189,7 @@ const onClipButtonClick = async () => {
     enableClipButton();
   }
 };
+
 
 const getJobStatus = async (jobId) => {
   const url = window.location.href + "api/v1/jobs/status?jobId=" + jobId;

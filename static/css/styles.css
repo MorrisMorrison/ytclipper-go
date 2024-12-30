@@ -1,4 +1,4 @@
-/* styles.css */
+/* General Styles */
 body {
     height: 100%;
     width: 100%;
@@ -7,53 +7,81 @@ body {
 }
 
 body.dark {
-    background-color: #2d3748; /* dark:bg-gray-800 */
-    color: #cbd5e0; /* dark:text-gray-400 */
+    background-color: #2d3748; /* Dark background */
+    color: #cbd5e0; /* Light text for dark mode */
 }
 
 h1 {
-    color: #38a169; /* text-green-500 */
-    font-size: 1.875rem;
+    color: #38a169; /* Green text */
+    font-size: 1.875rem; /* Title size */
     padding-bottom: 0.75rem;
 }
 
-input {
-    height: 2.5rem; /* h-10 */
-    width: 100%;
-    margin: 0 0.625rem 0 0; /* mr-5, rl-5 */
-    padding: 0.5rem;
+/* Input Fields and Select */
+input, select {
+    height: 2.5rem; /* Input height */
+    width: 100%; /* Full width */
+    padding: 0.5rem; /* Inner padding */
     background-color: white;
     color: black;
-    border: 1px solid #e2e8f0;
+    border: 1px solid transparent; /* Default border removed */
+    border-radius: 0.375rem; /* Rounded corners */
+    outline: none; /* Remove outline */
 }
 
-input.dark {
-    background-color: #2d3748; /* dark:bg-gray-800 */
-    color: #cbd5e0; /* dark:text-gray-400 */
+input.dark, select.dark {
+    background-color: #2d3748; /* Dark background for inputs */
+    color: #cbd5e0; /* Light text color */
+    border: 1px solid #4a5568; /* Subtle border for dark mode */
 }
 
+input:focus, select:focus {
+    border: 1px solid #38a169; /* Green border on focus */
+    outline: none;
+}
+
+input.dark:focus, select.dark:focus {
+    border: 1px solid #38a169; /* Green focus border for dark mode */
+}
+
+/* Buttons */
 button {
-    background-color: #38a169; /* bg-green-500 */
-    color: white;
-    padding: 0.75rem;
-    border-radius: 0.375rem;
-    text-align: center;
-    cursor: pointer;
+    background-color: #38a169; /* Green background */
+    color: white; /* White text */
+    padding: 0.75rem; /* Padding */
+    border-radius: 0.375rem; /* Rounded corners */
+    border: none; /* Remove border */
+    text-align: center; /* Center text */
+    cursor: pointer; /* Pointer cursor */
+}
+
+button:focus {
+    outline: none; /* Remove focus outline */
+    box-shadow: 0 0 3px 2px #38a169; /* Green focus shadow */
 }
 
 button:hover {
-    background-color: #2f855a; /* Darker green for hover */
+    background-color: #2f855a; /* Darker green on hover */
 }
 
+#main{
+    height: 100%;
+    width: 100%;
+}
+
+/* Progress Bar */
 .progress-bar-custom {
     height: 1rem;
-    background-color: #38a169; /* bg-green-500 */
+    background-color: #38a169; /* Green progress bar */
 }
 
+/* Hidden Elements */
 .hidden {
-    display: none;
+    display: none !important; /* Ensure it overrides any conflicting styles */
+    visibility: hidden; /* Make sure it's invisible */
 }
 
+/* Flexbox Utilities */
 .flex {
     display: flex;
 }
@@ -78,6 +106,132 @@ button:hover {
     justify-content: flex-end;
 }
 
+/* Rounded Corners */
 .rounded-lg {
     border-radius: 0.375rem;
+}
+
+.mr-3{
+    margin-right: 0.75rem;
+}
+/* Padding Utilities */
+.pt-1 {
+    padding-top: 0.25rem;
+}
+
+.pt-3 {
+    padding-top: 0.75rem;
+}
+
+.pt-5 {
+    padding-top: 1.25rem;
+}
+
+.pb-1 {
+    padding-bottom: 0.25rem;
+}
+
+.pb-3 {
+    padding-bottom: 0.75rem;
+}
+
+.pb-5 {
+    padding-bottom: 1.25rem;
+}
+
+/* Margin Utilities */
+.mr-5 {
+    margin-right: 1.25rem;
+}
+
+.h-5{
+    height: 5%;
+}
+
+.h-10{
+    height: 10%;
+}
+
+.h-90{
+    height: 90%;
+}
+
+.footer{
+    width:95%;
+    display: flex;
+    align-items: center; 
+}
+
+.footer label {
+    margin-right: 8px; /* Add space between the label and slider */
+}
+
+.w-100{
+    width: 100%;
+}
+
+
+/* Colors */
+.text-gray {
+    color: #718096; /* Gray-600 */
+}
+
+.text-blue {
+    color: #4299e1; /* Blue-500 */
+    text-decoration: none;
+}
+
+.text-blue:hover {
+    text-decoration: underline;
+}
+
+/* Format Wrapper */
+.format-wrapper {
+    padding: 8px;
+}
+
+/* Dark Mode Toggle */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 34px;
+    height: 20px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    border-radius: 20px;
+    transition: 0.4s;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    border-radius: 50%;
+    background-color: white;
+    bottom: 3px;
+    left: 3px;
+    transition: 0.4s;
+}
+
+input:checked + .slider {
+    background-color: #38a169; /* Green for active state */
+}
+
+input:checked + .slider:before {
+    transform: translateX(14px); /* Move slider to the right */
 }
