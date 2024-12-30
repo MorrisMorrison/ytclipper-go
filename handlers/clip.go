@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"ytclipper-go/jobs"
 
@@ -41,7 +42,7 @@ func CreateClip(c echo.Context) error {
     if err := c.Bind(form); err != nil {
         return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid input"})
     }
-    
+
 	if !isValidYoutubeUrl(form.Url) {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid YouTube URL"})
 	}
@@ -88,7 +89,7 @@ func ProcessClip(jobID string, url string, from string, to string, selectedForma
     job.Status = jobs.StatusProcessing
     jobs.JobsLock.Unlock()
 
-    outputPath := fmt.Sprintf("./videos/%s_clip.mp4", jobID)
+    outputPath := filepath.Join("./videos", fmt.Sprintf("%s_clip.mp4", filepath.Base(jobID)))
     
     cmdArgs := []string{
         "-o", outputPath,

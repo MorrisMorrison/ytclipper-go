@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"time"
 	"ytclipper-go/routes"
 	"ytclipper-go/utils"
 
@@ -43,6 +44,16 @@ func setupEcho(){
     log.Printf("Starting server on port %s", port)
 
     e.Use(middleware.Logger())
+	limiterStore := middleware.NewRateLimiterMemoryStoreWithConfig(middleware.RateLimiterMemoryStoreConfig{
+		Rate:      5,              
+		Burst:     20,               
+		ExpiresIn: 1 * time.Minute, 
+	})
+
+	e.Use(middleware.RateLimiterWithConfig(middleware.RateLimiterConfig{
+		Skipper: middleware.DefaultSkipper, 
+		Store:   limiterStore,
+	}))
 
     e.Logger.Fatal(e.Start(":" + port))
 }
