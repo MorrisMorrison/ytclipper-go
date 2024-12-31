@@ -49,6 +49,10 @@ Build and run the application in a Docker container:
 To build the application:
 `make build`
 
+### Tests
+To run tests
+`make test`
+
 ### Configuration
 
 The application can be configured using the following environment variables:
