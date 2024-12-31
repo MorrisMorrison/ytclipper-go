@@ -26,27 +26,27 @@ func ToSeconds(duration string) (int, error) {
 			return 0, fmt.Errorf("invalid hours value: %v", err)
 		}
 		minutes, err := strconv.Atoi(parts[1])
-		if err != nil {
+		if err != nil || minutes >= 60 {
 			return 0, fmt.Errorf("invalid minutes value: %v", err)
 		}
 		seconds, err := strconv.Atoi(parts[2])
-		if err != nil {
+		if err != nil || seconds >= 60 {
 			return 0, fmt.Errorf("invalid seconds value: %v", err)
 		}
 		totalSeconds = hours*3600 + minutes*60 + seconds
 	} else if len(parts) == 2 {
 		minutes, err := strconv.Atoi(parts[0])
-		if err != nil {
+		if err != nil || minutes >= 60 {
 			return 0, fmt.Errorf("invalid minutes value: %v", err)
 		}
 		seconds, err := strconv.Atoi(parts[1])
-		if err != nil {
+		if err != nil || seconds >= 60 {
 			return 0, fmt.Errorf("invalid seconds value: %v", err)
 		}
 		totalSeconds = minutes*60 + seconds
 	} else if len(parts) == 1 {
-		seconds, err := strconv.Atoi(parts[0]) 
-		if err != nil {
+		seconds, err := strconv.Atoi(parts[0])
+		if err != nil || seconds >= 60 {
 			return 0, fmt.Errorf("invalid seconds value: %v", err)
 		}
 		totalSeconds = seconds
@@ -56,4 +56,5 @@ func ToSeconds(duration string) (int, error) {
 
 	return totalSeconds, nil
 }
+
 
