@@ -1,6 +1,3 @@
-
-markdown
-Copy code
 # ytclipper-go
 
 A simple web application to create clips from YouTube videos and download them. This is the Go version of [ytclipper](https://github.com/MorrisMorrison/ytclipper).
