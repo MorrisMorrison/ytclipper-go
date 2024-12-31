@@ -2,7 +2,6 @@ package videoprocessing
 
 import (
 	"fmt"
-	"log"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -36,8 +35,6 @@ func ProcessClip(jobID string, url string, from string, to string, selectedForma
     jobs.StartJob(jobID)
 
     outputPath := filepath.Join(videoOutputDir, fmt.Sprintf("%s%s", filepath.Base(jobID),videoNameSuffix))
-    log.Println(outputPath)
-    log.Println(config.CONFIG.ClipSizeInMb)
     output, err := DownloadAndCutVideo(outputPath, selectedFormat, config.CONFIG.ClipSizeInMb, from, to, url)
     if err != nil {
         jobs.FailJob(jobID, fmt.Sprintf("Failed to download video: %s", string(output)))
@@ -60,17 +57,17 @@ func GetAvailableFormats(url string) ([]map[string]string, error){
 
 func GetVideoDuration(url string) (string, error) {
 	cmdArgs := []string{
-        "--get-duration",
-        "--no-warnings", 
-        url,
-    }
-    cmd := exec.Command("yt-dlp", cmdArgs...)
-    output, err := cmd.CombinedOutput()
+		"--get-duration",
+		"--no-warnings",
+		url,
+	}
+	cmd := execCommand("yt-dlp", cmdArgs...)
+	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", err
 	}
 
-	duration:= ExtractDuration(string(output))
+	duration := ExtractDuration(string(output))
 	return duration, nil
 }
 

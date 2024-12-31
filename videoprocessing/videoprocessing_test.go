@@ -94,3 +94,37 @@ func TestDownloadAndCutVideo(t *testing.T) {
 		t.Errorf("Expected command args: %v, but got: %v", expectedArgs, capturedArgs)
 	}
 }
+
+func TestGetVideoDuration(t *testing.T) {
+	originalExecCommand := execCommand
+	defer func() { execCommand = originalExecCommand }()
+
+	var capturedArgs []string
+	execCommand = func(name string, arg ...string) *exec.Cmd {
+		capturedArgs = append([]string{name}, arg...)
+		return exec.Command("echo", "00:03:45") 
+	}
+
+	url := "https://www.youtube.com/watch?v=example"
+
+	duration, err := GetVideoDuration(url)
+	if err != nil {
+		t.Errorf("Expected no error, but got: %v", err)
+	}
+
+	expectedDuration := "00:03:45"
+	if duration != expectedDuration {
+		t.Errorf("Expected duration: %s, but got: %s", expectedDuration, duration)
+	}
+
+	expectedArgs := []string{
+		"yt-dlp",
+		"--get-duration",
+		"--no-warnings",
+		url,
+	}
+
+	if !reflect.DeepEqual(capturedArgs, expectedArgs) {
+		t.Errorf("Expected command args: %v, but got: %v", expectedArgs, capturedArgs)
+	}
+}
