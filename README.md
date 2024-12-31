@@ -68,12 +68,9 @@ The application can be configured using the following environment variables:
 ---
 
 ## TODO
-- [ ] fix themes
-- [ ] fix video player
-- [ ] fix progress bar
 - [ ] automatically delete downloaded videos
 - [ ] track created/finished time of jobs
 - [ ] kill suspended jobs after a specified timeout
 - [ ] save clips in correct file format
-- [x] rewrite everything in go
+- [ ] add workerpool
 
