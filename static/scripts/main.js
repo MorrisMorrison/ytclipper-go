@@ -296,15 +296,15 @@ const hideDownloadLink = () =>
   document.getElementById("downloadLinkWrapper").classList.add("hidden");
 
 const handleDarkMode = () => {
-  const body = document.body; // Target the <body> element
+  const body = document.body;
   if (
     localStorage.theme === "dark" ||
     (!("theme" in localStorage) &&
       window.matchMedia("(prefers-color-scheme: dark)").matches)
   ) {
-    body.classList.add("dark"); // Apply dark mode
+    body.classList.add("dark");
   } else {
-    body.classList.remove("dark"); // Apply light mode
+    body.classList.remove("dark");
   }
 };
 

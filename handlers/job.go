@@ -10,10 +10,7 @@ import (
 func GetJobStatus(c echo.Context) error {
     jobID := c.QueryParam("jobId")
 
-    jobs.JobsLock.Lock()
-    job, exists := jobs.Jobs[jobID]
-    jobs.JobsLock.Unlock()
-
+    job, exists := jobs.GetJobById(jobID)
     if !exists {
         return c.JSON(http.StatusNotFound, map[string]string{"error": "Job not found"})
     }

@@ -10,15 +10,15 @@ const isYoutubeUrlValid = (url) =>
 const isTimestampWithinDuration = (timestamp, duration) =>
   timestamp <= duration;
 const getTimeAsObject = (time) => {
-  const parts = time.split(":").map(Number).reverse(); // Reverse for easier mapping
-  const seconds = parts[0] || 0; // Default to 0 if missing
+  const parts = time.split(":").map(Number).reverse();
+  const seconds = parts[0] || 0; 
   const minutes = parts[1] || 0;
   const hours = parts[2] || 0;
   return { hours, minutes, seconds };
 };
 const normalizeTimeToHHMMSS = (time) => {
   const { hours, minutes, seconds } = getTimeAsObject(time);
-  const pad = (num) => String(num).padStart(2, "0"); // Ensure 2-digit formatting
+  const pad = (num) => String(num).padStart(2, "0"); 
   return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
 };
 

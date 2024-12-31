@@ -1,8 +1,9 @@
 package jobs
 
 import (
-	"fmt"
 	"sync"
+
+	"github.com/google/uuid"
 )
 
 type JobStatus string
@@ -24,24 +25,58 @@ type Job struct {
 var (
     Jobs     = make(map[string]*Job) 
     JobsLock = sync.Mutex{}
-    JobQueue = make(chan string, 100)    
 )
 
-func StartWorkerPool(workerCount int) {
-    for i := 0; i < workerCount; i++ {
-        go worker(i)
+func NewJob() *Job{
+    jobID := uuid.New().String()
+    job := &Job{
+        ID:     jobID,
+        Status: StatusQueued,
+    }
+    JobsLock.Lock()
+    Jobs[job.ID] = job
+    JobsLock.Unlock()
+
+    return job
+}
+
+func UpdateJobStatus(jobID string, status JobStatus){
+    JobsLock.Lock()
+    defer JobsLock.Unlock()
+    job, exists := Jobs[jobID]
+    if exists {
+        job.Status = status
     }
 }
 
-func worker(workerID int) {
-    for jobID := range JobQueue {
-        JobsLock.Lock()
-        _, exists := Jobs[jobID]
-        JobsLock.Unlock()
-
-        if !exists {
-            fmt.Printf("Worker %d: Job %s not found\n", workerID, jobID)
-            continue
-        }
+func FailJob(jobID, errorMsg string) {
+    JobsLock.Lock()
+    defer JobsLock.Unlock()
+    job, exists := Jobs[jobID]
+    if exists {
+        job.Status = StatusError
+        job.Error = errorMsg
     }
+}
+
+func CompleteJob(jobID, filePath string) {
+    JobsLock.Lock()
+    defer JobsLock.Unlock()
+    job, exists := Jobs[jobID]
+    if exists {
+        job.Status = StatusCompleted
+        job.FilePath = filePath
+    }
+}
+
+func StartJob(jobID string){
+    UpdateJobStatus(jobID, StatusProcessing)
+}
+
+func GetJobById(jobId string) (*Job, bool) {
+    JobsLock.Lock()
+    job, exists := Jobs[jobId]
+    JobsLock.Unlock()
+
+    return job, exists;
 }

@@ -48,4 +48,5 @@ Or run as docker container
 - [ ] automatically delete downloaded videos
 - [ ] track created/finished time of jobs
 - [ ] kill suspended jobs after a specified timeout
+- [ ] save clips in correct file format
 - [x] rewrite everything in go

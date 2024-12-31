@@ -2,13 +2,14 @@ package main
 
 import (
 	"log"
-	"os"
 	"time"
+	"ytclipper-go/config"
 	"ytclipper-go/routes"
 	"ytclipper-go/utils"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"golang.org/x/time/rate"
 )
 
 func checkDependencies(){
@@ -27,27 +28,19 @@ func checkDependencies(){
 
 func setupEcho(){
     e := echo.New()
+    appConfig := config.NewConfig()
 
-    e.Debug = true
-
+    e.Debug = appConfig.Debug
 
     e.Static("/static", "static")
-
-    e.Logger.Info("setting up routes ...")
     routes.RegisterRoutes(e)
 
-    port := os.Getenv("PORT")
-    if port == "" {
-        port = "8080"
-    }
-
-    log.Printf("Starting server on port %s", port)
-
+    log.Printf("Starting server on port %s", appConfig.Port)
     e.Use(middleware.Logger())
 	limiterStore := middleware.NewRateLimiterMemoryStoreWithConfig(middleware.RateLimiterMemoryStoreConfig{
-		Rate:      5,              
-		Burst:     20,               
-		ExpiresIn: 1 * time.Minute, 
+		Rate:      rate.Limit(appConfig.RateLimiterConfig.Rate),              
+		Burst:     appConfig.RateLimiterConfig.Burst,               
+		ExpiresIn: time.Duration(appConfig.RateLimiterConfig.ExpiresInMinutes) * time.Minute, 
 	})
 
 	e.Use(middleware.RateLimiterWithConfig(middleware.RateLimiterConfig{
@@ -55,7 +48,7 @@ func setupEcho(){
 		Store:   limiterStore,
 	}))
 
-    e.Logger.Fatal(e.Start(":" + port))
+    e.Logger.Fatal(e.Start(":" + appConfig.Port))
 }
 
 func main() {
