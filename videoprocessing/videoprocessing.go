@@ -14,18 +14,20 @@ import (
 const videoOutputDir = "./videos"
 const videoNameSuffix = "_clip.mp4"
 
-func DownloadAndCutVideo(outputPath string, selectedFormat string, fileSizeLimit int64, from string, to string, url string) ([]byte, error){
-    cmdArgs := []string{
-        "-o", outputPath,
-        "-f", selectedFormat,
-        "-v",
+var execCommand = exec.Command // Wrapper for exec.Command
+
+func DownloadAndCutVideo(outputPath string, selectedFormat string, fileSizeLimit int64, from string, to string, url string) ([]byte, error) {
+	cmdArgs := []string{
+		"-o", outputPath,
+		"-f", selectedFormat,
+		"-v",
 		"--max-filesize", fmt.Sprintf("%d", fileSizeLimit),
-        "--downloader", "ffmpeg",
-        "--downloader-args", fmt.Sprintf("ffmpeg_i:-ss %s -to %s", from, to),
-        url,
-    }
-    cmd := exec.Command("yt-dlp", cmdArgs...)
-    output, err := cmd.CombinedOutput()
+		"--downloader", "ffmpeg",
+		"--downloader-args", fmt.Sprintf("ffmpeg_i:-ss %s -to %s", from, to),
+		url,
+	}
+	cmd := execCommand("yt-dlp", cmdArgs...)
+	output, err := cmd.CombinedOutput()
 
 	return output, err
 }

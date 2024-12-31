@@ -1,6 +1,9 @@
 package videoprocessing
 
 import (
+	"fmt"
+	"os/exec"
+	"reflect"
 	"testing"
 )
 
@@ -54,5 +57,40 @@ func TestExtractBitrate(t *testing.T) {
 				t.Errorf("For input '%s', expected '%s', but got '%s'", test.additional, test.expected, result)
 			}
 		})
+	}
+}
+
+func TestDownloadAndCutVideo(t *testing.T) {
+	originalExecCommand := execCommand
+	defer func() { execCommand = originalExecCommand }()
+
+	var capturedArgs []string
+	execCommand = func(name string, arg ...string) *exec.Cmd {
+		capturedArgs = append([]string{name}, arg...)
+		return exec.Command("echo", "mock") 
+	}
+
+	outputPath := "./videos/test_clip.mp4"
+	selectedFormat := "22"
+	fileSizeLimit := int64(500000000)
+	from := "00:00:30"
+	to := "00:01:00"
+	url := "https://www.youtube.com/watch?v=example"
+
+	_, _ = DownloadAndCutVideo(outputPath, selectedFormat, fileSizeLimit, from, to, url)
+
+	expectedArgs := []string{
+		"yt-dlp",
+		"-o", outputPath,
+		"-f", selectedFormat,
+		"-v",
+		"--max-filesize", fmt.Sprintf("%d", fileSizeLimit),
+		"--downloader", "ffmpeg",
+		"--downloader-args", fmt.Sprintf("ffmpeg_i:-ss %s -to %s", from, to),
+		url,
+	}
+
+	if !reflect.DeepEqual(capturedArgs, expectedArgs) {
+		t.Errorf("Expected command args: %v, but got: %v", expectedArgs, capturedArgs)
 	}
 }
