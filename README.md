@@ -28,6 +28,7 @@ https://github.com/MorrisMorrison/ytclipper/assets/22982151/bc950608-114f-4d10-b
 - yt-dlp
 
 ### Setup
+Run locally
 1. Install the required packages
 `go mod tidy`
 2. Run the app
@@ -37,9 +38,23 @@ Or run as docker container
 `docker build -t ytclipper .`
 `docker run -d -e PORT=8080 -p 8080:8080 ytclipper`
 
+### Build
+`make build`
+
+
 ### Configuration
-- Port can be configured via env variable PORT (default 4001)
-- Max yt-dlp filesize can be configured via env variable MAX_FILE_SIZE_LIMIT_MB (default 500M)
+
+The application can be configured using the following environment variables:
+
+| Environment Variable                         | Description                                            | Default Value  |
+|---------------------------------------------|--------------------------------------------------------|----------------|
+| `YTCLIPPER_PORT`                             | The port on which the application runs.                | `4001`         |
+| `YTCLIPPER_DEBUG`                            | Enable debug mode (true/false).                        | `false`        |
+| `YTCLIPPER_PORT_CLIP_SIZE_LIMIT_IN_MB`       | Maximum clip size (in MB) for yt-dlp.                  | `500`          |
+| `YTCLIPPER_RATE_LIMITER_RATE`                | Rate limiter requests per second.                      | `5`            |
+| `YTCLIPPER_RATE_LIMITER_BURST`               | Maximum number of requests allowed in a burst.         | `20`           |
+| `YTCLIPPER_RATE_LIMITER_EXPIRES_IN_MINUTES`  | Rate limiter token expiration time (in minutes).       | `1`            |
+
 
 ## TODO
 - [ ] fix themes
