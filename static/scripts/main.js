@@ -267,7 +267,7 @@ const disableClipButton = () =>
   (document.getElementById("clipButton").disabled = true);
 
 const showVideoPlayer = () => {
-  const player = videojs("video-player", {
+  const player = videojs("videoPlayer", {
     techOrder: ["youtube"],
     sources: [
       {
@@ -277,12 +277,13 @@ const showVideoPlayer = () => {
     ],
   });
 
-  document.getElementById("video-player-wrapper").classList.remove("hidden");
+  document.getElementById("videoPlayerWrapper").classList.remove("hidden");
 };
+
 const hideVideoPlayer = () =>
-  document.getElementById("video-player").classList.add("hidden");
+  document.getElementById("videoPlayerWrapper").classList.add("hidden");
 const isVideoPlayerVisible = () =>
-  !document.getElementById("video-player").classList.contains("hidden");
+  !document.getElementById("videoPlayerWrapper").classList.contains("hidden");
 
 const showDownloadLink = (downloadUrl) => {
   const downloadLinkUrlWrapper = document.getElementById("downloadLinkWrapper");
@@ -290,6 +291,7 @@ const showDownloadLink = (downloadUrl) => {
   downloadLink.setAttribute("href", downloadUrl);
   downloadLinkUrlWrapper.classList.remove("hidden");
 };
+
 const hideDownloadLink = () =>
   document.getElementById("downloadLinkWrapper").classList.add("hidden");
 
@@ -305,7 +307,6 @@ const handleDarkMode = () => {
     body.classList.remove("dark"); // Apply light mode
   }
 };
-
 
 const setTheme = () => {
   localStorage.theme = localStorage.theme === "dark" ? "light" : "dark";
