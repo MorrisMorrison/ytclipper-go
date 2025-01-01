@@ -1,5 +1,4 @@
-import { normalizeTimeToHHMMSS } from './utils.js';
-
+import { hideProgressBar, enableClipButton, showDownloadLink } from './ui.js';
 export async function fetchAndPopulateFormats(url, dropdown) {
     dropdown.disabled = true;
     dropdown.innerHTML = '<option value="">Loading formats...</option>';
@@ -45,3 +44,47 @@ function populateDropdown(formats, dropdown) {
     }
     dropdown.disabled = false;
 }
+
+export async function getJobStatus(jobId){
+  const url = window.location.href + "api/v1/jobs/status?jobId=" + jobId;
+  try {
+    const res = await fetch(url, { method: "GET" });
+    switch (res.status) {
+      case 200:
+        const result = await res.text();
+        hideProgressBar();
+        const downloadUrl = "/api/v1/clip?jobId=" + jobId;
+        showDownloadLink(downloadUrl);
+        window.open(downloadUrl);
+        enableClipButton();
+        break;
+      case 201:
+        setTimeout(() => getJobStatus(jobId), 2000);
+        break;
+      case 408:
+        toastr.error(
+          "The download timed out. Please try again in a few minutes or use the contact form.",
+          "Download Timeout"
+        );
+        enableClipButton();
+        break;
+      case 500:
+        toastr.error(
+          "An error occurred when downloading the clip. Please try again in a few minutes or use the contact form.",
+          "Download Error"
+        );
+        enableClipButton();
+        break;
+      default:
+        toastr.error(
+          "An error occurred when retrieving the job status. Please try again in a few minutes or use the contact form.",
+          "Unknown Error"
+        );
+        enableClipButton();
+        break;
+    }
+  } catch (error) {
+    console.error("CLIENT - GETJOBSTATUS - An error occurred:", error);
+    enableClipButton();
+  }
+};

@@ -11,9 +11,7 @@ import (
 )
 
 const videoOutputDir = "./videos"
-const videoNameSuffix = "_clip.mp4"
-
-var execCommand = exec.Command // Wrapper for exec.Command
+var execCommand = exec.Command 
 
 func DownloadAndCutVideo(outputPath string, selectedFormat string, fileSizeLimit int64, from string, to string, url string) ([]byte, error) {
 	cmdArgs := []string{
@@ -34,7 +32,19 @@ func DownloadAndCutVideo(outputPath string, selectedFormat string, fileSizeLimit
 func ProcessClip(jobID string, url string, from string, to string, selectedFormat string) {
     jobs.StartJob(jobID)
 
-    outputPath := filepath.Join(videoOutputDir, fmt.Sprintf("%s%s", filepath.Base(jobID),videoNameSuffix))
+    availableFormats, err := GetAvailableFormats(url)
+    if err != nil {
+        jobs.FailJob(jobID, fmt.Sprintf("Failed to retrieve formats: %v", err))
+        return
+    }
+
+    fileExtension, err := getFileExtensionFromFormatID(selectedFormat, availableFormats)
+    if err != nil {
+        jobs.FailJob(jobID, fmt.Sprintf("Unsupported format ID: %s", selectedFormat))
+        return
+    }
+
+    outputPath := filepath.Join(videoOutputDir, fmt.Sprintf("%s%s", filepath.Base(jobID), fileExtension))
     output, err := DownloadAndCutVideo(outputPath, selectedFormat, config.CONFIG.ClipSizeInMb, from, to, url)
     if err != nil {
         jobs.FailJob(jobID, fmt.Sprintf("Failed to download video: %s", string(output)))
@@ -42,6 +52,17 @@ func ProcessClip(jobID string, url string, from string, to string, selectedForma
     }
 
     jobs.CompleteJob(jobID, outputPath)
+}
+
+func getFileExtensionFromFormatID(formatID string, formats []map[string]string) (string, error) {
+    for _, format := range formats {
+        if format["id"] == formatID {
+            if ext, exists := format["extension"]; exists {
+                return fmt.Sprintf(".%s", ext), nil
+            }
+        }
+    }
+    return "", fmt.Errorf("format ID not found")
 }
 
 func GetAvailableFormats(url string) ([]map[string]string, error){

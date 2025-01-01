@@ -1,11 +1,10 @@
 import { debounce, isYoutubeUrlValid, isTimeInputValid, normalizeTimeToHHMMSS } from './utils.js';
-import { fetchAndPopulateFormats, getVideoDuration } from './api.js';
-import { disableDropdown, enableDropdown, showProgressBar, hideProgressBar, enableClipButton, disableClipButton } from './ui.js';
+import { fetchAndPopulateFormats, getVideoDuration, getJobStatus } from './api.js';
+import { disableDropdown, showProgressBar, hideProgressBar, enableClipButton, disableClipButton, isVideoPlayerVisible, showVideoPlayer, hideVideoPlayer } from './ui.js';
 
 const onUrlInputChange = debounce(async (event) => {
     const url = event.target.value;
     const dropdown = document.getElementById("formatSelect");
-
     if (!isYoutubeUrlValid(url)) {
         toastr.error("Please enter a valid YouTube URL");
         disableDropdown(dropdown);
@@ -46,14 +45,46 @@ const onClipButtonClick = async () => {
 
         showProgressBar();
         const payload = { url, from: normalizeTimeToHHMMSS(from), to: normalizeTimeToHHMMSS(to), format };
-        await fetch("/api/v1/clip", { method: "POST", body: JSON.stringify(payload), headers: { "Content-Type": "application/json" } });
+        const response = await fetch("/api/v1/clip", { method: "POST", body: JSON.stringify(payload), headers: { "Content-Type": "application/json" } });
+        
+         switch (response.status) {
+      case 201:
+        toastr.success(
+          "The download will pop up automatically. This may take a few seconds.",
+          "Download Started"
+        );
+        showProgressBar();
+        const jobId = await response.text();
+        getJobStatus(jobId);
+        break;
+      case 500:
+        toastr.error("Timestamps are not within video length.");
+        break;
+      default:
+        toastr.error("An unexpected error occurred.");
+        break;
+    }
+        
         toastr.success("Clip processing started.");
     } catch (err) {
         toastr.error("Failed to create clip: " + err.message);
-    } finally {
-        hideProgressBar();
-        enableClipButton();
     }
 };
 
 document.getElementById("clipButton").addEventListener("click", onClipButtonClick);
+
+const onPreviewButtonClick = () => {
+  const url = document.getElementById("url").value;
+  if (!isYoutubeUrlValid(url)) {
+    toastr.error("Please provide a valid YouTube URL.", "Invalid Url");
+    return;
+  }
+  if (isVideoPlayerVisible()) {
+    hideVideoPlayer();
+  } else {
+    showVideoPlayer();
+  }
+};
+
+
+document.getElementById("previewButton").addEventListener("click", onPreviewButtonClick);
