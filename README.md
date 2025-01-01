@@ -80,3 +80,4 @@ The application can be configured using the following environment variables:
 - [ ] save clips in correct file format
 - [ ] add workerpool
 
+[![main](https://github.com/MorrisMorrison/ytclipper-go/actions/workflows/build_prod.yml/badge.svg?branch=main)](https://github.com/MorrisMorrison/ytclipper-go/actions/workflows/build_prod.yml)
