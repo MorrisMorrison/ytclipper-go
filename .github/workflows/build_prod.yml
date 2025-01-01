@@ -29,6 +29,10 @@ jobs:
       run: |
         nohup go run main.go > server.log 2>&1 &
 
-
     - name: Run Build-Prod
       run: make build-prod
+
+    - name: Stop Server
+      run: |
+        pkill -f "go run main.go"
+
