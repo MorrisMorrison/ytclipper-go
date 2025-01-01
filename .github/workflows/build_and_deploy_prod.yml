@@ -36,3 +36,7 @@ jobs:
       run: |
         pkill -f "go run main.go"
 
+    - name: Trigger CapRover Deployment
+      if: success() # Runs only if the build and tests succeed
+      run: |
+        curl -X POST "https://captain.mormor.online/api/v2/user/apps/webhooks/triggerbuild?namespace=captain&token=${{ secrets.CAPROVER_WEBHOOK_TOKEN }}"
