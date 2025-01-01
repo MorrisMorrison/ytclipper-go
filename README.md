@@ -49,9 +49,14 @@ Build and run the application in a Docker container:
 To build the application:
 `make build`
 
+### Build Prod
+To run all tests and build the application for production:
+`make build`
+
 ### Tests
 To run tests
 `make test`
+`make e2e`
 
 ### Configuration
 
