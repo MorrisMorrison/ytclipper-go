@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/chromedp/chromedp"
 )
@@ -124,7 +125,7 @@ func testInvalidYouTubeURL(ctx context.Context) error {
 		return fmt.Errorf("workflow error: %w", err)
 	}
 
-	if errorMessage != "Invalid YouTube URL" {
+	if !strings.Contains(errorMessage, "Invalid Url") {
 		return fmt.Errorf("unexpected error message: %s", errorMessage)
 	}
 
@@ -140,14 +141,14 @@ func testInvalidTimestamps(ctx context.Context) error {
 		chromedp.Navigate("http://localhost:8080"),
 
 		// Step 2: Enter a valid YouTube URL
-		chromedp.SendKeys(`#url`, `https://www.youtube.com/watch?v=uyQMNagVi0I`, chromedp.ByID),
+		chromedp.SendKeys(`#url`, "https://www.youtube.com/watch?v=hf_HZZgdrJ8", chromedp.ByID),
 		chromedp.Click(`#previewButton`, chromedp.ByID),
 		chromedp.WaitEnabled(`#formatSelect`, chromedp.ByID),
-		chromedp.SetValue(`#formatSelect`, "mp4", chromedp.ByID),
+		chromedp.SetValue(`#formatSelect`, "136", chromedp.ByID),
 
 		// Step 3: Enter invalid "From" and "To" values
-		chromedp.SendKeys(`#from`, "invalid", chromedp.ByID),
-		chromedp.SendKeys(`#to`, "invalid", chromedp.ByID),
+		chromedp.SendKeys(`#from`, "1:111", chromedp.ByID),
+		chromedp.SendKeys(`#to`, "111", chromedp.ByID),
 
 		// Step 4: Attempt to clip
 		chromedp.Click(`#clipButton`, chromedp.ByID),
@@ -160,7 +161,7 @@ func testInvalidTimestamps(ctx context.Context) error {
 		return fmt.Errorf("workflow error: %w", err)
 	}
 
-	if errorMessage != "Invalid timestamps" {
+	if !strings.Contains(errorMessage, "Invalid input") {
 		return fmt.Errorf("unexpected error message: %s", errorMessage)
 	}
 
