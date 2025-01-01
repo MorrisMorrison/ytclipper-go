@@ -10,6 +10,30 @@ import (
 	"github.com/chromedp/chromedp"
 )
 
+// Constants for selectors and messages
+const (
+	baseURL                = "http://localhost:8080"
+	urlInputSelector       = `#url`
+	previewButtonSelector  = `#previewButton`
+	formatSelectSelector   = `#formatSelect`
+	fromInputSelector      = `#from`
+	toInputSelector        = `#to`
+	clipButtonSelector     = `#clipButton`
+	downloadLinkWrapperSel = `#downloadLinkWrapper`
+	downloadLinkSelector   = `#downloadLink`
+	errorMessageSelector   = `.toast-error`
+
+	invalidURLMessage       = "Invalid Url"
+	invalidInputMessage     = "Invalid input"
+	validYouTubeURL         = "https://www.youtube.com/watch?v=hf_HZZgdrJ8"
+	invalidYouTubeURL       = "invalid-url"
+	fromInvalidTimestamp    = "1:111"
+	toInvalidTimestamp      = "111"
+	validFromTimestamp      = "20"
+	validToTimestamp        = "40"
+	validFormatValue        = "136"
+)
+
 type Test struct {
 	Name string
 	Run  func(ctx context.Context) error
@@ -56,39 +80,38 @@ func main() {
 	os.Exit(0)
 }
 
-// testBasicWorkflow simulates the workflow of filling inputs and downloading a clip
 func testBasicWorkflow(ctx context.Context) error {
 	var downloadLink string
 
 	err := chromedp.Run(ctx,
 		// Step 1: Navigate to the app
-		chromedp.Navigate("http://localhost:8080"),
+		chromedp.Navigate(baseURL),
 
 		// Step 2: Fill the YouTube URL
-		chromedp.WaitVisible(`#url`, chromedp.ByID),
-		chromedp.SendKeys(`#url`, "https://www.youtube.com/watch?v=hf_HZZgdrJ8", chromedp.ByID),
+		chromedp.WaitVisible(urlInputSelector, chromedp.ByID),
+		chromedp.SendKeys(urlInputSelector, validYouTubeURL, chromedp.ByID),
 
 		// Step 3: Click the preview button to fetch formats
-		chromedp.Click(`#previewButton`, chromedp.ByID),
+		chromedp.Click(previewButtonSelector, chromedp.ByID),
 
 		// Step 4: Wait for the dropdown to be enabled
-		chromedp.WaitEnabled(`#formatSelect`, chromedp.ByID),
+		chromedp.WaitEnabled(formatSelectSelector, chromedp.ByID),
 
 		// Step 5: Select a format (e.g., the first available option)
-		chromedp.SetValue(`#formatSelect`, "136", chromedp.ByID),
+		chromedp.SetValue(formatSelectSelector, validFormatValue, chromedp.ByID),
 
 		// Step 6: Fill the "From" and "To" inputs
-		chromedp.SendKeys(`#from`, "20", chromedp.ByID),
-		chromedp.SendKeys(`#to`, "40", chromedp.ByID),
+		chromedp.SendKeys(fromInputSelector, validFromTimestamp, chromedp.ByID),
+		chromedp.SendKeys(toInputSelector, validToTimestamp, chromedp.ByID),
 
 		// Step 7: Click the "Clip!" button
-		chromedp.Click(`#clipButton`, chromedp.ByID),
+		chromedp.Click(clipButtonSelector, chromedp.ByID),
 
 		// Step 8: Wait for the download link to appear
-		chromedp.WaitVisible(`#downloadLinkWrapper`, chromedp.ByID),
+		chromedp.WaitVisible(downloadLinkWrapperSel, chromedp.ByID),
 
 		// Step 9: Extract the download link text
-		chromedp.AttributeValue(`#downloadLink`, "href", &downloadLink, nil),
+		chromedp.AttributeValue(downloadLinkSelector, "href", &downloadLink, nil),
 	)
 	if err != nil {
 		return fmt.Errorf("workflow error: %w", err)
@@ -108,24 +131,24 @@ func testInvalidYouTubeURL(ctx context.Context) error {
 
 	err := chromedp.Run(ctx,
 		// Step 1: Navigate to the app
-		chromedp.Navigate("http://localhost:8080"),
+		chromedp.Navigate(baseURL),
 
 		// Step 2: Enter an invalid YouTube URL
-		chromedp.WaitVisible(`#url`, chromedp.ByID),
-		chromedp.SendKeys(`#url`, "invalid-url", chromedp.ByID),
+		chromedp.WaitVisible(urlInputSelector, chromedp.ByID),
+		chromedp.SendKeys(urlInputSelector, invalidYouTubeURL, chromedp.ByID),
 
 		// Step 3: Click the preview button
-		chromedp.Click(`#previewButton`, chromedp.ByID),
+		chromedp.Click(previewButtonSelector, chromedp.ByID),
 
 		// Step 4: Check for an error message
-		chromedp.WaitVisible(`.toast-error`, chromedp.ByQuery), // Assuming toastr shows errors
-		chromedp.Text(`.toast-error`, &errorMessage, chromedp.ByQuery),
+		chromedp.WaitVisible(errorMessageSelector, chromedp.ByQuery),
+		chromedp.Text(errorMessageSelector, &errorMessage, chromedp.ByQuery),
 	)
 	if err != nil {
 		return fmt.Errorf("workflow error: %w", err)
 	}
 
-	if !strings.Contains(errorMessage, "Invalid Url") {
+	if !strings.Contains(errorMessage, invalidURLMessage) {
 		return fmt.Errorf("unexpected error message: %s", errorMessage)
 	}
 
@@ -138,30 +161,30 @@ func testInvalidTimestamps(ctx context.Context) error {
 
 	err := chromedp.Run(ctx,
 		// Step 1: Navigate to the app
-		chromedp.Navigate("http://localhost:8080"),
+		chromedp.Navigate(baseURL),
 
 		// Step 2: Enter a valid YouTube URL
-		chromedp.SendKeys(`#url`, "https://www.youtube.com/watch?v=hf_HZZgdrJ8", chromedp.ByID),
-		chromedp.Click(`#previewButton`, chromedp.ByID),
-		chromedp.WaitEnabled(`#formatSelect`, chromedp.ByID),
-		chromedp.SetValue(`#formatSelect`, "136", chromedp.ByID),
+		chromedp.SendKeys(urlInputSelector, validYouTubeURL, chromedp.ByID),
+		chromedp.Click(previewButtonSelector, chromedp.ByID),
+		chromedp.WaitEnabled(formatSelectSelector, chromedp.ByID),
+		chromedp.SetValue(formatSelectSelector, validFormatValue, chromedp.ByID),
 
 		// Step 3: Enter invalid "From" and "To" values
-		chromedp.SendKeys(`#from`, "1:111", chromedp.ByID),
-		chromedp.SendKeys(`#to`, "111", chromedp.ByID),
+		chromedp.SendKeys(fromInputSelector, fromInvalidTimestamp, chromedp.ByID),
+		chromedp.SendKeys(toInputSelector, toInvalidTimestamp, chromedp.ByID),
 
 		// Step 4: Attempt to clip
-		chromedp.Click(`#clipButton`, chromedp.ByID),
+		chromedp.Click(clipButtonSelector, chromedp.ByID),
 
 		// Step 5: Check for error message
-		chromedp.WaitVisible(`.toast-error`, chromedp.ByQuery),
-		chromedp.Text(`.toast-error`, &errorMessage, chromedp.ByQuery),
+		chromedp.WaitVisible(errorMessageSelector, chromedp.ByQuery),
+		chromedp.Text(errorMessageSelector, &errorMessage, chromedp.ByQuery),
 	)
 	if err != nil {
 		return fmt.Errorf("workflow error: %w", err)
 	}
 
-	if !strings.Contains(errorMessage, "Invalid input") {
+	if !strings.Contains(errorMessage, invalidInputMessage) {
 		return fmt.Errorf("unexpected error message: %s", errorMessage)
 	}
 
