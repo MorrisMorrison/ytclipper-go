@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/chromedp/chromedp"
 )
@@ -55,12 +56,13 @@ func main() {
 		},
 	}
 
-	ctx, cancel := chromedp.NewContext(context.Background())
-	defer cancel()
+
 
 	var failedTests int
 
 	for _, test := range tests {
+		ctx, cancel := chromedp.NewContext(context.Background())
+		defer cancel()
 		log.Printf("Running test: %s", test.Name)
 		err := test.Run(ctx)
 		if err != nil {
@@ -157,37 +159,44 @@ func testInvalidYouTubeURL(ctx context.Context) error {
 }
 
 func testInvalidTimestamps(ctx context.Context) error {
-	var errorMessage string
+    var errorMessage string
 
-	err := chromedp.Run(ctx,
-		// Step 1: Navigate to the app
-		chromedp.Navigate(baseURL),
+    // Set a timeout for the test
+    testCtx, testCancel := context.WithTimeout(ctx, 10*time.Second)
+    defer testCancel()
 
-		// Step 2: Enter a valid YouTube URL
-		chromedp.SendKeys(urlInputSelector, validYouTubeURL, chromedp.ByID),
-		chromedp.Click(previewButtonSelector, chromedp.ByID),
-		chromedp.WaitEnabled(formatSelectSelector, chromedp.ByID),
-		chromedp.SetValue(formatSelectSelector, validFormatValue, chromedp.ByID),
+    err := chromedp.Run(testCtx,
+        // Step 1: Navigate to the app
+        chromedp.Navigate(baseURL),
 
-		// Step 3: Enter invalid "From" and "To" values
-		chromedp.SendKeys(fromInputSelector, fromInvalidTimestamp, chromedp.ByID),
-		chromedp.SendKeys(toInputSelector, toInvalidTimestamp, chromedp.ByID),
+        // Step 2: Enter a valid YouTube URL
+        chromedp.SendKeys(urlInputSelector, validYouTubeURL, chromedp.ByID),
+        chromedp.Click(previewButtonSelector, chromedp.ByID),
+        chromedp.WaitEnabled(formatSelectSelector, chromedp.ByID),
+        chromedp.SetValue(formatSelectSelector, validFormatValue, chromedp.ByID),
 
-		// Step 4: Attempt to clip
-		chromedp.Click(clipButtonSelector, chromedp.ByID),
+        // Step 3: Enter invalid "From" and "To" values
+        chromedp.SendKeys(fromInputSelector, fromInvalidTimestamp, chromedp.ByID),
+        chromedp.SendKeys(toInputSelector, toInvalidTimestamp, chromedp.ByID),
 
-		// Step 5: Check for error message
-		chromedp.WaitVisible(errorMessageSelector, chromedp.ByQuery),
-		chromedp.Text(errorMessageSelector, &errorMessage, chromedp.ByQuery),
-	)
-	if err != nil {
-		return fmt.Errorf("workflow error: %w", err)
-	}
+        // Step 4: Attempt to clip
+        chromedp.Click(clipButtonSelector, chromedp.ByID),
 
-	if !strings.Contains(errorMessage, invalidInputMessage) {
-		return fmt.Errorf("unexpected error message: %s", errorMessage)
-	}
+        // Step 5: Check for error message
+        chromedp.WaitVisible(errorMessageSelector, chromedp.ByQuery),
+        chromedp.Text(errorMessageSelector, &errorMessage, chromedp.ByQuery),
+    )
+    if err != nil {
+        if testCtx.Err() == context.DeadlineExceeded {
+            return fmt.Errorf("test timed out")
+        }
+        return fmt.Errorf("workflow error: %w", err)
+    }
 
-	log.Printf("Invalid timestamps test passed")
-	return nil
+    if !strings.Contains(errorMessage, invalidInputMessage) {
+        return fmt.Errorf("unexpected error message: %s", errorMessage)
+    }
+
+    log.Printf("Invalid timestamps test passed")
+    return nil
 }

@@ -31,7 +31,7 @@ jobs:
 
     - name: Run Build-Prod
       run: make build-prod
-      timeout-minutes: 5
+      timeout-minutes: 3
 
     - name: Stop Server
       run: |
