@@ -11,7 +11,6 @@ import (
 	"github.com/chromedp/chromedp"
 )
 
-// Constants for selectors and messages
 const (
 	baseURL                = "http://localhost:8080"
 	urlInputSelector       = `#url`
@@ -28,7 +27,7 @@ const (
 	invalidInputMessage     = "Invalid input"
 	validYouTubeURL         = "https://www.youtube.com/watch?v=hf_HZZgdrJ8"
 	invalidYouTubeURL       = "invalid-url"
-	fromInvalidTimestamp    = "1:111"
+	fromInvalidTimestamp    = "1231:111"
 	toInvalidTimestamp      = "111"
 	validFromTimestamp      = "20"
 	validToTimestamp        = "40"
@@ -51,18 +50,21 @@ func main() {
 			Run:  testInvalidTimestamps,
 		},
 		{
+			Name: "Dark Mode Test",
+			Run:  testDarkModeToggle,
+		},
+		{
 			Name: "Basic Workflow Test",
 			Run:  testBasicWorkflow,
 		},
 	}
 
-
-
 	var failedTests int
+	ctx, cancel := chromedp.NewContext(context.Background())
+	defer cancel()
 
 	for _, test := range tests {
-		ctx, cancel := chromedp.NewContext(context.Background())
-		defer cancel()
+
 		log.Printf("Running test: %s", test.Name)
 		err := test.Run(ctx)
 		if err != nil {
@@ -161,7 +163,6 @@ func testInvalidYouTubeURL(ctx context.Context) error {
 func testInvalidTimestamps(ctx context.Context) error {
     var errorMessage string
 
-    // Set a timeout for the test
     testCtx, testCancel := context.WithTimeout(ctx, 10*time.Second)
     defer testCancel()
 
@@ -198,5 +199,46 @@ func testInvalidTimestamps(ctx context.Context) error {
     }
 
     log.Printf("Invalid timestamps test passed")
+    return nil
+}
+
+
+func testDarkModeToggle(ctx context.Context) error {
+    var initialClass, toggledClass string
+    var initialBackgroundColor, toggledBackgroundColor string
+
+    err := chromedp.Run(ctx,
+        // Step 1: Navigate to the app
+        chromedp.Navigate(baseURL),
+
+        // Step 2: Get the initial class of the <body> element
+        chromedp.AttributeValue(`body`, "class", &initialClass, nil),
+
+        // Step 3: Get the initial background color
+        chromedp.Evaluate(`window.getComputedStyle(document.body).backgroundColor`, &initialBackgroundColor),
+
+        // Step 4: Toggle the dark mode slider
+        chromedp.Click(`#themeSlider`, chromedp.ByID),
+
+        // Step 5: Get the toggled class of the <body> element
+        chromedp.AttributeValue(`body`, "class", &toggledClass, nil),
+
+        // Step 6: Get the toggled background color
+        chromedp.Evaluate(`window.getComputedStyle(document.body).backgroundColor`, &toggledBackgroundColor),
+    )
+    if err != nil {
+        return fmt.Errorf("workflow error: %w", err)
+    }
+
+    if initialClass == toggledClass {
+        return fmt.Errorf("dark mode toggle did not update the body class: initial=%s, toggled=%s", initialClass, toggledClass)
+    }
+
+    if initialBackgroundColor == toggledBackgroundColor {
+        return fmt.Errorf("dark mode toggle did not change the background color: initial=%s, toggled=%s", initialBackgroundColor, toggledBackgroundColor)
+    }
+
+    log.Printf("Dark mode toggle test passed: class changed from '%s' to '%s', background color changed from '%s' to '%s'",
+        initialClass, toggledClass, initialBackgroundColor, toggledBackgroundColor)
     return nil
 }
