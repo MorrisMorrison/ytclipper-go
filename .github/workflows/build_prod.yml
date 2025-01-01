@@ -24,9 +24,11 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y make python3 python3-pip ffmpeg
         pip install yt-dlp
-        
+
     - name: Start Server
-      run: go run main.go
+      run: |
+        nohup go run main.go > server.log 2>&1 &
+
 
     - name: Run Build-Prod
       run: make build-prod
