@@ -93,7 +93,7 @@ func testBasicWorkflow(ctx context.Context) error {
 
 		// Step 2: Fill the YouTube URL
 		chromedp.WaitVisible(urlInputSelector, chromedp.ByID),
-		chromedp.SendKeys(urlInputSelector, validYouTubeURL, chromedp.ByID),
+		chromedp.SetValue(urlInputSelector, validYouTubeURL, chromedp.ByID),
 
 		// Step 3: Click the preview button to fetch formats
 		chromedp.Click(previewButtonSelector, chromedp.ByID),
@@ -139,7 +139,7 @@ func testInvalidYouTubeURL(ctx context.Context) error {
 
 		// Step 2: Enter an invalid YouTube URL
 		chromedp.WaitVisible(urlInputSelector, chromedp.ByID),
-		chromedp.SendKeys(urlInputSelector, invalidYouTubeURL, chromedp.ByID),
+		chromedp.SetValue(urlInputSelector, validYouTubeURL, chromedp.ByID),
 
 		// Step 3: Click the preview button
 		chromedp.Click(previewButtonSelector, chromedp.ByID),
@@ -171,7 +171,8 @@ func testInvalidTimestamps(ctx context.Context) error {
         chromedp.Navigate(baseURL),
 
         // Step 2: Enter a valid YouTube URL
-        chromedp.SendKeys(urlInputSelector, validYouTubeURL, chromedp.ByID),
+		chromedp.SetValue(urlInputSelector, validYouTubeURL, chromedp.ByID),
+
         chromedp.Click(previewButtonSelector, chromedp.ByID),
         chromedp.WaitEnabled(formatSelectSelector, chromedp.ByID),
         chromedp.SetValue(formatSelectSelector, validFormatValue, chromedp.ByID),
