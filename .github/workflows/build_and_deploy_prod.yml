@@ -25,8 +25,7 @@ jobs:
           sudo apt-get install -y make python3 python3-pip ffmpeg google-chrome-stable
           python3 -m pip install --upgrade pip
           python3 -m pip install --upgrade yt-dlp
-          go mod tidy
-      
+          go mod tidy      
 
     - name: Verify Dependencies
       run: |
@@ -35,9 +34,8 @@ jobs:
         which google-chrome && google-chrome --version
         go version
 
-    - name: Fetch Video Formats with yt-dlp
-      run: |
-        yt-dlp -F https://www.youtube.com/watch?v=hf_HZZgdrJ8
+    - name: Test YouTube Accessibility
+      run: curl -I https://www.youtube.com
 
 
     - name: Start Server
