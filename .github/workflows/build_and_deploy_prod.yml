@@ -26,13 +26,25 @@ jobs:
         sudo apt-get clean
         go mod tidy
 
+    - name: Verify Dependencies
+      run: |
+        which ffmpeg && ffmpeg -version
+        which yt-dlp && yt-dlp --version
+        go version
+
     - name: Start Server
       run: |
         nohup go run main.go > server.log 2>&1 &
 
+    - name: Wait for Server
+      run: |
+        for i in {1..10}; do
+        curl -s http://localhost:8080 && break || sleep 3
+        done
+
     - name: Run Build-Prod
       run: make build-prod
-      timeout-minutes: 10 
+      timeout-minutes: 3 
 
     - name: Stop Server
       run: |
