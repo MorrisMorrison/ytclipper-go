@@ -22,23 +22,21 @@ jobs:
 
     - name: Install Dependencies
       run: |
-          sudo apt-get update
-          sudo apt-get install -y make python3 python3-pip ffmpeg google-chrome-stable
-          python3 -m pip install --upgrade yt-dlp
-          go mod tidy    
-          
-    - name: Install Dependencies for HTTPS Proxy
-      run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip install requests curl_cffi
+        sudo apt-get update
+        sudo apt-get install -y make python3 python3-pip ffmpeg google-chrome-stable
+        python3 -m pip install --upgrade pip yt-dlp requests curl_cffi
+        go mod tidy
+
+    - name: Debug Proxy Environment Variable
+      run: echo "Proxy set to $YTCLIPPER_YT_DLP_PROXY"
 
     - name: Verify Dependencies
       run: |
         which ffmpeg && ffmpeg -version
         which yt-dlp && yt-dlp --version
         which google-chrome && google-chrome --version
-        yt-dlp --version
         python3 -m pip show requests curl_cffi
+        yt-dlp --proxy ${{ secrets.YTDLP_PROXY_URL }} https://www.youtube.com/watch?v=dQw4w9WgXcQ --simulate
         go version
 
     - name: Test YouTube Accessibility
