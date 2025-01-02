@@ -47,6 +47,10 @@ jobs:
         for i in {1..20}; do
         curl -s http://localhost:8080/health && break || sleep 3
         done
+        
+    - name: Output Server Logs
+      if: always()
+      run: cat server.log
 
     - name: Run E2E Tests
       run: go run -v test/e2e.go
