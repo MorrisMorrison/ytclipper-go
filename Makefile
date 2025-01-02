@@ -12,4 +12,4 @@ e2e:
 build: download-static
 	go build -o ./ytclipper main.go
 
-build-prod: download-static test e2e build
+build-prod: test e2e build

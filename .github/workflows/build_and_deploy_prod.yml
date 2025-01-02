@@ -30,7 +30,7 @@ jobs:
         nohup go run main.go > server.log 2>&1 &
 
     - name: Run Build-Prod
-      run: make build-prod
+      run: go mod tidy && make build-prod
       timeout-minutes: 10 
 
     - name: Stop Server
