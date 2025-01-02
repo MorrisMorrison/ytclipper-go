@@ -16,7 +16,6 @@ import (
 const videoOutputDir = "./videos"
 var execCommand = exec.Command 
 
-
 func DownloadAndCutVideo(outputPath string, selectedFormat string, fileSizeLimit int64, from string, to string, url string) ([]byte, error) {
 	cmdArgs := []string{
 		"-o", outputPath,
@@ -27,6 +26,11 @@ func DownloadAndCutVideo(outputPath string, selectedFormat string, fileSizeLimit
 		"--downloader-args", fmt.Sprintf("ffmpeg_i:-ss %s -to %s", from, to),
 		url,
 	}
+
+	if config.CONFIG.YtDlp != "" {
+        	log.Printf("Using proxy: %s", config.CONFIG.YtDlp)
+        	cmdArgs = append([]string{"--proxy", config.CONFIG.YtDlp}, cmdArgs...)
+    	}
 
 	cmd := execCommand("yt-dlp", cmdArgs...)
 	output, err := cmd.CombinedOutput()
@@ -75,6 +79,11 @@ func GetAvailableFormats(url string) ([]map[string]string, error) {
 
     cmdArgs := []string{"-F", url}
 
+    if config.CONFIG.YtDlp != "" {
+        log.Printf("Using proxy: %s", config.CONFIG.YtDlp)
+        cmdArgs = append([]string{"--proxy", config.CONFIG.YtDlp}, cmdArgs...)
+    }
+
     ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
     defer cancel()
     cmd := exec.CommandContext(ctx, "yt-dlp", cmdArgs...)
@@ -89,6 +98,7 @@ func GetAvailableFormats(url string) ([]map[string]string, error) {
     log.Printf("yt-dlp command succeeded. Output:\n%s", output)
     return parseFormats(string(output)), nil
 }
+
 
 
 func GetVideoDuration(url string) (string, error) {
