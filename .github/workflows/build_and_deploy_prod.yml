@@ -18,7 +18,7 @@ jobs:
     - name: Set Up Go
       uses: actions/setup-go@v4
       with:
-        go-version: 1.23
+        go-version: stable
 
     - name: Setup yt-dlp
       uses: AnimMouse/setup-yt-dlp@v3
@@ -51,7 +51,7 @@ jobs:
 
     - name: Wait for Server
       run: |
-        for i in {1..20}; do
+        for i in {1..30}; do
         curl -s http://localhost:8080/health && break || sleep 3
         done
 
