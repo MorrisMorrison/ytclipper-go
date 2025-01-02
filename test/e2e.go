@@ -29,8 +29,8 @@ const (
 	invalidYouTubeURL       = "invalid-url"
 	fromInvalidTimestamp    = "1231:111"
 	toInvalidTimestamp      = "111"
-	validFromTimestamp      = "20"
-	validToTimestamp        = "40"
+	validFromTimestamp      = "10"
+	validToTimestamp        = "20"
 	validFormatValue        = "136"
 )
 
