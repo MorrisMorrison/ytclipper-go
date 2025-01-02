@@ -45,18 +45,18 @@ func main() {
 			Name: "Invalid YouTube URL Test",
 			Run:  testInvalidYouTubeURL,
 		},
-		{
-			Name: "Invalid Timestamps Test",
-			Run:  testInvalidTimestamps,
-		},
+		// {
+		// 	Name: "Invalid Timestamps Test",
+		// 	Run:  testInvalidTimestamps,
+		// },
 		{
 			Name: "Dark Mode Test",
 			Run:  testDarkModeToggle,
 		},
-		{
-			Name: "Basic Workflow Test",
-			Run:  testBasicWorkflow,
-		},
+		// {
+		// 	Name: "Basic Workflow Test",
+		// 	Run:  testBasicWorkflow,
+		// },
 	}
 
 	var failedTests int

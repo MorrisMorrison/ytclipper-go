@@ -22,7 +22,7 @@ jobs:
     - name: Install Dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y make python3 python3-pip ffmpeg yt-dlp xvfb
+        sudo apt-get install -y make python3 python3-pip ffmpeg yt-dlp
         sudo apt-get clean
         go mod tidy
 
@@ -43,7 +43,7 @@ jobs:
         done
 
     - name: Run E2E Tests
-      run: xvfb-run --auto-servernum --server-args="-screen 0 1024x768x24" go run test/e2e.go
+      run: test/e2e.go
 
     - name: Run Build-Prod
       run: make build-prod
