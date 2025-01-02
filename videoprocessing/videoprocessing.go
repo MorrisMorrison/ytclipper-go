@@ -1,12 +1,14 @@
 package videoprocessing
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 	"ytclipper-go/config"
 	"ytclipper-go/jobs"
 )
@@ -71,7 +73,10 @@ func GetAvailableFormats(url string) ([]map[string]string, error) {
 
     // Prepare yt-dlp command
     cmdArgs := []string{"-F", url}
-    cmd := exec.Command("yt-dlp", cmdArgs...)
+
+    ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+    defer cancel()
+    cmd := exec.CommandContext(ctx, "yt-dlp", cmdArgs...)
 
     // Execute the command and capture the output
     output, err := cmd.CombinedOutput()
