@@ -37,10 +37,10 @@ type Test struct {
 
 func main() {
 	tests := []Test{
-		// {Name: "Invalid Timestamps Test", Run: testInvalidTimestamps},
+		{Name: "Invalid Timestamps Test", Run: testInvalidTimestamps},
 		{Name: "Invalid YouTube URL Test", Run: testInvalidYouTubeURL},
 		{Name: "Dark Mode Test", Run: testDarkModeToggle},
-		// {Name: "Basic Workflow Test", Run: testBasicWorkflow},
+		{Name: "Basic Workflow Test", Run: testBasicWorkflow},
 	}
 
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
@@ -288,55 +288,42 @@ func testDarkModeToggle(ctx context.Context) error {
     var initialBackgroundColor, toggledBackgroundColor string
 
     log.Printf("Navigating to %s", baseURL)
-    err := chromedp.Run(ctx,
-        // Step 1: Navigate to the app
-        chromedp.Navigate(baseURL),
-    )
+    err := chromedp.Run(ctx, chromedp.Navigate(baseURL))
     if err != nil {
         return fmt.Errorf("failed to navigate to app: %w", err)
     }
     log.Println("Successfully navigated to the app")
 
     log.Println("Fetching initial class of the <body> element")
-    err = chromedp.Run(ctx,
-        chromedp.AttributeValue(`body`, "class", &initialClass, nil),
-    )
+    err = chromedp.Run(ctx, chromedp.AttributeValue(`body`, "class", &initialClass, nil))
     if err != nil {
         return fmt.Errorf("failed to fetch initial body class: %w", err)
     }
     log.Printf("Initial body class: %s", initialClass)
 
     log.Println("Fetching initial background color of the <body>")
-    err = chromedp.Run(ctx,
-        chromedp.Evaluate(`window.getComputedStyle(document.body).backgroundColor`, &initialBackgroundColor),
-    )
+    err = chromedp.Run(ctx, chromedp.Evaluate(`window.getComputedStyle(document.body).backgroundColor`, &initialBackgroundColor))
     if err != nil {
         return fmt.Errorf("failed to fetch initial background color: %w", err)
     }
     log.Printf("Initial background color: %s", initialBackgroundColor)
 
     log.Println("Toggling the dark mode slider")
-    err = chromedp.Run(ctx,
-        chromedp.Click(`#themeSlider`, chromedp.ByID),
-    )
+    err = chromedp.Run(ctx, chromedp.Click(`#themeSlider`, chromedp.ByID), chromedp.Sleep(500*time.Millisecond))
     if err != nil {
         return fmt.Errorf("failed to toggle the dark mode slider: %w", err)
     }
     log.Println("Dark mode slider toggled")
 
     log.Println("Fetching toggled class of the <body> element")
-    err = chromedp.Run(ctx,
-        chromedp.AttributeValue(`body`, "class", &toggledClass, nil),
-    )
+    err = chromedp.Run(ctx, chromedp.AttributeValue(`body`, "class", &toggledClass, nil))
     if err != nil {
         return fmt.Errorf("failed to fetch toggled body class: %w", err)
     }
     log.Printf("Toggled body class: %s", toggledClass)
 
     log.Println("Fetching toggled background color of the <body>")
-    err = chromedp.Run(ctx,
-        chromedp.Evaluate(`window.getComputedStyle(document.body).backgroundColor`, &toggledBackgroundColor),
-    )
+    err = chromedp.Run(ctx, chromedp.Evaluate(`window.getComputedStyle(document.body).backgroundColor`, &toggledBackgroundColor))
     if err != nil {
         return fmt.Errorf("failed to fetch toggled background color: %w", err)
     }
