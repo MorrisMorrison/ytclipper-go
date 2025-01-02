@@ -28,7 +28,7 @@ func DownloadAndCutVideo(outputPath string, selectedFormat string, fileSizeLimit
 	}
 
 	if config.CONFIG.YtDlp != "" {
-        	log.Printf("Using proxy: %s", config.CONFIG.YtDlp)
+        	log.Printf("Using proxy: %s", config.CONFIG.YtDlpProxy )
         	cmdArgs = append([]string{"--proxy", config.CONFIG.YtDlpProxy}, cmdArgs...)
     	}
 
@@ -80,7 +80,7 @@ func GetAvailableFormats(url string) ([]map[string]string, error) {
     cmdArgs := []string{"-F", url}
 
     if config.CONFIG.YtDlp != "" {
-        log.Printf("Using proxy: %s", config.CONFIG.YtDlp)
+        log.Printf("Using proxy: %s", config.CONFIG.YtDlpProxy )
         cmdArgs = append([]string{"--proxy", config.CONFIG.YtDlpProxy}, cmdArgs...)
     }
 
