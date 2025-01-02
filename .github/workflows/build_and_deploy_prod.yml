@@ -20,13 +20,11 @@ jobs:
       with:
         go-version: stable
 
-    - name: Setup yt-dlp
-      uses: AnimMouse/setup-yt-dlp@v3
-
     - name: Install Dependencies
       run: |
           sudo apt-get update
           sudo apt-get install -y make python3 python3-pip google-chrome-stable
+          python3 -m pip install --upgrade yt-dlp
           go mod tidy    
           
     - name: Install Dependencies for HTTPS Proxy
@@ -39,6 +37,8 @@ jobs:
         which ffmpeg && ffmpeg -version
         which yt-dlp && yt-dlp --version
         which google-chrome && google-chrome --version
+        yt-dlp --version
+        yt-dlp --print-python-info
         python3 -m pip show requests curl_cffi
         go version
 
