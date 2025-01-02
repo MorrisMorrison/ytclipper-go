@@ -16,17 +16,21 @@ import (
 const videoOutputDir = "./videos"
 var execCommand = exec.Command 
 
+
 func DownloadAndCutVideo(outputPath string, selectedFormat string, fileSizeLimit int64, from string, to string, url string) ([]byte, error) {
 	cmdArgs := []string{
 		"-o", outputPath,
 		"-f", selectedFormat,
 		"-v",
+        "--cookies", "cookies.txt", 
 		"--max-filesize", fmt.Sprintf("%d", fileSizeLimit),
 		"--downloader", "ffmpeg",
 		"--downloader-args", fmt.Sprintf("ffmpeg_i:-ss %s -to %s", from, to),
+
 		url,
 	}
-	cmd := execCommand("yt-dlp", cmdArgs...)
+
+	cmd := exec.Command("yt-dlp", cmdArgs...)
 	output, err := cmd.CombinedOutput()
 
 	return output, err
@@ -72,7 +76,7 @@ func GetAvailableFormats(url string) ([]map[string]string, error) {
     log.Printf("Fetching available formats for URL: %s", url)
 
     // Prepare yt-dlp command
-    cmdArgs := []string{"-F", url, "--cookies-from-browser", "chrome"}
+    cmdArgs := []string{"-F", url, "--cookies", "cookies.txt"}
 
     ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
     defer cancel()
@@ -82,17 +86,14 @@ func GetAvailableFormats(url string) ([]map[string]string, error) {
     output, err := cmd.CombinedOutput()
     if err != nil {
         log.Printf("Error executing yt-dlp: %v", err)
-        log.Printf("yt-dlp output:\n%s", output) // Log the full command output for debugging
+        log.Printf("yt-dlp output:\n%s", output)
         return nil, fmt.Errorf("yt-dlp failed: %w", err)
     }
 
     log.Printf("yt-dlp command succeeded. Output:\n%s", output)
-
-    // Parse and return formats
-    formats:= parseFormats(string(output))
-    log.Printf("Parsed %d formats successfully", len(formats))
-    return formats, nil
+    return parseFormats(string(output)), nil
 }
+
 
 func GetVideoDuration(url string) (string, error) {
 	cmdArgs := []string{
