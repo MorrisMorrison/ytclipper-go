@@ -42,12 +42,12 @@ type Test struct {
 func main() {
 	tests := []Test{
 		{
-			Name: "Invalid YouTube URL Test",
-			Run:  testInvalidYouTubeURL,
-		},
-		{
 			Name: "Invalid Timestamps Test",
 			Run:  testInvalidTimestamps,
+		},
+		{
+			Name: "Invalid YouTube URL Test",
+			Run:  testInvalidYouTubeURL,
 		},
 		{
 			Name: "Dark Mode Test",
