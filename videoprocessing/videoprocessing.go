@@ -2,6 +2,7 @@ package videoprocessing
 
 import (
 	"fmt"
+	"log"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -65,15 +66,27 @@ func getFileExtensionFromFormatID(formatID string, formats []map[string]string) 
     return "", fmt.Errorf("format ID not found")
 }
 
-func GetAvailableFormats(url string) ([]map[string]string, error){
-	cmdArgs := []string{"-F", url}
-    cmd := exec.Command("yt-dlp", cmdArgs...)
-    output, err := cmd.CombinedOutput()
-	if err != nil {
-		return nil, err
-	}
+func GetAvailableFormats(url string) ([]map[string]string, error) {
+    log.Printf("Fetching available formats for URL: %s", url)
 
-	return parseFormats(string(output)), err
+    // Prepare yt-dlp command
+    cmdArgs := []string{"-F", url}
+    cmd := exec.Command("yt-dlp", cmdArgs...)
+
+    // Execute the command and capture the output
+    output, err := cmd.CombinedOutput()
+    if err != nil {
+        log.Printf("Error executing yt-dlp: %v", err)
+        log.Printf("yt-dlp output:\n%s", output) // Log the full command output for debugging
+        return nil, fmt.Errorf("yt-dlp failed: %w", err)
+    }
+
+    log.Printf("yt-dlp command succeeded. Output:\n%s", output)
+
+    // Parse and return formats
+    formats:= parseFormats(string(output))
+    log.Printf("Parsed %d formats successfully", len(formats))
+    return formats, nil
 }
 
 func GetVideoDuration(url string) (string, error) {
