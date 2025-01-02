@@ -51,7 +51,7 @@ func NewConfig() *Config {
 
 	return &Config{
 		Port:  port,
-		YtDlpProxy : ytDlpProxy
+		YtDlpProxy : ytDlpProxy,
 		Debug: debug,
 		ClipSizeInMb: clipSizeInMb,
 		RateLimiterConfig:  *NewRateLimiterConfig(),
