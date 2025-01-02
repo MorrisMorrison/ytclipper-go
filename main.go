@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"os"
 	"time"
 	"ytclipper-go/config"
 	"ytclipper-go/routes"
@@ -27,20 +26,9 @@ func checkDependencies(){
     log.Println("All dependencies are installed.")
 }
 
-func createCookiesFile(appConfig *config.Config){
-    log.Println(appConfig.YoutubeCookies)
-	err := os.WriteFile("cookies.txt", []byte(appConfig.YoutubeCookies), 0600)
-	if err != nil {
-		log.Fatalf("Failed to write cookies to cookies.txt: %v", err)
-	}
-
-	log.Println("Cookies successfully written to cookies.txt")
-}
-
 func setupEcho(){
     e := echo.New()
     appConfig := config.NewConfig()
-    createCookiesFile(appConfig)
     
     e.Debug = appConfig.Debug
 

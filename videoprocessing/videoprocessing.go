@@ -22,7 +22,6 @@ func DownloadAndCutVideo(outputPath string, selectedFormat string, fileSizeLimit
 		"-o", outputPath,
 		"-f", selectedFormat,
 		"-v",
-        "--cookies", "cookies.txt", 
 		"--max-filesize", fmt.Sprintf("%d", fileSizeLimit),
 		"--downloader", "ffmpeg",
 		"--downloader-args", fmt.Sprintf("ffmpeg_i:-ss %s -to %s", from, to),
@@ -74,14 +73,12 @@ func getFileExtensionFromFormatID(formatID string, formats []map[string]string) 
 func GetAvailableFormats(url string) ([]map[string]string, error) {
     log.Printf("Fetching available formats for URL: %s", url)
 
-    // Prepare yt-dlp command
-    cmdArgs := []string{"--cookies", "cookies.txt", "-F", url}
+    cmdArgs := []string{"-F", url}
 
     ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
     defer cancel()
     cmd := exec.CommandContext(ctx, "yt-dlp", cmdArgs...)
 
-    // Execute the command and capture the output
     output, err := cmd.CombinedOutput()
     if err != nil {
         log.Printf("Error executing yt-dlp: %v", err)

@@ -9,9 +9,6 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    env:
-      YOUTUBE_COOKIES: ${{ secrets.YOUTUBE_COOKIES }}
-
     steps:
     - name: Checkout Code
       uses: actions/checkout@v3
