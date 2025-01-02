@@ -72,7 +72,7 @@ func GetAvailableFormats(url string) ([]map[string]string, error) {
     log.Printf("Fetching available formats for URL: %s", url)
 
     // Prepare yt-dlp command
-    cmdArgs := []string{"-F", url}
+    cmdArgs := []string{"-F", url, "--cookies-from-browser", "chrome"}
 
     ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
     defer cancel()
