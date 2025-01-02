@@ -21,7 +21,7 @@ const (
 	downloadLinkSelector   = `#downloadLink`
 	errorMessageSelector   = `.toast-error`
 
-	validYouTubeURL         = "https://www.youtube.com/watch?v=hf_HZZgdrJ8"
+	validYouTubeURL         = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 	invalidYouTubeURL       = "invalid-url"
 	fromInvalidTimestamp    = "1231:111"
 	toInvalidTimestamp      = "111"
