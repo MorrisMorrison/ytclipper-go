@@ -28,7 +28,7 @@ func DownloadAndCutVideo(outputPath string, selectedFormat string, fileSizeLimit
 		url,
 	}
 
-	cmd := exec.Command("yt-dlp", cmdArgs...)
+	cmd := execCommand("yt-dlp", cmdArgs...)
 	output, err := cmd.CombinedOutput()
 
 	return output, err
