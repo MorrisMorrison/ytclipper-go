@@ -28,6 +28,7 @@ func checkDependencies(){
 }
 
 func createCookiesFile(appConfig *config.Config){
+    log.Println(appConfig.YoutubeCookies)
 	err := os.WriteFile("cookies.txt", []byte(appConfig.YoutubeCookies), 0600)
 	if err != nil {
 		log.Fatalf("Failed to write cookies to cookies.txt: %v", err)
