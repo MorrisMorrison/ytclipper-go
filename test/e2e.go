@@ -37,34 +37,38 @@ type Test struct {
 
 func main() {
 	tests := []Test{
-		{
-			Name: "Invalid Timestamps Test",
-			Run:  testInvalidTimestamps,
-		},
-		{
-			Name: "Invalid YouTube URL Test",
-			Run:  testInvalidYouTubeURL,
-		},
-		{
-			Name: "Dark Mode Test",
-			Run:  testDarkModeToggle,
-		},
-		{
-			Name: "Basic Workflow Test",
-			Run:  testBasicWorkflow,
-		},
+		{Name: "Invalid Timestamps Test", Run: testInvalidTimestamps},
+		{Name: "Invalid YouTube URL Test", Run: testInvalidYouTubeURL},
+		{Name: "Dark Mode Test", Run: testDarkModeToggle},
+		{Name: "Basic Workflow Test", Run: testBasicWorkflow},
 	}
 
+	opts := append(chromedp.DefaultExecAllocatorOptions[:],
+		chromedp.Headless, // Disable for debugging
+		chromedp.DisableGPU,
+		chromedp.NoSandbox,
+		chromedp.Flag("disable-dev-shm-usage", true),
+		chromedp.Flag("ignore-certificate-errors", true),
+		chromedp.Flag("v", true), // Verbose logging
+	)
+
+	log.Println("Starting Chrome context with options:", opts)
+
+	allocCtx, cancelAlloc := chromedp.NewExecAllocator(context.Background(), opts...)
+	defer cancelAlloc()
+
 	var failedTests int
-	ctx, cancel := chromedp.NewContext(context.Background())
-	defer cancel()
 	for _, test := range tests {
+		ctx, cancel := chromedp.NewContext(allocCtx)
+		defer cancel()
+
+		testCtx, cancelTest := context.WithTimeout(ctx, 2*time.Minute)
+		defer cancelTest()
+
 		log.Printf("Running test: %s", test.Name)
-		testCtx, cancel := chromedp.NewContext(ctx) 
 		err := test.Run(testCtx)
-		cancel() 
 		if err != nil {
-			log.Printf("Test '%s' failed: %v", test.Name, err)
+			log.Printf("Test '%s' failed: %v\nDetails: %v", test.Name, err, testCtx.Err())
 			failedTests++
 		} else {
 			log.Printf("Test '%s' passed", test.Name)
@@ -75,10 +79,9 @@ func main() {
 		log.Printf("%d test(s) failed", failedTests)
 		os.Exit(1)
 	}
-
 	log.Println("All tests passed")
-	os.Exit(0)
 }
+
 
 func testBasicWorkflow(ctx context.Context) error {
 	var downloadLink string
@@ -144,11 +147,7 @@ func testInvalidYouTubeURL(ctx context.Context) error {
 }
 
 func testInvalidTimestamps(ctx context.Context) error {
-
-    testCtx, testCancel := context.WithTimeout(ctx, 60*time.Second)
-    defer testCancel()
-
-    err := chromedp.Run(testCtx,
+    err := chromedp.Run(ctx,
         // Step 1: Navigate to the app
         chromedp.Navigate(baseURL),
 
@@ -169,9 +168,6 @@ func testInvalidTimestamps(ctx context.Context) error {
         chromedp.WaitVisible(errorMessageSelector, chromedp.ByQuery),
     )
     if err != nil {
-        if testCtx.Err() == context.DeadlineExceeded {
-            return fmt.Errorf("test timed out")
-        }
         return fmt.Errorf("workflow error: %w", err)
     }
 
