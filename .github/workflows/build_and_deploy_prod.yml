@@ -23,7 +23,7 @@ jobs:
     - name: Install Dependencies
       run: |
           sudo apt-get update
-          sudo apt-get install -y make python3 python3-pip google-chrome-stable
+          sudo apt-get install -y make python3 python3-pip ffmpeg google-chrome-stable
           python3 -m pip install --upgrade yt-dlp
           go mod tidy    
           
