@@ -9,6 +9,8 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    env:
+      YTCLIPPER_YT_DLP_PROXY: ${{ secrets.YTDLP_PROXY_URL }}
     steps:
     - name: Checkout Code
       uses: actions/checkout@v3
