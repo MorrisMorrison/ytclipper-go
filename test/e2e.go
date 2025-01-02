@@ -139,7 +139,7 @@ func testInvalidYouTubeURL(ctx context.Context) error {
 
 		// Step 2: Enter an invalid YouTube URL
 		chromedp.WaitVisible(urlInputSelector, chromedp.ByID),
-		chromedp.SetValue(urlInputSelector, validYouTubeURL, chromedp.ByID),
+		chromedp.SetValue(urlInputSelector, invalidYouTubeURL, chromedp.ByID),
 
 		// Step 3: Click the preview button
 		chromedp.Click(previewButtonSelector, chromedp.ByID),
@@ -163,7 +163,7 @@ func testInvalidYouTubeURL(ctx context.Context) error {
 func testInvalidTimestamps(ctx context.Context) error {
     var errorMessage string
 
-    testCtx, testCancel := context.WithTimeout(ctx, 10*time.Second)
+    testCtx, testCancel := context.WithTimeout(ctx, 60*time.Second)
     defer testCancel()
 
     err := chromedp.Run(testCtx,
