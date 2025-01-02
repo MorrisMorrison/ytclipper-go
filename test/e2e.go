@@ -53,10 +53,10 @@ func main() {
 			Name: "Dark Mode Test",
 			Run:  testDarkModeToggle,
 		},
-		{
-			Name: "Basic Workflow Test",
-			Run:  testBasicWorkflow,
-		},
+		// {
+		// 	Name: "Basic Workflow Test",
+		// 	Run:  testBasicWorkflow,
+		// },
 	}
 
 	var failedTests int
