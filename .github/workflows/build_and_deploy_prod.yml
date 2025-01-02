@@ -18,12 +18,13 @@ jobs:
       with:
         go-version: 1.23
 
+    - name: Setup yt-dlp
+      uses: AnimMouse/setup-yt-dlp@v3
+
     - name: Install Dependencies
       run: |
           sudo apt-get update
-          sudo apt-get install -y make python3 python3-pip ffmpeg google-chrome-stable
-          python3 -m pip install --upgrade pip
-          python3 -m pip install --upgrade yt-dlp
+          sudo apt-get install -y make python3 python3-pip google-chrome-stable
           go mod tidy      
 
     - name: Verify Dependencies
