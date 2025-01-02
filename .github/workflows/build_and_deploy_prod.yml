@@ -27,7 +27,8 @@ jobs:
       run: |
           sudo apt-get update
           sudo apt-get install -y make python3 python3-pip google-chrome-stable
-          go mod tidy      
+          go mod tidy    
+          
     - name: Install Dependencies for HTTPS Proxy
       run: |
           python3 -m pip install --upgrade pip
@@ -38,6 +39,7 @@ jobs:
         which ffmpeg && ffmpeg -version
         which yt-dlp && yt-dlp --version
         which google-chrome && google-chrome --version
+        python3 -m pip show requests curl_cffi
         go version
 
     - name: Test YouTube Accessibility
