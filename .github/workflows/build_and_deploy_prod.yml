@@ -38,7 +38,6 @@ jobs:
         which yt-dlp && yt-dlp --version
         which google-chrome && google-chrome --version
         yt-dlp --version
-        yt-dlp --print-python-info
         python3 -m pip show requests curl_cffi
         go version
 
