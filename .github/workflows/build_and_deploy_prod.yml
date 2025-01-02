@@ -43,7 +43,7 @@ jobs:
         done
 
     - name: Run E2E Tests
-      run: test/e2e.go
+      run: go run test/e2e.go
       timeout-minutes: 5 
 
     - name: Run Build-Prod
