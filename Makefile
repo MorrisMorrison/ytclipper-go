@@ -9,7 +9,8 @@ test:
 e2e:
 	go run test/e2e.go
 
-build: download-static
+build:
 	go build -o ./ytclipper main.go
 
-build-prod: test build
+build-prod: 
+	test download-static build
