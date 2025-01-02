@@ -14,7 +14,6 @@ import (
 const (
 	baseURL                = "http://localhost:8080"
 	urlInputSelector       = `#url`
-	previewButtonSelector  = `#previewButton`
 	formatSelectSelector   = `#formatSelect`
 	fromInputSelector      = `#from`
 	toInputSelector        = `#to`
@@ -95,9 +94,6 @@ func testBasicWorkflow(ctx context.Context) error {
 		chromedp.WaitVisible(urlInputSelector, chromedp.ByID),
 		chromedp.SetValue(urlInputSelector, validYouTubeURL, chromedp.ByID),
 
-		// Step 3: Click the preview button to fetch formats
-		chromedp.Click(previewButtonSelector, chromedp.ByID),
-
 		// Step 4: Wait for the dropdown to be enabled
 		chromedp.WaitEnabled(formatSelectSelector, chromedp.ByID),
 
@@ -141,9 +137,6 @@ func testInvalidYouTubeURL(ctx context.Context) error {
 		chromedp.WaitVisible(urlInputSelector, chromedp.ByID),
 		chromedp.SetValue(urlInputSelector, invalidYouTubeURL, chromedp.ByID),
 
-		// Step 3: Click the preview button
-		chromedp.Click(previewButtonSelector, chromedp.ByID),
-
 		// Step 4: Check for an error message
 		chromedp.WaitVisible(errorMessageSelector, chromedp.ByQuery),
 		chromedp.Text(errorMessageSelector, &errorMessage, chromedp.ByQuery),
@@ -173,7 +166,6 @@ func testInvalidTimestamps(ctx context.Context) error {
         // Step 2: Enter a valid YouTube URL
 		chromedp.SetValue(urlInputSelector, validYouTubeURL, chromedp.ByID),
 
-        chromedp.Click(previewButtonSelector, chromedp.ByID),
         chromedp.WaitEnabled(formatSelectSelector, chromedp.ByID),
         chromedp.SetValue(formatSelectSelector, validFormatValue, chromedp.ByID),
 
