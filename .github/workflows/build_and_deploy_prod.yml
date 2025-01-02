@@ -44,10 +44,11 @@ jobs:
 
     - name: Run E2E Tests
       run: test/e2e.go
+      timeout-minutes: 5 
 
     - name: Run Build-Prod
       run: make build-prod
-      timeout-minutes: 3 
+
 
     - name: Stop Server
       run: |
