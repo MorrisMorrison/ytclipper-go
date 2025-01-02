@@ -9,9 +9,28 @@ export function debounce(func, delay) {
 export function timeObjectToSeconds(time){
   time.hours * 60 * 60 + time.minutes * 60 + time.seconds}
 
-export function isTimeInputValid(time){
-  return /^(\d+(:[0-5]?\d){0,2})$/.test(time);
-};
+  export function isTimeInputValid(time) {
+    const parts = time.split(":").map(Number);
+  
+    if (parts.length < 1 || parts.length > 3) return false;
+  
+    const seconds = parts.pop();
+    if (seconds < 0 || seconds > 59 || isNaN(seconds)) return false;
+  
+    if (parts.length > 0) {
+      const minutes = parts.pop();
+      if (minutes < 0 || minutes > 59 || isNaN(minutes)) return false;
+    }
+  
+    if (parts.length > 0) {
+      const hours = parts.pop();
+      if (hours < 0 || isNaN(hours)) return false;
+    }
+  
+    return true;
+  }
+  
+
 export function isYoutubeUrlValid(url) {
     const regex = /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)[a-zA-Z0-9_-]+$/;
     return regex.test(url);
