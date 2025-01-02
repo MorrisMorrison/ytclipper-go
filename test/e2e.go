@@ -238,6 +238,7 @@ func testInvalidTimestamps(ctx context.Context) error {
 
     log.Println("Waiting for format dropdown to be enabled")
     err = chromedp.Run(ctx,
+		chromedp.WaitReady(formatSelectSelector, chromedp.ByID),
         chromedp.WaitEnabled(formatSelectSelector, chromedp.ByID),
         chromedp.SetValue(formatSelectSelector, validFormatValue, chromedp.ByID),
     )
