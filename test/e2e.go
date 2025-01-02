@@ -62,11 +62,11 @@ func main() {
 	var failedTests int
 	ctx, cancel := chromedp.NewContext(context.Background())
 	defer cancel()
-
 	for _, test := range tests {
-
 		log.Printf("Running test: %s", test.Name)
-		err := test.Run(ctx)
+		testCtx, cancel := chromedp.NewContext(ctx) 
+		err := test.Run(testCtx)
+		cancel() 
 		if err != nil {
 			log.Printf("Test '%s' failed: %v", test.Name, err)
 			failedTests++
