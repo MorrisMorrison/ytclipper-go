@@ -86,35 +86,85 @@ func main() {
 func testBasicWorkflow(ctx context.Context) error {
 	var downloadLink string
 
+	log.Printf("Navigating to %s", baseURL)
 	err := chromedp.Run(ctx,
 		// Step 1: Navigate to the app
 		chromedp.Navigate(baseURL),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to navigate to app: %w", err)
+	}
+	log.Println("Successfully navigated to the app")
 
+	log.Printf("Filling YouTube URL: %s", validYouTubeURL)
+	err = chromedp.Run(ctx,
 		// Step 2: Fill the YouTube URL
 		chromedp.WaitVisible(urlInputSelector, chromedp.ByID),
 		chromedp.SetValue(urlInputSelector, validYouTubeURL, chromedp.ByID),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to fill YouTube URL: %w", err)
+	}
+	log.Println("YouTube URL entered")
 
+	log.Println("Waiting for format dropdown to be enabled")
+	err = chromedp.Run(ctx,
 		// Step 4: Wait for the dropdown to be enabled
 		chromedp.WaitEnabled(formatSelectSelector, chromedp.ByID),
+	)
+	if err != nil {
+		return fmt.Errorf("format dropdown not enabled: %w", err)
+	}
+	log.Println("Format dropdown enabled")
 
+	log.Printf("Selecting video format: %s", validFormatValue)
+	err = chromedp.Run(ctx,
 		// Step 5: Select a format (e.g., the first available option)
 		chromedp.SetValue(formatSelectSelector, validFormatValue, chromedp.ByID),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to select video format: %w", err)
+	}
+	log.Println("Video format selected")
 
+	log.Printf("Filling 'From' and 'To' inputs: from=%s, to=%s", validFromTimestamp, validToTimestamp)
+	err = chromedp.Run(ctx,
 		// Step 6: Fill the "From" and "To" inputs
 		chromedp.SendKeys(fromInputSelector, validFromTimestamp, chromedp.ByID),
 		chromedp.SendKeys(toInputSelector, validToTimestamp, chromedp.ByID),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to fill 'From' and 'To' inputs: %w", err)
+	}
+	log.Println("'From' and 'To' inputs filled")
 
+	log.Println("Clicking 'Clip!' button")
+	err = chromedp.Run(ctx,
 		// Step 7: Click the "Clip!" button
 		chromedp.Click(clipButtonSelector, chromedp.ByID),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to click 'Clip!' button: %w", err)
+	}
+	log.Println("'Clip!' button clicked")
 
+	log.Println("Waiting for download link to appear")
+	err = chromedp.Run(ctx,
 		// Step 8: Wait for the download link to appear
 		chromedp.WaitVisible(downloadLinkWrapperSel, chromedp.ByID),
+	)
+	if err != nil {
+		return fmt.Errorf("download link did not appear: %w", err)
+	}
+	log.Println("Download link wrapper visible")
 
+	log.Println("Extracting download link")
+	err = chromedp.Run(ctx,
 		// Step 9: Extract the download link text
 		chromedp.AttributeValue(downloadLinkSelector, "href", &downloadLink, nil),
 	)
 	if err != nil {
-		return fmt.Errorf("workflow error: %w", err)
+		return fmt.Errorf("failed to extract download link: %w", err)
 	}
 
 	// Validate the result
@@ -122,54 +172,110 @@ func testBasicWorkflow(ctx context.Context) error {
 		return fmt.Errorf("download link was not generated")
 	}
 
-	log.Printf("Download link: %s", downloadLink)
+	log.Printf("Download link successfully generated: %s", downloadLink)
 	return nil
 }
 
+
 func testInvalidYouTubeURL(ctx context.Context) error {
+	log.Printf("Navigate to %s", baseURL)
+
 	err := chromedp.Run(ctx,
 		// Step 1: Navigate to the app
 		chromedp.Navigate(baseURL),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to navigate to app: %w", err)
+	}
+	log.Println("Successfully navigated to the app")
 
+	log.Printf("Entering invalid YouTube URL: %s", invalidYouTubeURL)
+	err = chromedp.Run(ctx,
 		// Step 2: Enter an invalid YouTube URL
 		chromedp.WaitVisible(urlInputSelector, chromedp.ByID),
 		chromedp.SetValue(urlInputSelector, invalidYouTubeURL, chromedp.ByID),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to enter invalid YouTube URL: %w", err)
+	}
+	log.Println("Invalid YouTube URL entered")
 
+	log.Println("Waiting for error message to appear")
+	err = chromedp.Run(ctx,
 		// Step 4: Check for an error message
 		chromedp.WaitVisible(errorMessageSelector, chromedp.ByQuery),
 	)
 	if err != nil {
-		return fmt.Errorf("workflow error: %w", err)
+		return fmt.Errorf("error message did not appear: %w", err)
 	}
+	log.Println("Error message displayed as expected")
 
 	log.Printf("Invalid YouTube URL test passed")
 	return nil
 }
 
+
 func testInvalidTimestamps(ctx context.Context) error {
+    log.Printf("Navigating to %s", baseURL)
     err := chromedp.Run(ctx,
         // Step 1: Navigate to the app
         chromedp.Navigate(baseURL),
+    )
+    if err != nil {
+        return fmt.Errorf("failed to navigate to app: %w", err)
+    }
+    log.Println("Successfully navigated to the app")
 
+    log.Printf("Entering valid YouTube URL: %s", validYouTubeURL)
+    err = chromedp.Run(ctx,
         // Step 2: Enter a valid YouTube URL
-		chromedp.SetValue(urlInputSelector, validYouTubeURL, chromedp.ByID),
+        chromedp.SetValue(urlInputSelector, validYouTubeURL, chromedp.ByID),
+    )
+    if err != nil {
+        return fmt.Errorf("failed to enter YouTube URL: %w", err)
+    }
+    log.Println("Valid YouTube URL entered")
 
+    log.Println("Waiting for format dropdown to be enabled")
+    err = chromedp.Run(ctx,
         chromedp.WaitEnabled(formatSelectSelector, chromedp.ByID),
         chromedp.SetValue(formatSelectSelector, validFormatValue, chromedp.ByID),
+    )
+    if err != nil {
+        return fmt.Errorf("failed to select video format: %w", err)
+    }
+    log.Printf("Video format '%s' selected", validFormatValue)
 
+    log.Printf("Entering invalid timestamps: from=%s, to=%s", fromInvalidTimestamp, toInvalidTimestamp)
+    err = chromedp.Run(ctx,
         // Step 3: Enter invalid "From" and "To" values
         chromedp.SendKeys(fromInputSelector, fromInvalidTimestamp, chromedp.ByID),
         chromedp.SendKeys(toInputSelector, toInvalidTimestamp, chromedp.ByID),
+    )
+    if err != nil {
+        return fmt.Errorf("failed to enter timestamps: %w", err)
+    }
+    log.Println("Invalid timestamps entered")
 
+    log.Println("Clicking 'Clip' button")
+    err = chromedp.Run(ctx,
         // Step 4: Attempt to clip
         chromedp.Click(clipButtonSelector, chromedp.ByID),
+    )
+    if err != nil {
+        return fmt.Errorf("failed to click 'Clip' button: %w", err)
+    }
+    log.Println("'Clip' button clicked")
 
+    log.Println("Waiting for error message to appear")
+    err = chromedp.Run(ctx,
         // Step 5: Check for error message
         chromedp.WaitVisible(errorMessageSelector, chromedp.ByQuery),
     )
     if err != nil {
-        return fmt.Errorf("workflow error: %w", err)
+        return fmt.Errorf("error message did not appear: %w", err)
     }
+    log.Println("Error message displayed as expected")
 
     log.Printf("Invalid timestamps test passed")
     return nil
@@ -180,28 +286,60 @@ func testDarkModeToggle(ctx context.Context) error {
     var initialClass, toggledClass string
     var initialBackgroundColor, toggledBackgroundColor string
 
+    log.Printf("Navigating to %s", baseURL)
     err := chromedp.Run(ctx,
         // Step 1: Navigate to the app
         chromedp.Navigate(baseURL),
+    )
+    if err != nil {
+        return fmt.Errorf("failed to navigate to app: %w", err)
+    }
+    log.Println("Successfully navigated to the app")
 
-        // Step 2: Get the initial class of the <body> element
+    log.Println("Fetching initial class of the <body> element")
+    err = chromedp.Run(ctx,
         chromedp.AttributeValue(`body`, "class", &initialClass, nil),
+    )
+    if err != nil {
+        return fmt.Errorf("failed to fetch initial body class: %w", err)
+    }
+    log.Printf("Initial body class: %s", initialClass)
 
-        // Step 3: Get the initial background color
+    log.Println("Fetching initial background color of the <body>")
+    err = chromedp.Run(ctx,
         chromedp.Evaluate(`window.getComputedStyle(document.body).backgroundColor`, &initialBackgroundColor),
+    )
+    if err != nil {
+        return fmt.Errorf("failed to fetch initial background color: %w", err)
+    }
+    log.Printf("Initial background color: %s", initialBackgroundColor)
 
-        // Step 4: Toggle the dark mode slider
+    log.Println("Toggling the dark mode slider")
+    err = chromedp.Run(ctx,
         chromedp.Click(`#themeSlider`, chromedp.ByID),
+    )
+    if err != nil {
+        return fmt.Errorf("failed to toggle the dark mode slider: %w", err)
+    }
+    log.Println("Dark mode slider toggled")
 
-        // Step 5: Get the toggled class of the <body> element
+    log.Println("Fetching toggled class of the <body> element")
+    err = chromedp.Run(ctx,
         chromedp.AttributeValue(`body`, "class", &toggledClass, nil),
+    )
+    if err != nil {
+        return fmt.Errorf("failed to fetch toggled body class: %w", err)
+    }
+    log.Printf("Toggled body class: %s", toggledClass)
 
-        // Step 6: Get the toggled background color
+    log.Println("Fetching toggled background color of the <body>")
+    err = chromedp.Run(ctx,
         chromedp.Evaluate(`window.getComputedStyle(document.body).backgroundColor`, &toggledBackgroundColor),
     )
     if err != nil {
-        return fmt.Errorf("workflow error: %w", err)
+        return fmt.Errorf("failed to fetch toggled background color: %w", err)
     }
+    log.Printf("Toggled background color: %s", toggledBackgroundColor)
 
     if initialClass == toggledClass {
         return fmt.Errorf("dark mode toggle did not update the body class: initial=%s, toggled=%s", initialClass, toggledClass)
