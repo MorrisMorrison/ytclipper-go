@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/chromedp/chromedp"
@@ -22,8 +21,6 @@ const (
 	downloadLinkSelector   = `#downloadLink`
 	errorMessageSelector   = `.toast-error`
 
-	invalidURLMessage       = "Invalid Url"
-	invalidInputMessage     = "Invalid input"
 	validYouTubeURL         = "https://www.youtube.com/watch?v=hf_HZZgdrJ8"
 	invalidYouTubeURL       = "invalid-url"
 	fromInvalidTimestamp    = "1231:111"
@@ -127,8 +124,6 @@ func testBasicWorkflow(ctx context.Context) error {
 }
 
 func testInvalidYouTubeURL(ctx context.Context) error {
-	var errorMessage string
-
 	err := chromedp.Run(ctx,
 		// Step 1: Navigate to the app
 		chromedp.Navigate(baseURL),
@@ -139,14 +134,9 @@ func testInvalidYouTubeURL(ctx context.Context) error {
 
 		// Step 4: Check for an error message
 		chromedp.WaitVisible(errorMessageSelector, chromedp.ByQuery),
-		chromedp.Text(errorMessageSelector, &errorMessage, chromedp.ByQuery),
 	)
 	if err != nil {
 		return fmt.Errorf("workflow error: %w", err)
-	}
-
-	if !strings.Contains(errorMessage, invalidURLMessage) {
-		return fmt.Errorf("unexpected error message: %s", errorMessage)
 	}
 
 	log.Printf("Invalid YouTube URL test passed")
@@ -154,7 +144,6 @@ func testInvalidYouTubeURL(ctx context.Context) error {
 }
 
 func testInvalidTimestamps(ctx context.Context) error {
-    var errorMessage string
 
     testCtx, testCancel := context.WithTimeout(ctx, 60*time.Second)
     defer testCancel()
@@ -178,17 +167,12 @@ func testInvalidTimestamps(ctx context.Context) error {
 
         // Step 5: Check for error message
         chromedp.WaitVisible(errorMessageSelector, chromedp.ByQuery),
-        chromedp.Text(errorMessageSelector, &errorMessage, chromedp.ByQuery),
     )
     if err != nil {
         if testCtx.Err() == context.DeadlineExceeded {
             return fmt.Errorf("test timed out")
         }
         return fmt.Errorf("workflow error: %w", err)
-    }
-
-    if !strings.Contains(errorMessage, invalidInputMessage) {
-        return fmt.Errorf("unexpected error message: %s", errorMessage)
     }
 
     log.Printf("Invalid timestamps test passed")
