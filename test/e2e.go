@@ -90,6 +90,7 @@ func testBasicWorkflow(ctx context.Context) error {
 	err := chromedp.Run(ctx,
 		// Step 1: Navigate to the app
 		chromedp.Navigate(baseURL),
+		chromedp.Reload(),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to navigate to app: %w", err)
@@ -99,7 +100,6 @@ func testBasicWorkflow(ctx context.Context) error {
 	log.Printf("Filling YouTube URL: %s", validYouTubeURL)
 	err = chromedp.Run(ctx,
 		// Step 2: Fill the YouTube URL
-		chromedp.WaitReady(formatSelectSelector, chromedp.ByID),
 		chromedp.WaitVisible(urlInputSelector, chromedp.ByID),
 		chromedp.SetValue(urlInputSelector, validYouTubeURL, chromedp.ByID),
 	)
@@ -111,6 +111,7 @@ func testBasicWorkflow(ctx context.Context) error {
 	log.Println("Waiting for format dropdown to be enabled")
 	err = chromedp.Run(ctx,
 		// Step 4: Wait for the dropdown to be enabled
+		chromedp.WaitReady(formatSelectSelector, chromedp.ByID),
 		chromedp.WaitEnabled(formatSelectSelector, chromedp.ByID),
 	)
 	if err != nil {
