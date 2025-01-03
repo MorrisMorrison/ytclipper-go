@@ -68,7 +68,6 @@ func TestDownloadAndCutVideo(t *testing.T) {
 	var capturedArgs []string
 	execContext = func(ctx context.Context,name string, arg ...string) *exec.Cmd {
 		capturedArgs = append([]string{name}, arg...)
-		capturedArgs = append([]string{name}, arg...)
 		return exec.Command("echo", "mock") 
 	}
 
@@ -91,7 +90,7 @@ func TestDownloadAndCutVideo(t *testing.T) {
 		"--downloader-args", fmt.Sprintf("ffmpeg_i:-ss %s -to %s", from, to),
 		url,
 	}
-	ApplyProxyArgs(expectedArgs)
+	expectedArgs = ApplyProxyArgs(expectedArgs)
 
 	if !reflect.DeepEqual(capturedArgs, expectedArgs) {
 		t.Errorf("Expected command args: %v, but got: %v", expectedArgs, capturedArgs)
@@ -126,7 +125,7 @@ func TestGetVideoDuration(t *testing.T) {
 		"--no-warnings",
 		url,
 	}
-	ApplyProxyArgs(expectedArgs)
+	expectedArgs = ApplyProxyArgs(expectedArgs)
 
 	if !reflect.DeepEqual(capturedArgs, expectedArgs) {
 		t.Errorf("Expected command args: %v, but got: %v", expectedArgs, capturedArgs)
