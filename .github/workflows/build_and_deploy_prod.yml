@@ -27,9 +27,6 @@ jobs:
         python3 -m pip install --upgrade pip yt-dlp requests curl_cffi
         go mod tidy
 
-    - name: Set PATH for Python-installed yt-dlp
-      run: echo "$HOME/.local/bin:$PATH" >> $GITHUB_ENV
-
     - name: Verify yt-dlp Path
       run: which yt-dlp
 
