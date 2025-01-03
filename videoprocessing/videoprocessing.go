@@ -27,16 +27,13 @@ func DownloadAndCutVideo(outputPath string, selectedFormat string, fileSizeLimit
 		url,
 	}
 
-	if config.CONFIG.YtDlpProxy != "" {
-        	log.Printf("Using proxy: %s", config.CONFIG.YtDlpProxy )
-        	cmdArgs = append([]string{"--proxy", config.CONFIG.YtDlpProxy}, cmdArgs...)
-    	}
+	cmdArgs = applyProxyArgs(cmdArgs)
 
-	cmd := execCommand("yt-dlp", cmdArgs...)
-	output, err := cmd.CombinedOutput()
-
+	output, err := executeWithTimeout(30*time.Second, "yt-dlp", cmdArgs...)
 	return output, err
 }
+
+
 
 func ProcessClip(jobID string, url string, from string, to string, selectedFormat string) {
     jobs.StartJob(jobID)
@@ -78,17 +75,9 @@ func GetAvailableFormats(url string) ([]map[string]string, error) {
     log.Printf("Fetching available formats for URL: %s", url)
 
     cmdArgs := []string{"-F", url}
+	cmdArgs = applyProxyArgs(cmdArgs)
 
-    if config.CONFIG.YtDlpProxy != "" {
-        log.Printf("Using proxy: %s", config.CONFIG.YtDlpProxy )
-        cmdArgs = append([]string{"--proxy", config.CONFIG.YtDlpProxy}, cmdArgs...)
-    }
-
-    ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-    defer cancel()
-    cmd := exec.CommandContext(ctx, "yt-dlp", cmdArgs...)
-
-    output, err := cmd.CombinedOutput()
+    output, err := executeWithTimeout(30*time.Second, "yt-dlp", cmdArgs...)
     if err != nil {
         log.Printf("Error executing yt-dlp: %v", err)
         log.Printf("yt-dlp output:\n%s", output)
@@ -99,29 +88,26 @@ func GetAvailableFormats(url string) ([]map[string]string, error) {
     return parseFormats(string(output)), nil
 }
 
-
-
 func GetVideoDuration(url string) (string, error) {
 	cmdArgs := []string{
 		"--get-duration",
 		"--no-warnings",
 		url,
 	}
-    
-    if config.CONFIG.YtDlpProxy != "" {
-        log.Printf("Using proxy: %s", config.CONFIG.YtDlpProxy )
-        cmdArgs = append([]string{"--proxy", config.CONFIG.YtDlpProxy}, cmdArgs...)
-    }
-	
-    cmd := execCommand("yt-dlp", cmdArgs...)
-	output, err := cmd.CombinedOutput()
+
+	cmdArgs = applyProxyArgs(cmdArgs)
+	output, err := executeWithTimeout(30*time.Second, "yt-dlp", cmdArgs...)
 	if err != nil {
+        log.Printf("Error executing yt-dlp: %v", err)
+        log.Printf("yt-dlp output:\n%s", output)
 		return "", err
 	}
 
 	duration := ExtractDuration(string(output))
 	return duration, nil
 }
+
+
 
 func ExtractDuration(output string) string {
     re := regexp.MustCompile(`\d+:\d{2}(?::\d{2})?`)
@@ -177,4 +163,28 @@ func extractBitrate(additional string) string {
         return match[1]
     }
     return "N/A" 
+}
+
+func applyProxyArgs(cmdArgs []string) []string {
+	if config.CONFIG.YtDlpProxy != "" {
+		log.Printf("Using proxy: %s", config.CONFIG.YtDlpProxy)
+		return append([]string{"--proxy", config.CONFIG.YtDlpProxy}, cmdArgs...)
+	}
+	return cmdArgs
+}
+
+func executeWithTimeout(timeout time.Duration, name string, args ...string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, name, args...)
+
+	output, err := cmd.CombinedOutput()
+
+	if ctx.Err() == context.DeadlineExceeded {
+		log.Printf("Command '%s' timed out", name)
+		return nil, fmt.Errorf("command timed out")
+	}
+
+	return output, err
 }
