@@ -107,7 +107,13 @@ func GetVideoDuration(url string) (string, error) {
 		"--no-warnings",
 		url,
 	}
-	cmd := execCommand("yt-dlp", cmdArgs...)
+    
+    if config.CONFIG.YtDlpProxy != "" {
+        log.Printf("Using proxy: %s", config.CONFIG.YtDlpProxy )
+        cmdArgs = append([]string{"--proxy", config.CONFIG.YtDlpProxy}, cmdArgs...)
+    }
+	
+    cmd := execCommand("yt-dlp", cmdArgs...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", err
