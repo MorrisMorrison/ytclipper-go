@@ -20,10 +20,10 @@ var CONFIG *Config = NewConfig()
 
 type Config struct {
 	Port			string
-	YtDlpProxy		string
-	ClipSizeInMb 		int64
+	ClipSizeInMb 	int64
 	Debug			bool
 	RateLimiterConfig RateLimiterConfig
+	YtDlpConfig YtDlpConfig
 }
 
 type RateLimiterConfig struct {
@@ -34,13 +34,16 @@ type RateLimiterConfig struct {
 
 type YtDlpConfig struct {
 	CommandTimeoutInSeconds int
+	Proxy string
 }
 
 func NewYtDlpConfig() *YtDlpConfig{
 	commandTimeoutInSeconds := GetEnvInt(CONFIG_KEY_YT_DLP_COMMAND_TIMEOUT_IN_SECONDS, 30)
+	proxy := GetEnv(CONFIG_KEY_YT_DLP_PROXY, "")
 
 	return &YtDlpConfig{
 		CommandTimeoutInSeconds: commandTimeoutInSeconds,
+		Proxy: proxy,
 	}
 } 
 
@@ -58,16 +61,16 @@ func NewRateLimiterConfig() *RateLimiterConfig {
 
 func NewConfig() *Config {
 	port := GetEnv(CONFIG_KEY_PORT, "8080")
-	ytDlpProxy := GetEnv(CONFIG_KEY_YT_DLP_PROXY, "")
+
 	debug := GetEnv(CONFIG_KEY_DEBUG, "true") == "true"
 	clipSizeInMb := GetClipSizeLimit()
 
 	return &Config{
 		Port:  port,
-		YtDlpProxy : ytDlpProxy,
 		Debug: debug,
 		ClipSizeInMb: clipSizeInMb,
 		RateLimiterConfig:  *NewRateLimiterConfig(),
+		YtDlpConfig:*NewYtDlpConfig(),
 	}
 }
 

@@ -135,9 +135,9 @@ func TestGetVideoDuration(t *testing.T) {
 }
 
 func applyTestProxyArgs(cmdArgs []string) []string {
-	if config.CONFIG.YtDlpProxy != "" {
-		log.Printf("Using proxy: %s", config.CONFIG.YtDlpProxy)
-		return append([]string{"yt-dlp", "--proxy", config.CONFIG.YtDlpProxy}, cmdArgs[1:]...)
+	if config.CONFIG.YtDlpConfig.Proxy != "" {
+		log.Printf("Using proxy: %s", config.CONFIG.YtDlpConfig.Proxy)
+		return append([]string{"yt-dlp", "--proxy", config.CONFIG.YtDlpConfig.Proxy}, cmdArgs[1:]...)
 	}
 	return cmdArgs
 }
