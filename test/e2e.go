@@ -99,6 +99,7 @@ func testBasicWorkflow(ctx context.Context) error {
 	log.Printf("Filling YouTube URL: %s", validYouTubeURL)
 	err = chromedp.Run(ctx,
 		// Step 2: Fill the YouTube URL
+		chromedp.WaitReady(formatSelectSelector, chromedp.ByID),
 		chromedp.WaitVisible(urlInputSelector, chromedp.ByID),
 		chromedp.SetValue(urlInputSelector, validYouTubeURL, chromedp.ByID),
 	)
