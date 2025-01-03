@@ -91,6 +91,7 @@ func TestDownloadAndCutVideo(t *testing.T) {
 		"--downloader-args", fmt.Sprintf("ffmpeg_i:-ss %s -to %s", from, to),
 		url,
 	}
+	ApplyProxyArgs(expectedArgs)
 
 	if !reflect.DeepEqual(capturedArgs, expectedArgs) {
 		t.Errorf("Expected command args: %v, but got: %v", expectedArgs, capturedArgs)
@@ -125,8 +126,10 @@ func TestGetVideoDuration(t *testing.T) {
 		"--no-warnings",
 		url,
 	}
+	ApplyProxyArgs(expectedArgs)
 
 	if !reflect.DeepEqual(capturedArgs, expectedArgs) {
 		t.Errorf("Expected command args: %v, but got: %v", expectedArgs, capturedArgs)
 	}
 }
+

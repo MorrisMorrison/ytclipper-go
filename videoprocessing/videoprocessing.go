@@ -14,7 +14,7 @@ import (
 )
 
 const videoOutputDir = "./videos"
-var execContext = exec.CommandContext
+var execContext = exec.CommandContext // allows mocking in tests
 
 func DownloadAndCutVideo(outputPath string, selectedFormat string, fileSizeLimit int64, from string, to string, url string) ([]byte, error) {
 	cmdArgs := []string{
@@ -27,7 +27,7 @@ func DownloadAndCutVideo(outputPath string, selectedFormat string, fileSizeLimit
 		url,
 	}
 
-	cmdArgs = applyProxyArgs(cmdArgs)
+	cmdArgs = ApplyProxyArgs(cmdArgs)
 
 	output, err := executeWithTimeout(30*time.Second, "yt-dlp", cmdArgs...)
 	return output, err
@@ -60,22 +60,11 @@ func ProcessClip(jobID string, url string, from string, to string, selectedForma
     jobs.CompleteJob(jobID, outputPath)
 }
 
-func getFileExtensionFromFormatID(formatID string, formats []map[string]string) (string, error) {
-    for _, format := range formats {
-        if format["id"] == formatID {
-            if ext, exists := format["extension"]; exists {
-                return fmt.Sprintf(".%s", ext), nil
-            }
-        }
-    }
-    return "", fmt.Errorf("format ID not found")
-}
-
 func GetAvailableFormats(url string) ([]map[string]string, error) {
     log.Printf("Fetching available formats for URL: %s", url)
 
     cmdArgs := []string{"-F", url}
-	cmdArgs = applyProxyArgs(cmdArgs)
+	cmdArgs = ApplyProxyArgs(cmdArgs)
 
     output, err := executeWithTimeout(30*time.Second, "yt-dlp", cmdArgs...)
     if err != nil {
@@ -95,7 +84,7 @@ func GetVideoDuration(url string) (string, error) {
 		url,
 	}
 
-	cmdArgs = applyProxyArgs(cmdArgs)
+	cmdArgs = ApplyProxyArgs(cmdArgs)
 	output, err := executeWithTimeout(30*time.Second, "yt-dlp", cmdArgs...)
 	if err != nil {
         log.Printf("Error executing yt-dlp: %v", err)
@@ -165,7 +154,18 @@ func extractBitrate(additional string) string {
     return "N/A" 
 }
 
-func applyProxyArgs(cmdArgs []string) []string {
+func getFileExtensionFromFormatID(formatID string, formats []map[string]string) (string, error) {
+    for _, format := range formats {
+        if format["id"] == formatID {
+            if ext, exists := format["extension"]; exists {
+                return fmt.Sprintf(".%s", ext), nil
+            }
+        }
+    }
+    return "", fmt.Errorf("format ID not found")
+}
+
+func ApplyProxyArgs(cmdArgs []string) []string {
 	if config.CONFIG.YtDlpProxy != "" {
 		log.Printf("Using proxy: %s", config.CONFIG.YtDlpProxy)
 		return append([]string{"--proxy", config.CONFIG.YtDlpProxy}, cmdArgs...)
