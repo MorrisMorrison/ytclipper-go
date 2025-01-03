@@ -14,7 +14,7 @@ import (
 )
 
 const videoOutputDir = "./videos"
-var execCommand = exec.Command 
+var execContext = exec.CommandContext
 
 func DownloadAndCutVideo(outputPath string, selectedFormat string, fileSizeLimit int64, from string, to string, url string) ([]byte, error) {
 	cmdArgs := []string{
@@ -177,7 +177,7 @@ func executeWithTimeout(timeout time.Duration, name string, args ...string) ([]b
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, name, args...)
+	cmd := execContext(ctx, name, args...)
 
 	output, err := cmd.CombinedOutput()
 

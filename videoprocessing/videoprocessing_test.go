@@ -1,6 +1,7 @@
 package videoprocessing
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 	"reflect"
@@ -61,11 +62,12 @@ func TestExtractBitrate(t *testing.T) {
 }
 
 func TestDownloadAndCutVideo(t *testing.T) {
-	originalExecCommand := execCommand
-	defer func() { execCommand = originalExecCommand }()
+	originalExecContext := execContext
+	defer func() { execContext = originalExecContext }()
 
 	var capturedArgs []string
-	execCommand = func(name string, arg ...string) *exec.Cmd {
+	execContext = func(ctx context.Context,name string, arg ...string) *exec.Cmd {
+		capturedArgs = append([]string{name}, arg...)
 		capturedArgs = append([]string{name}, arg...)
 		return exec.Command("echo", "mock") 
 	}
@@ -96,11 +98,11 @@ func TestDownloadAndCutVideo(t *testing.T) {
 }
 
 func TestGetVideoDuration(t *testing.T) {
-	originalExecCommand := execCommand
-	defer func() { execCommand = originalExecCommand }()
+	originalExecContext := execContext
+	defer func() { execContext = originalExecContext }()
 
 	var capturedArgs []string
-	execCommand = func(name string, arg ...string) *exec.Cmd {
+	execContext = func(ctx context.Context,name string, arg ...string) *exec.Cmd {
 		capturedArgs = append([]string{name}, arg...)
 		return exec.Command("echo", "00:03:45") 
 	}

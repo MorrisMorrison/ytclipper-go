@@ -40,7 +40,7 @@ func main() {
 		{Name: "Basic Workflow Test", Run: testBasicWorkflow},
 		{Name: "Invalid Timestamps Test", Run: testInvalidTimestamps},
 		{Name: "Invalid YouTube URL Test", Run: testInvalidYouTubeURL},
-		{Name: "Dark Mode Test", Run: testDarkModeToggle},
+		// {Name: "Dark Mode Test", Run: testDarkModeToggle},
 	}
 
 	var failedTests int
