@@ -24,7 +24,7 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y make python3 python3-pip ffmpeg google-chrome-stable
-        python3 -m pip install --upgrade pip yt-dlp requests curl_cffi
+        python3 -m pip install --upgrade pip yt-dlp requests curl_cffi urllib3
         go mod tidy
 
     - name: Verify yt-dlp Path
