@@ -43,23 +43,22 @@ func main() {
 		{Name: "Dark Mode Test", Run: testDarkModeToggle},
 	}
 
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Headless, // Disable for debugging
-		chromedp.DisableGPU,
-		chromedp.NoSandbox,
-		chromedp.Flag("disable-dev-shm-usage", true),
-		chromedp.Flag("ignore-certificate-errors", true),
-		chromedp.Flag("v", true), // Verbose logging
-	)
-
-	log.Println("Starting Chrome context with options:", opts)
-
-	allocCtx, cancelAlloc := chromedp.NewExecAllocator(context.Background(), opts...)
-	defer cancelAlloc()
-
 	var failedTests int
 	for _, test := range tests {
-		ctx, cancel := chromedp.NewContext(allocCtx, chromedp.WithNewBrowserContext())
+		opts := append(chromedp.DefaultExecAllocatorOptions[:],
+			chromedp.Headless, // Disable for debugging
+			chromedp.DisableGPU,
+			chromedp.NoSandbox,
+			chromedp.Flag("disable-dev-shm-usage", true),
+			chromedp.Flag("ignore-certificate-errors", true),
+			chromedp.Flag("v", true), // Verbose logging
+		)
+
+		log.Printf("Starting Chrome context with options for test: %s", test.Name)
+		allocCtx, cancelAlloc := chromedp.NewExecAllocator(context.Background(), opts...)
+		defer cancelAlloc()
+
+		ctx, cancel := chromedp.NewContext(allocCtx) 
 		defer cancel()
 
 		testCtx, cancelTest := context.WithTimeout(ctx, 3*time.Minute)
@@ -81,6 +80,7 @@ func main() {
 	}
 	log.Println("All tests passed")
 }
+
 
 
 func testBasicWorkflow(ctx context.Context) error {
