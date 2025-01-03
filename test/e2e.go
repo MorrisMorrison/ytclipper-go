@@ -90,7 +90,6 @@ func testBasicWorkflow(ctx context.Context) error {
 	err := chromedp.Run(ctx,
 		// Step 1: Navigate to the app
 		chromedp.Navigate(baseURL),
-		chromedp.Reload(),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to navigate to app: %w", err)
