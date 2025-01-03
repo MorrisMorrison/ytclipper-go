@@ -37,10 +37,10 @@ type Test struct {
 
 func main() {
 	tests := []Test{
+		{Name: "Basic Workflow Test", Run: testBasicWorkflow},
 		{Name: "Invalid Timestamps Test", Run: testInvalidTimestamps},
 		{Name: "Invalid YouTube URL Test", Run: testInvalidYouTubeURL},
 		{Name: "Dark Mode Test", Run: testDarkModeToggle},
-		{Name: "Basic Workflow Test", Run: testBasicWorkflow},
 	}
 
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
