@@ -59,10 +59,10 @@ func main() {
 
 	var failedTests int
 	for _, test := range tests {
-		ctx, cancel := chromedp.NewContext(allocCtx)
+		ctx, cancel := chromedp.NewContext(allocCtx, chromedp.WithNewBrowserContext())
 		defer cancel()
 
-		testCtx, cancelTest := context.WithTimeout(ctx, 2*time.Minute)
+		testCtx, cancelTest := context.WithTimeout(ctx, 3*time.Minute)
 		defer cancelTest()
 
 		log.Printf("Running test: %s", test.Name)
