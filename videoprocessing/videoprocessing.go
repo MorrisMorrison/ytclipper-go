@@ -27,7 +27,7 @@ func DownloadAndCutVideo(outputPath string, selectedFormat string, fileSizeLimit
 		url,
 	}
 
-	cmdArgs = ApplyProxyArgs(cmdArgs)
+	cmdArgs = applyProxyArgs(cmdArgs)
 
 	output, err := executeWithTimeout(30*time.Second, "yt-dlp", cmdArgs...)
 	return output, err
@@ -64,7 +64,7 @@ func GetAvailableFormats(url string) ([]map[string]string, error) {
     log.Printf("Fetching available formats for URL: %s", url)
 
     cmdArgs := []string{"-F", url}
-	cmdArgs = ApplyProxyArgs(cmdArgs)
+	cmdArgs = applyProxyArgs(cmdArgs)
 
     output, err := executeWithTimeout(30*time.Second, "yt-dlp", cmdArgs...)
     if err != nil {
@@ -84,7 +84,7 @@ func GetVideoDuration(url string) (string, error) {
 		url,
 	}
 
-	cmdArgs = ApplyProxyArgs(cmdArgs)
+	cmdArgs = applyProxyArgs(cmdArgs)
 	output, err := executeWithTimeout(30*time.Second, "yt-dlp", cmdArgs...)
 	if err != nil {
         log.Printf("Error executing yt-dlp: %v", err)
@@ -165,7 +165,7 @@ func getFileExtensionFromFormatID(formatID string, formats []map[string]string) 
     return "", fmt.Errorf("format ID not found")
 }
 
-func ApplyProxyArgs(cmdArgs []string) []string {
+func applyProxyArgs(cmdArgs []string) []string {
 	if config.CONFIG.YtDlpProxy != "" {
 		log.Printf("Using proxy: %s", config.CONFIG.YtDlpProxy)
 		return append([]string{"--proxy", config.CONFIG.YtDlpProxy}, cmdArgs...)

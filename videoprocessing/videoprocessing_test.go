@@ -3,9 +3,11 @@ package videoprocessing
 import (
 	"context"
 	"fmt"
+	"log"
 	"os/exec"
 	"reflect"
 	"testing"
+	"ytclipper-go/config"
 )
 
 func TestExtractDuration(t *testing.T) {
@@ -90,7 +92,7 @@ func TestDownloadAndCutVideo(t *testing.T) {
 		"--downloader-args", fmt.Sprintf("ffmpeg_i:-ss %s -to %s", from, to),
 		url,
 	}
-	expectedArgs = ApplyProxyArgs(expectedArgs)
+	expectedArgs = applyTestProxyArgs(expectedArgs)
 
 	if !reflect.DeepEqual(capturedArgs, expectedArgs) {
 		t.Errorf("Expected command args: %v, but got: %v", expectedArgs, capturedArgs)
@@ -125,10 +127,17 @@ func TestGetVideoDuration(t *testing.T) {
 		"--no-warnings",
 		url,
 	}
-	expectedArgs = ApplyProxyArgs(expectedArgs)
+	expectedArgs = applyTestProxyArgs(expectedArgs)
 
 	if !reflect.DeepEqual(capturedArgs, expectedArgs) {
 		t.Errorf("Expected command args: %v, but got: %v", expectedArgs, capturedArgs)
 	}
 }
 
+func applyTestProxyArgs(cmdArgs []string) []string {
+	if config.CONFIG.YtDlpProxy != "" {
+		log.Printf("Using proxy: %s", config.CONFIG.YtDlpProxy)
+		return append([]string{"yt-dlp", "--proxy", config.CONFIG.YtDlpProxy}, cmdArgs[1:]...)
+	}
+	return cmdArgs
+}
