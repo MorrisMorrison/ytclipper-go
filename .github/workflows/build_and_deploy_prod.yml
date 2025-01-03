@@ -27,17 +27,17 @@ jobs:
         python3 -m pip install --upgrade pip yt-dlp requests curl_cffi
         go mod tidy
 
-    - name: Debug Proxy Environment Variable
-      run: echo "Proxy set to $YTCLIPPER_YT_DLP_PROXY"
+    - name: Set PATH for Python-installed yt-dlp
+      run: echo "$HOME/.local/bin:$PATH" >> $GITHUB_ENV
 
-    - name: Verify Dependencies
-      run: |
-        which ffmpeg && ffmpeg -version
-        which yt-dlp && yt-dlp --version
-        which google-chrome && google-chrome --version
-        python3 -m pip show requests curl_cffi
-        yt-dlp --proxy ${{ secrets.YTDLP_PROXY_URL }} https://www.youtube.com/watch?v=dQw4w9WgXcQ --simulate
-        go version
+    - name: Verify yt-dlp Path
+      run: which yt-dlp
+
+    - name: Debug yt-dlp Environment
+      run: yt-dlp --version --print-python-info
+
+    - name: Test yt-dlp with Proxy
+      run: yt-dlp --proxy ${{ secrets.YTDLP_PROXY_URL }} https://www.youtube.com/watch?v=dQw4w9WgXcQ --simulate
 
     - name: Test YouTube Accessibility
       run: curl -I https://www.youtube.com
