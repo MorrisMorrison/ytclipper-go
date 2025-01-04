@@ -3,13 +3,13 @@ FROM golang:1.23
 WORKDIR /app
 
 # Update and install dependencies (Python3, pip, and FFmpeg)
-RUN apt-get update && \
-    apt-get install -y python3 python3-pip ffmpeg yt-dlp && \
-    apt-get clean
+RUN sudo apt-get update \
+sudo apt-get install -y make python3 python3-pip ffmpeg google-chrome-stable \
+python3 -m pip install --upgrade pip yt-dlp requests curl_cffi urllib3 \
 
 # Copy Go module files and download dependencies
 COPY go.mod go.sum ./
-RUN go mod download
+RUN go mod tidy 
 
 # Copy the application source code
 COPY . .

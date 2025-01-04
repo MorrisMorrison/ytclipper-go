@@ -17,7 +17,7 @@ import (
 var AppLogger *glogger.Logger = glogger.NewLogger()
 
 func checkDependencies(){
-   log.Println("Checking dependencies...")
+   AppLogger.Info("Checking dependencies")
 
     if err := utils.CheckCommand("ffmpeg"); err != nil {
         log.Fatalf("Dependency check failed: %v", err)
