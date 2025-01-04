@@ -1,7 +1,10 @@
 package api
 
 import (
+	"fmt"
+	"io"
 	"net/http"
+	"strings"
 	"ytclipper-go/jobs"
 	"ytclipper-go/videoprocessing"
 
@@ -16,10 +19,16 @@ type CreateClipDTO struct {
 }
 
 
-func CreateClip(c echo.Context) error {
+func CreateClip(c echo.Context) error { 
     createClipDto := new(CreateClipDTO)
     if err := c.Bind(createClipDto); err != nil {
-        return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid input"})
+        rawJSON := new(strings.Builder)
+        _, jsonErr := io.Copy(rawJSON, c.Request().Body)
+        if jsonErr != nil {
+            return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid input: Could not read json body"})
+        }
+
+        return c.JSON(http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("Invalid input %s", rawJSON.String())})
     }
 
     if err := validateCreateClipDto(createClipDto); err != nil {

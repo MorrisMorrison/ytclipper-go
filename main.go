@@ -14,10 +14,8 @@ import (
 	"golang.org/x/time/rate"
 )
 
-var AppLogger *glogger.Logger = glogger.NewLogger()
-
 func checkDependencies(){
-   AppLogger.Info("Checking dependencies")
+   glogger.Log.Info("Checking dependencies")
 
     if err := utils.CheckCommand("ffmpeg"); err != nil {
         log.Fatalf("Dependency check failed: %v", err)
@@ -31,18 +29,18 @@ func checkDependencies(){
 }
 
 func setupEcho(){
-    AppLogger.Info("Setup echo")
+    glogger.Log.Info("Setup echo")
     e := echo.New()
     appConfig := config.NewConfig()
     
-    AppLogger.Infof("Debug enabled: %t", appConfig.Debug)
+    glogger.Log.Infof("Debug enabled: %t", appConfig.Debug)
     e.Debug = appConfig.Debug
     e.Logger.SetOutput(os.Stdout) 
 
     e.Static("/static", "static")
     routes.RegisterRoutes(e)
 
-    AppLogger.Infof("Starting server on port %s", appConfig.Port)
+    glogger.Log.Infof("Starting server on port %s", appConfig.Port)
     e.Use(middleware.Logger())
 	limiterStore := middleware.NewRateLimiterMemoryStoreWithConfig(middleware.RateLimiterMemoryStoreConfig{
 		Rate:      rate.Limit(appConfig.RateLimiterConfig.Rate),              
@@ -59,8 +57,7 @@ func setupEcho(){
 }
 
 func main() {
-    AppLogger = glogger.NewLogger()
-    AppLogger.Info("Start ytclipper")
+    glogger.Log.Info("Start ytclipper")
     checkDependencies();
     setupEcho();
 }

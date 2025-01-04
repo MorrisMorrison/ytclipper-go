@@ -3,7 +3,6 @@ package videoprocessing
 import (
 	"context"
 	"fmt"
-	"log"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -11,6 +10,8 @@ import (
 	"time"
 	"ytclipper-go/config"
 	"ytclipper-go/jobs"
+
+	"github.com/MorrisMorrison/gutils/glogger"
 )
 
 const videoOutputDir = "./videos"
@@ -33,19 +34,20 @@ func DownloadAndCutVideo(outputPath string, selectedFormat string, fileSizeLimit
 	return output, err
 }
 
-
-
 func ProcessClip(jobID string, url string, from string, to string, selectedFormat string) {
+    glogger.Log.Infof("Process Clip: Start Job %s", jobID)
     jobs.StartJob(jobID)
 
     availableFormats, err := GetAvailableFormats(url)
     if err != nil {
+        glogger.Log.Error(err, "Process Clip: Failed to retrieve formats")
         jobs.FailJob(jobID, fmt.Sprintf("Failed to retrieve formats: %v", err))
         return
     }
 
     fileExtension, err := getFileExtensionFromFormatID(selectedFormat, availableFormats)
     if err != nil {
+        glogger.Log.Errorf(err, "Process Clip: Unsupported format ID: %s", selectedFormat)
         jobs.FailJob(jobID, fmt.Sprintf("Unsupported format ID: %s", selectedFormat))
         return
     }
@@ -53,31 +55,42 @@ func ProcessClip(jobID string, url string, from string, to string, selectedForma
     outputPath := filepath.Join(videoOutputDir, fmt.Sprintf("%s%s", filepath.Base(jobID), fileExtension))
     output, err := DownloadAndCutVideo(outputPath, selectedFormat, config.CONFIG.ClipSizeInMb, from, to, url)
     if err != nil {
+        glogger.Log.Errorf(err, "Process Clip: Failed to download video: %s", string(output))
         jobs.FailJob(jobID, fmt.Sprintf("Failed to download video: %s", string(output)))
         return
     }
 
+    glogger.Log.Infof("Process Clip: Complete Job %s", jobID)
     jobs.CompleteJob(jobID, outputPath)
 }
 
 func GetAvailableFormats(url string) ([]map[string]string, error) {
-    log.Printf("Fetching available formats for URL: %s", url)
+    glogger.Log.Infof("Get Available Formats: Fetching available formats for URL %s", url)
 
     cmdArgs := []string{"-F", url}
 	cmdArgs = applyProxyArgs(cmdArgs)
 
     output, err := executeWithTimeout(time.Duration(config.CONFIG.YtDlpConfig.CommandTimeoutInSeconds)*time.Second, "yt-dlp", cmdArgs...)
     if err != nil {
-        log.Printf("Error executing yt-dlp: %v", err)
-        log.Printf("yt-dlp output:\n%s", output)
+        glogger.Log.Errorf(err, "Get Available Formats: Error executing yt-dlp. Output\n%s", string(output))
         return nil, fmt.Errorf("yt-dlp failed: %w", err)
     }
 
-    log.Printf("yt-dlp command succeeded. Output:\n%s", output)
+    if (config.CONFIG.Debug){
+        glogger.Log.Infof("Get Available Formats: yt-dlp command succeeded. Output:\n%s", output) 
+    }
+
+    formats:=parseFormats(string(output))
+    if (formats == nil){
+        glogger.Log.Errorf(fmt.Errorf("Formats are nil"), "Get Video Duration: Could not find any available formats. Output:/n%s", output)
+    }
+
     return parseFormats(string(output)), nil
 }
 
 func GetVideoDuration(url string) (string, error) {
+    glogger.Log.Infof("Get Video Duration: Fetch duration for URL %s", url)
+
 	cmdArgs := []string{
 		"--get-duration",
 		"--no-warnings",
@@ -87,16 +100,17 @@ func GetVideoDuration(url string) (string, error) {
 	cmdArgs = applyProxyArgs(cmdArgs)
 	output, err := executeWithTimeout(time.Duration(config.CONFIG.YtDlpConfig.CommandTimeoutInSeconds)*time.Second, "yt-dlp", cmdArgs...)
 	if err != nil {
-        log.Printf("Error executing yt-dlp: %v", err)
-        log.Printf("yt-dlp output:\n%s", output)
+        glogger.Log.Errorf(err, "Get Video Duration: Error executing yt-dlp. Output\n%s", string(output))
 		return "", err
 	}
+
+    if (config.CONFIG.Debug){
+        glogger.Log.Infof("Get Video Duration: yt-dlp command succeeded. Output:\n%s", output) 
+    }
 
 	duration := ExtractDuration(string(output))
 	return duration, nil
 }
-
-
 
 func ExtractDuration(output string) string {
     re := regexp.MustCompile(`\d+:\d{2}(?::\d{2})?`)
@@ -151,6 +165,8 @@ func extractBitrate(additional string) string {
     if len(match) > 0 {
         return match[1]
     }
+
+    glogger.Log.Warningf("Extract Bitrate: Could not extract bitrate from %s", additional)
     return "N/A" 
 }
 
@@ -167,7 +183,7 @@ func getFileExtensionFromFormatID(formatID string, formats []map[string]string) 
 
 func applyProxyArgs(cmdArgs []string) []string {
 	if config.CONFIG.YtDlpConfig.Proxy != "" {
-		log.Printf("Using proxy: %s", config.CONFIG.YtDlpConfig.Proxy)
+        glogger.Log.Infof("Using proxy: %s", config.CONFIG.YtDlpConfig.Proxy)
 		return append([]string{"--proxy", config.CONFIG.YtDlpConfig.Proxy}, cmdArgs...)
 	}
 	return cmdArgs
@@ -182,7 +198,6 @@ func executeWithTimeout(timeout time.Duration, name string, args ...string) ([]b
 	output, err := cmd.CombinedOutput()
 
 	if ctx.Err() == context.DeadlineExceeded {
-		log.Printf("Command '%s' timed out", name)
 		return nil, fmt.Errorf("command timed out")
 	}
 

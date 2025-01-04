@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 	"ytclipper-go/jobs"
 
@@ -12,7 +13,7 @@ func GetJobStatus(c echo.Context) error {
 
     job, exists := jobs.GetJobById(jobID)
     if !exists {
-        return c.JSON(http.StatusNotFound, map[string]string{"error": "Job not found"})
+        return c.JSON(http.StatusNotFound, map[string]string{"error": fmt.Sprintf("Job %s not found", jobID)})
     }
 
     if (job.Status== jobs.StatusProcessing){
