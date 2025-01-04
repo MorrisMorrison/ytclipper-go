@@ -11,21 +11,25 @@ import (
 func GetVideoDuration(c echo.Context) error {
     url := c.QueryParam("youtubeUrl")
     if url == "" {
+        c.Logger().Errorf("Url is required")
         return c.JSON(http.StatusBadRequest, map[string]string{"error": "URL is required"})
     }
 
     if !isValidYoutubeUrl(url) {
+        c.Logger().Errorf("Invalid Youtube URL: %s", url)
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid YouTube URL"})
 	}
 
     duration, err := videoprocessing.GetVideoDuration(url) 
     if err != nil {
+
         return c.JSON(http.StatusInternalServerError, map[string]string{
             "error":   "Failed to get video duration",
         })
     }
 
     if duration == "" {
+        c.Logger().Error("Could not extract duration from yt-dlp output")
         return c.JSON(http.StatusInternalServerError, map[string]string{
             "error": "Could not extract duration from yt-dlp output",
         })
@@ -33,6 +37,7 @@ func GetVideoDuration(c echo.Context) error {
 
     totalSeconds, err := utils.ToSeconds(duration); 
     if err != nil {
+        c.Logger().Error("Could not calculate total seconds")
         return c.JSON(http.StatusInternalServerError, map[string]string{
             "error": "Could not calculate total seconds",
         })
@@ -46,10 +51,12 @@ func GetVideoDuration(c echo.Context) error {
 func GetAvailableFormats(c echo.Context) error {
     url := c.QueryParam("youtubeUrl")
     if url == "" {
+        c.Logger().Errorf("Url is required")
         return c.JSON(http.StatusBadRequest, map[string]string{"error": "URL is required"})
     }
 
     if !isValidYoutubeUrl(url) {
+        c.Logger().Errorf("Invalid Youtube URL: %s", url)
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid YouTube URL"})
 	}
 

@@ -1,7 +1,6 @@
 package api
 
 import (
-	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -25,13 +24,16 @@ func CreateClip(c echo.Context) error {
         rawJSON := new(strings.Builder)
         _, jsonErr := io.Copy(rawJSON, c.Request().Body)
         if jsonErr != nil {
-            return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid input: Could not read json body"})
+            c.Logger().Errorf("Invalid input: Could not read json body")
+            return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid input"})
         }
 
-        return c.JSON(http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("Invalid input %s", rawJSON.String())})
+        c.Logger().Errorf("Invalid input: Could not bind to DTO. Body:/n%s", rawJSON.String())
+        return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid input"})
     }
 
     if err := validateCreateClipDto(createClipDto); err != nil {
+        c.Logger().Errorf("Invalid DTO: %s", err.Error())
         return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
     }
 
@@ -49,7 +51,8 @@ func GetClip(c echo.Context) error {
     jobID := c.QueryParam("jobId")
     job, exists := jobs.GetJobById(jobID)
     if !exists || job.Status != jobs.StatusCompleted {
-        return c.JSON(http.StatusNotFound, map[string]string{"error": "File not available"})
+        c.Logger().Errorf("Job does not exist. JobId:%s", jobID)
+        return c.JSON(http.StatusNotFound, map[string]string{"error": "Job does not exist"})
     }
 
     // Schedule file deletion after the response is sent
