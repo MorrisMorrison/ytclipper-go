@@ -1,5 +1,5 @@
 # ytclipper-go
-
+[![main](https://github.com/MorrisMorrison/ytclipper-go/actions/workflows/build_and_deploy_prod.yml/badge.svg?branch=main)](https://github.com/MorrisMorrison/ytclipper-go/actions/workflows/build_and_deploy_prod.yml)
 A simple web application to create clips from YouTube videos and download them. This is the Go version of [ytclipper](https://github.com/MorrisMorrison/ytclipper).
 
 https://github.com/MorrisMorrison/ytclipper/assets/22982151/bc950608-114f-4d10-b9cd-e46c5cf37333
@@ -25,11 +25,13 @@ https://github.com/MorrisMorrison/ytclipper/assets/22982151/bc950608-114f-4d10-b
 ### Requirements
 Make sure you have the following dependencies installed:
 - [Go](https://golang.org/)
-- Python 3
-- Python `pip`
-- [Certifi](https://pypi.org/project/certifi/) (`python3-certifi`)
-- [FFmpeg](https://ffmpeg.org/)
+- [python3](https://www.python.org/downloads/)
+- [pip](https://pypi.org/project/pip/)
+- [certifi](https://pypi.org/project/certifi/)
+- [ffmpeg](https://ffmpeg.org/)
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp)
+- [requests](https://pypi.org/project/requests/)
+- [urrlib3](https://pypi.org/project/urllib3/)
 
 ### Setup
 1. Install Go dependencies:
@@ -51,7 +53,7 @@ To build the application:
 
 ### Build Prod
 To run all tests and build the application for production:
-`make build`
+`make build-prod`
 
 ### Tests
 To run tests
@@ -82,4 +84,3 @@ The application can be configured using the following environment variables:
 - [x] save clips in correct file format
 - [ ] add workerpool
 
-[![main](https://github.com/MorrisMorrison/ytclipper-go/actions/workflows/build_and_deploy_prod.yml/badge.svg?branch=main)](https://github.com/MorrisMorrison/ytclipper-go/actions/workflows/build_and_deploy_prod.yml)
