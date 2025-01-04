@@ -5,7 +5,7 @@ WORKDIR /app
 # Update and install dependencies (Python3, pip, and FFmpeg)
 RUN sudo apt-get update \
 sudo apt-get install -y make python3 python3-pip ffmpeg google-chrome-stable \
-python3 -m pip install --upgrade pip yt-dlp requests curl_cffi urllib3 \
+python3 -m pip install --upgrade pip yt-dlp requests curl_cffi urllib3
 
 # Copy Go module files and download dependencies
 COPY go.mod go.sum ./
