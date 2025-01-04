@@ -63,13 +63,15 @@ To run tests
 The application can be configured using the following environment variables:
 
 | Environment Variable                         | Description                                            | Default Value  |
-|---------------------------------------------|--------------------------------------------------------|----------------|
+|----------------------------------------------|--------------------------------------------------------|----------------|
 | `YTCLIPPER_PORT`                             | The port on which the application runs.                | `8080`         |
-| `YTCLIPPER_DEBUG`                            | Enable debug mode (true/false).                        | `true`        |
+| `YTCLIPPER_DEBUG`                            | Enable debug mode (true/false).                        | `true`         |
 | `YTCLIPPER_PORT_CLIP_SIZE_LIMIT_IN_MB`       | Maximum clip size (in MB) for yt-dlp.                  | `300`          |
 | `YTCLIPPER_RATE_LIMITER_RATE`                | Rate limiter requests per second.                      | `5`            |
 | `YTCLIPPER_RATE_LIMITER_BURST`               | Maximum number of requests allowed in a burst.         | `20`           |
 | `YTCLIPPER_RATE_LIMITER_EXPIRES_IN_MINUTES`  | Rate limiter token expiration time (in minutes).       | `1`            |
+| `YTCLIPPER_YT_DLP_PROXY`                     | Proxy used by yt-dlp (in minutes).                     | ``             |
+| `YTCLIPPER_YT_DLP_COMMAND_TIMEOUT_IN_SECONDS`| yt-dlp command timeout (in seconds).                   | `30`           |
 
 ---
 
@@ -77,7 +79,7 @@ The application can be configured using the following environment variables:
 - [ ] automatically delete downloaded videos
 - [ ] track created/finished time of jobs
 - [ ] kill suspended jobs after a specified timeout
-- [ ] save clips in correct file format
+- [x] save clips in correct file format
 - [ ] add workerpool
 
 [![main](https://github.com/MorrisMorrison/ytclipper-go/actions/workflows/build_and_deploy_prod.yml/badge.svg?branch=main)](https://github.com/MorrisMorrison/ytclipper-go/actions/workflows/build_and_deploy_prod.yml)
