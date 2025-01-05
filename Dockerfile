@@ -10,6 +10,9 @@ RUN apt-get update && \
 # Install yt-dlp separately, as it may not have a Debian package
 RUN python3 -m pip install --no-warn-script-location yt-dlp --break-system-packages
 
+# Create videos directory
+RUN mkdir -p /app/videos && chmod 777 /app/videos
+
 # Copy Go module files and download dependencies
 COPY go.mod go.sum ./
 RUN go mod tidy 
