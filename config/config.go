@@ -63,7 +63,7 @@ func NewClipCleanUpSchedulerConfig() *ClipCleanUpSchedulerConfig {
 }
 
 func NewYtDlpConfig() *YtDlpConfig{
-	commandTimeoutInSeconds := GetEnvInt(CONFIG_KEY_YT_DLP_COMMAND_TIMEOUT_IN_SECONDS, 30)
+	commandTimeoutInSeconds := GetEnvInt(CONFIG_KEY_YT_DLP_COMMAND_TIMEOUT_IN_SECONDS, 60)
 	proxy := GetEnv(CONFIG_KEY_YT_DLP_PROXY, "")
 
 	return &YtDlpConfig{

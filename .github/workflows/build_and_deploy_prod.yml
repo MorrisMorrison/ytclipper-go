@@ -10,7 +10,10 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
     env:
-      YTCLIPPER_YT_DLP_PROXY: ${{ secrets.YTDLP_PROXY_URL }}
+      YTPROXY_USERNAME: ${{ secrets.YTPROXY_USERNAME }}
+      YTPROXY_PASSWORD: ${{ secrets.YTPROXY_PASSWORD }}
+      YTPROXY_HOST: ${{ secrets.YTPROXY_HOST }}
+      YTPROXY_PROTOCOL: ${{ secrets.YTPROXY_PROTOCOL }}
       YTCLIPPER_CLIP_CLEANUP_SCHEDULER_ENABLED: "false"
     steps:
     - name: Checkout Code
@@ -20,6 +23,11 @@ jobs:
       uses: actions/setup-go@v4
       with:
         go-version: stable
+
+    - name: Set Up Proxy Environment Variable
+      run: |
+        echo "YTCLIPPER_YT_DLP_PROXY=$YTPROXY_PROTOCOL://$YTPROXY_USERNAME:$YTPROXY_PASSWORD@$YTPROXY_ADDRESS" >> $GITHUB_ENV
+
 
     - name: Install Dependencies
       run: |
