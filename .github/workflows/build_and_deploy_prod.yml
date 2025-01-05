@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       YTCLIPPER_YT_DLP_PROXY: ${{ secrets.YTDLP_PROXY_URL }}
+      YTCLIPPER_CLIP_CLEANUP_SCHEDULER_ENABLED: "false"
     steps:
     - name: Checkout Code
       uses: actions/checkout@v3

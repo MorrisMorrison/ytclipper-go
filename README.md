@@ -74,8 +74,9 @@ The application can be configured using the following environment variables:
 | `YTCLIPPER_RATE_LIMITER_EXPIRES_IN_MINUTES`  | Rate limiter token expiration time (in minutes).       | `1`            |
 | `YTCLIPPER_YT_DLP_PROXY`                     | Proxy used by yt-dlp.                     | ``             |
 | `YTCLIPPER_YT_DLP_COMMAND_TIMEOUT_IN_SECONDS`| yt-dlp command timeout (in seconds).                   | `30`           |
-| `YTCLIPPET_CLIP_CLEANUP_SCHEDULER_INTERVAL_IN_MINUTES`                     | Execution interval used by scheduler (in minutes).                     | `5`             |
-| `YTCLIPPET_CLIP_CLEANUP_SCHEDULER_CLIP_DIRECTORY_PATH`| Directory to search for old files to delete.                   | `./videos`           |
+| `YTCLIPPER_CLIP_CLEANUP_SCHEDULER_INTERVAL_IN_MINUTES`                     | Execution interval used by scheduler (in minutes).                     | `5`             |
+| `YTCLIPPER_CLIP_CLEANUP_SCHEDULER_CLIP_DIRECTORY_PATH`| Directory to search for old files to delete.                   | `./videos`           |
+| `YTCLIPPER_CLIP_CLEANUP_SCHEDULER_ENABLED`| Flag to enable/disable the scheduler.                   | `true`           |
 ---
 
 ## TODO
