@@ -26,7 +26,7 @@ jobs:
 
     - name: Set Up Proxy Environment Variable
       run: |
-        echo "YTCLIPPER_YT_DLP_PROXY=$YTPROXY_PROTOCOL://$YTPROXY_USERNAME:$YTPROXY_PASSWORD@$YTPROXY_ADDRESS" >> $GITHUB_ENV
+        echo "YTCLIPPER_YT_DLP_PROXY=$YTPROXY_PROTOCOL://$YTPROXY_USERNAME:$YTPROXY_PASSWORD@$YTPROXY_HOST" >> $GITHUB_ENV
 
 
     - name: Install Dependencies
