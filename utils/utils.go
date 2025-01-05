@@ -6,10 +6,11 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
-	"ytclipper-go/config"
-
-	"github.com/MorrisMorrison/gutils/glogger"
 )
+
+func MbToBytes(mb int) int64{
+	return (int64(mb) * 1024 * 1024)
+}
 
 func CheckCommand(command string) error {
     _, err := exec.LookPath(command)
@@ -60,14 +61,3 @@ func ToSeconds(duration string) (int, error) {
 	return totalSeconds, nil
 }
 
-func LogIfDebug(msg string){
-	if (config.CONFIG.Debug){
-		glogger.Log.Debug(msg)
-	}
-}
-
-func LogfIfDebug(msg string, args... string){
-	if (config.CONFIG.Debug){
-		glogger.Log.Debugf(msg, args)
-	}
-}

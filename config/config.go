@@ -3,30 +3,29 @@ package config
 import (
 	"os"
 	"strconv"
+	"ytclipper-go/utils"
 )
 
 const (
-	CONFIG_KEY_PORT                    				= "YTCLIPPER_PORT"
-	CONFIG_KEY_DEBUG                    			= "YTCLIPPER_DEBUG"
-	CONFIG_KEY_CLIP_SIZE_LIMIT_IN_MB         		= "YTCLIPPER_PORT_CLIP_SIZE_LIMIT_IN_MB"
-	
-	CONFIG_KEY_YT_DLP_PROXY							= "YTCLIPPER_YT_DLP_PROXY"
-	CONFIG_KEY_YT_DLP_COMMAND_TIMEOUT_IN_SECONDS	= "YTCLIPPER_YT_DLP_COMMAND_TIMEOUT_IN_SECONDS"
+	CONFIG_KEY_PORT                    						= "YTCLIPPER_PORT"
+	CONFIG_KEY_DEBUG                    					= "YTCLIPPER_DEBUG"
+	CONFIG_KEY_YT_DLP_CLIP_SIZE_LIMIT_IN_MB         		= "YTCLIPPER_YT_DLP_CLIP_SIZE_LIMIT_IN_MB"
+	CONFIG_KEY_YT_DLP_PROXY									= "YTCLIPPER_YT_DLP_PROXY"
+	CONFIG_KEY_YT_DLP_COMMAND_TIMEOUT_IN_SECONDS			= "YTCLIPPER_YT_DLP_COMMAND_TIMEOUT_IN_SECONDS"
 
-	CONFIG_KEY_RATE_LIMITER_RATE       				= "YTCLIPPER_RATE_LIMITER_RATE"
-	CONFIG_KEY_RATE_LIMITER_BURST      				= "YTCLIPPER_RATE_LIMITER_BURST"
-	CONFIG_KEY_RATE_LIMITER_EXPIRES_IN_MINUTES		= "YTCLIPPER_RATE_LIMITER_EXPIRES_IN_MINUTES"
+	CONFIG_KEY_RATE_LIMITER_RATE       						= "YTCLIPPER_RATE_LIMITER_RATE"
+	CONFIG_KEY_RATE_LIMITER_BURST      						= "YTCLIPPER_RATE_LIMITER_BURST"
+	CONFIG_KEY_RATE_LIMITER_EXPIRES_IN_MINUTES				= "YTCLIPPER_RATE_LIMITER_EXPIRES_IN_MINUTES"
 
-	CONFIG_KEY_CLIP_CLEANUP_SCHEDULER_INTERVAL_IN_MINUTES = "YTCLIPPER_CLIP_CLEANUP_SCHEDULER_INTERVAL_IN_MINUTES"
-	CONFIG_KEY_CLIP_CLEANUP_SCHEDULER_CLIP_DIRECTORY_PATH = "YTCLIPPER_CLIP_CLEANUP_SCHEDULER_CLIP_DIRECTORY_PATH"
-	CONFIG_KEY_CLIP_CLEANUP_SCHEDULER_ENABLED = "YTCLIPPER_CLIP_CLEANUP_SCHEDULER_ENABLED"
+	CONFIG_KEY_CLIP_CLEANUP_SCHEDULER_INTERVAL_IN_MINUTES 	= "YTCLIPPER_CLIP_CLEANUP_SCHEDULER_INTERVAL_IN_MINUTES"
+	CONFIG_KEY_CLIP_CLEANUP_SCHEDULER_CLIP_DIRECTORY_PATH 	= "YTCLIPPER_CLIP_CLEANUP_SCHEDULER_CLIP_DIRECTORY_PATH"
+	CONFIG_KEY_CLIP_CLEANUP_SCHEDULER_ENABLED 				= "YTCLIPPER_CLIP_CLEANUP_SCHEDULER_ENABLED"
 )
 
 var CONFIG *Config = NewConfig()
 
 type Config struct {
 	Port			string
-	ClipSizeInMb 	int64
 	Debug			bool
 	RateLimiterConfig RateLimiterConfig
 	YtDlpConfig YtDlpConfig
@@ -40,6 +39,7 @@ type RateLimiterConfig struct {
 }
 
 type YtDlpConfig struct {
+	ClipSizeInMb 	int64
 	CommandTimeoutInSeconds int
 	Proxy string
 }
@@ -52,7 +52,7 @@ type ClipCleanUpSchedulerConfig struct {
 
 func NewClipCleanUpSchedulerConfig() *ClipCleanUpSchedulerConfig {
 	intervalInMinutes := GetEnvInt(CONFIG_KEY_CLIP_CLEANUP_SCHEDULER_INTERVAL_IN_MINUTES, 5)
-	clipDirectoryPath := GetEnv(CONFIG_KEY_CLIP_CLEANUP_SCHEDULER_CLIP_DIRECTORY_PATH, "./videos")
+	clipDirectoryPath := GetEnv(CONFIG_KEY_CLIP_CLEANUP_SCHEDULER_CLIP_DIRECTORY_PATH, "./videos/")
 	clipSchedulerEnabled := GetEnv(CONFIG_KEY_CLIP_CLEANUP_SCHEDULER_ENABLED, "true") == "true"
 
 	return &ClipCleanUpSchedulerConfig{
@@ -63,10 +63,12 @@ func NewClipCleanUpSchedulerConfig() *ClipCleanUpSchedulerConfig {
 }
 
 func NewYtDlpConfig() *YtDlpConfig{
+	clipSizeInMb := utils.MbToBytes(GetEnvInt(CONFIG_KEY_YT_DLP_CLIP_SIZE_LIMIT_IN_MB, 300))
 	commandTimeoutInSeconds := GetEnvInt(CONFIG_KEY_YT_DLP_COMMAND_TIMEOUT_IN_SECONDS, 60)
 	proxy := GetEnv(CONFIG_KEY_YT_DLP_PROXY, "")
 
 	return &YtDlpConfig{
+		ClipSizeInMb: clipSizeInMb,
 		CommandTimeoutInSeconds: commandTimeoutInSeconds,
 		Proxy: proxy,
 	}
@@ -86,14 +88,12 @@ func NewRateLimiterConfig() *RateLimiterConfig {
 
 func NewConfig() *Config {
 	port := GetEnv(CONFIG_KEY_PORT, "8080")
-
 	debug := GetEnv(CONFIG_KEY_DEBUG, "true") == "true"
-	clipSizeInMb := GetClipSizeLimit()
+
 
 	return &Config{
 		Port:  port,
 		Debug: debug,
-		ClipSizeInMb: clipSizeInMb,
 		RateLimiterConfig:  *NewRateLimiterConfig(),
 		YtDlpConfig:*NewYtDlpConfig(),
 		ClipCleanUpSchedulerConfig: *NewClipCleanUpSchedulerConfig(),
@@ -119,9 +119,3 @@ func GetEnv(key, fallback string) string {
 	}
 	return value
 }
-
-func GetClipSizeLimit() int64 {
-	clipSizeLimitBytes := int64(GetEnvInt(CONFIG_KEY_CLIP_SIZE_LIMIT_IN_MB, 300)) * 1024 * 1024
-	return clipSizeLimitBytes
-}
-

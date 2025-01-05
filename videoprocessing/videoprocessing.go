@@ -53,7 +53,7 @@ func ProcessClip(jobID string, url string, from string, to string, selectedForma
     }
 
     outputPath := filepath.Join(videoOutputDir, fmt.Sprintf("%s%s", filepath.Base(jobID), fileExtension))
-    output, err := DownloadAndCutVideo(outputPath, selectedFormat, config.CONFIG.ClipSizeInMb, from, to, url)
+    output, err := DownloadAndCutVideo(outputPath, selectedFormat, config.CONFIG.YtDlpConfig.ClipSizeInMb, from, to, url)
     if err != nil {
         glogger.Log.Errorf(err, "Process Clip: Failed to download video: %s", string(output))
         jobs.FailJob(jobID, fmt.Sprintf("Failed to download video: %s", string(output)))
