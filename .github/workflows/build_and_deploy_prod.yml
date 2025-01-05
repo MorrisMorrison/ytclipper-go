@@ -10,10 +10,7 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
     env:
-      YTPROXY_USERNAME: ${{ secrets.YTPROXY_USERNAME }}
-      YTPROXY_PASSWORD: ${{ secrets.YTPROXY_PASSWORD }}
-      YTPROXY_HOST: ${{ secrets.YTPROXY_HOST }}
-      YTPROXY_PROTOCOL: ${{ secrets.YTPROXY_PROTOCOL }}
+      YTCLIPPER_YT_DLP_PROXY: ${{ secrets.YTDLP_PROXY_URL }}
       YTCLIPPER_CLIP_CLEANUP_SCHEDULER_ENABLED: "false"
     steps:
     - name: Checkout Code
@@ -23,11 +20,6 @@ jobs:
       uses: actions/setup-go@v4
       with:
         go-version: stable
-
-    - name: Set Up Proxy Environment Variable
-      run: |
-        echo "YTCLIPPER_YT_DLP_PROXY=$YTPROXY_PROTOCOL://$YTPROXY_USERNAME:$YTPROXY_PASSWORD@$YTPROXY_HOST" >> $GITHUB_ENV
-
 
     - name: Install Dependencies
       run: |
@@ -43,7 +35,7 @@ jobs:
       run: yt-dlp --version --print-python-info
 
     - name: Test yt-dlp with Proxy
-      run: yt-dlp --proxy $YTCLIPPER_YT_DLP_PROXY https://www.youtube.com/watch?v=dQw4w9WgXcQ --simulate
+      run: yt-dlp --proxy ${{ secrets.YTDLP_PROXY_URL }} https://www.youtube.com/watch?v=dQw4w9WgXcQ --simulate
 
     - name: Test YouTube Accessibility
       run: curl -I https://www.youtube.com
