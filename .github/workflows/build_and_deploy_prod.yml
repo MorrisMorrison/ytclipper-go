@@ -2,70 +2,108 @@ name: Build and Test (Production)
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    
     env:
       YTCLIPPER_YT_DLP_PROXY: ${{ secrets.YTDLP_PROXY_URL }}
       YTCLIPPER_CLIP_CLEANUP_SCHEDULER_ENABLED: "false"
+      GO_VERSION: "1.23" 
+      
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v3
-
-    - name: Set Up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: stable
-
-    - name: Install Dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y make python3 python3-pip ffmpeg google-chrome-stable
-        python3 -m pip install --upgrade pip yt-dlp requests curl_cffi urllib3
-        go mod tidy
-
-    - name: Verify yt-dlp Path
-      run: which yt-dlp
-
-    - name: Debug yt-dlp Environment
-      run: yt-dlp --version --print-python-info
-
-    - name: Test yt-dlp with Proxy
-      run: yt-dlp --proxy ${{ secrets.YTDLP_PROXY_URL }} https://www.youtube.com/watch?v=dQw4w9WgXcQ --simulate
-
-    - name: Test YouTube Accessibility
-      run: curl -I https://www.youtube.com
-
-    - name: Start Server
-      run: |
-        nohup go run main.go > server.log 2>&1 &
-
-    - name: Wait for Server
-      run: |
-        for i in {1..30}; do
-        curl -s http://localhost:8080/health && break || sleep 3
-        done
-
-    - name: Run E2E Tests
-      run: go run -v test/e2e.go
-      timeout-minutes: 5 
-
-    - name: Output Server Logs
-      if: always()
-      run: cat server.log
-
-    - name: Stop Server
-      run: |
-        pkill -f "go run main.go"
-
-    - name: Run Build-Prod
-      run: make build-prod
-
-    - name: Trigger CapRover Deployment
-      if: success()
-      run: |
-        curl -X POST "https://captain.mormor.online/api/v2/user/apps/webhooks/triggerbuild?namespace=captain&token=${{ secrets.CAPROVER_WEBHOOK_TOKEN }}"
+      - name: Checkout Code
+        uses: actions/checkout@v4 
+        
+      - name: Set Up Go
+        uses: actions/setup-go@v5  
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true 
+          
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            make \
+            python3 \
+            python3-pip \
+            ffmpeg \
+            google-chrome-stable
+            
+      - name: Install Python Dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install --upgrade \
+            yt-dlp \
+            requests \
+            curl_cffi \
+            urllib3
+            
+      - name: Install Go Dependencies
+        run: go mod tidy
+        
+      - name: Verify Dependencies
+        run: |
+          yt-dlp --version --print-python-info
+          go version
+          ffmpeg -version
+          
+      - name: Test YouTube Connectivity
+        run: |
+          echo "Testing yt-dlp with proxy..."
+          yt-dlp --proxy ${{ secrets.YTDLP_PROXY_URL }} https://www.youtube.com/watch?v=dQw4w9WgXcQ --simulate
+          
+          echo "Testing YouTube accessibility..."
+          curl -I https://www.youtube.com
+          
+      - name: Start Server
+        run: |
+          nohup go run main.go > server.log 2>&1 &
+          echo $! > server.pid
+          
+      - name: Wait for Server
+        timeout-minutes: 1
+        run: |
+          echo "Waiting for server to start..."
+          for i in {1..20}; do
+            if curl -s http://localhost:8080/health; then
+              echo "Server is up!"
+              exit 0
+            fi
+            echo "Attempt $i: Server not ready, waiting..."
+            sleep 3
+          done
+          echo "Server failed to start"
+          exit 1
+          
+      - name: Run E2E Tests
+        id: e2e_tests
+        timeout-minutes: 5
+        run: go run -v test/e2e.go
+        
+      - name: Output Server Logs
+        if: always()  # Run even if previous steps failed
+        run: |
+          echo "=== Server Logs ==="
+          cat server.log
+          
+      - name: Stop Server
+        if: always()  # Run even if previous steps failed
+        run: |
+          if [ -f server.pid ]; then
+            kill $(cat server.pid) || true
+          fi
+          
+      - name: Build Production
+        run: make build-prod
+        
+      - name: Deploy to CapRover
+        if: success() && github.ref == 'refs/heads/main' 
+        run: |
+          curl -X POST \
+            "https://captain.mormor.online/api/v2/user/apps/webhooks/triggerbuild?namespace=captain&token=${{ secrets.CAPROVER_WEBHOOK_TOKEN }}" \
+            -H "Content-Type: application/json"
