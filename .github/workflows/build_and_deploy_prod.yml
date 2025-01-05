@@ -43,7 +43,7 @@ jobs:
       run: yt-dlp --version --print-python-info
 
     - name: Test yt-dlp with Proxy
-      run: yt-dlp --proxy ${{ secrets.YTDLP_PROXY_URL }} https://www.youtube.com/watch?v=dQw4w9WgXcQ --simulate
+      run: yt-dlp --proxy $YTCLIPPER_YT_DLP_PROXY https://www.youtube.com/watch?v=dQw4w9WgXcQ --simulate
 
     - name: Test YouTube Accessibility
       run: curl -I https://www.youtube.com
