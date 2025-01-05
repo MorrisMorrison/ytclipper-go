@@ -15,6 +15,7 @@ import (
 )
 
 const videoOutputDir = "./videos"
+const throttledStatus = "THROTTLED"
 var execContext = exec.CommandContext // allows mocking in tests
 
 func DownloadAndCutVideo(outputPath string, selectedFormat string, fileSizeLimit int64, from string, to string, url string) ([]byte, error) {
@@ -122,41 +123,55 @@ func ExtractDuration(output string) string {
 }
 
 func parseFormats(output string) []map[string]string {
-    lines := strings.Split(output, "\n")
+    lines := strings.Split(strings.TrimSpace(output), "\n")
+    if len(lines) == 0 {
+        glogger.Log.Warning("Empty output received when parsing formats")
+        return nil
+    }
 
     formatRegex := regexp.MustCompile(`(?m)^\s*(\d+)\s+(\w+)\s+(audio only|video only|\d+x\d+|\d+p)\s+([a-zA-Z0-9\.\-\_]+)?\s*([\~\d\.]+(?:[kKM]i?B)?)?.*?\|\s+(.*?)$`)
-    var formats []map[string]string
+    formats := make([]map[string]string, 0, len(lines))
 
     for _, line := range lines {
-        matches := formatRegex.FindStringSubmatch(line)
-        if len(matches) > 0 {
-            additional := strings.TrimSpace(matches[6])
-            if strings.Contains(additional, "THROTTLED") {
-                continue
-            }
-
-            bitrate := extractBitrate(matches[6])
-
-            formatType := "audio and video" 
-            if matches[3] == "audio only" {
-                formatType = "audio only"
-            } else if matches[3] == "video only" {
-                formatType = "video only"
-            }
-
-            formats = append(formats, map[string]string{
-                "id":         matches[1],                 
-                "extension":  matches[2],                 
-                "label":      matches[3],                
-                "codec":      strings.TrimSpace(matches[4]), 
-                "bitrate":    bitrate,                   
-                "formatType": formatType,                
-                "additional": additional, 
-            })
+        if format := parseFormatLine(line, formatRegex); format != nil {
+            formats = append(formats, format)
         }
     }
 
     return formats
+}
+
+func parseFormatLine(line string, formatRegex *regexp.Regexp) map[string]string {
+    matches := formatRegex.FindStringSubmatch(line)
+    if len(matches) == 0 {
+        return nil
+    }
+
+    additional := strings.TrimSpace(matches[6])
+    if strings.Contains(additional, throttledStatus) {
+        return nil
+    }
+
+    return map[string]string{
+        "id":         matches[1],
+        "extension":  matches[2],
+        "label":      matches[3],
+        "codec":      strings.TrimSpace(matches[4]),
+        "bitrate":    extractBitrate(matches[6]),
+        "formatType": determineFormatType(matches[3]),
+        "additional": additional,
+    }
+}
+
+func determineFormatType(label string) string {
+    switch label {
+    case "audio only":
+        return "audio only"
+    case "video only":
+        return "video only"
+    default:
+        return "audio and video"
+    }
 }
 
 func extractBitrate(additional string) string {
@@ -190,16 +205,15 @@ func applyProxyArgs(cmdArgs []string) []string {
 }
 
 func executeWithTimeout(timeout time.Duration, name string, args ...string) ([]byte, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
+    ctx, cancel := context.WithTimeout(context.Background(), timeout)
+    defer cancel()
 
-	cmd := execContext(ctx, name, args...)
+    cmd := execContext(ctx, name, args...)
 
-	output, err := cmd.CombinedOutput()
+    output, err := cmd.CombinedOutput()
+    if ctx.Err() == context.DeadlineExceeded {
+        return nil, fmt.Errorf("command timed out after %v", timeout)
+    }
 
-	if ctx.Err() == context.DeadlineExceeded {
-		return nil, fmt.Errorf("command timed out")
-	}
-
-	return output, err
+    return output, err
 }
