@@ -1,5 +1,6 @@
 # ytclipper-go
 [![main](https://github.com/MorrisMorrison/ytclipper-go/actions/workflows/build_and_deploy_prod.yml/badge.svg?branch=main)](https://github.com/MorrisMorrison/ytclipper-go/actions/workflows/build_and_deploy_prod.yml)
+
 A simple web application to create clips from YouTube videos and download them. This is the Go version of [ytclipper](https://github.com/MorrisMorrison/ytclipper).
 
 https://github.com/MorrisMorrison/ytclipper/assets/22982151/bc950608-114f-4d10-b9cd-e46c5cf37333
