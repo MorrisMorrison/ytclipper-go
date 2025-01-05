@@ -55,20 +55,6 @@ func GetClip(c echo.Context) error {
         return c.JSON(http.StatusNotFound, map[string]string{"error": "Job does not exist"})
     }
 
-    // Schedule file deletion after the response is sent
-    // c.Response().After(func() {
-    //     err := os.Remove(job.FilePath)
-    //     if err != nil {
-    //         // Log the error for debugging purposes
-    //         c.Logger().Errorf("Failed to delete file %s: %v", job.FilePath, err)
-    //     } else {
-    //         // Optionally, clean up job data
-    //         jobs.JobsLock.Lock()
-    //         delete(jobs.Jobs, jobID)
-    //         jobs.JobsLock.Unlock()
-    //     }
-    // })
-
     return c.File(job.FilePath)
 }
 

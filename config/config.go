@@ -8,12 +8,18 @@ import (
 const (
 	CONFIG_KEY_PORT                    				= "YTCLIPPER_PORT"
 	CONFIG_KEY_DEBUG                    			= "YTCLIPPER_DEBUG"
+	CONFIG_KEY_CLIP_SIZE_LIMIT_IN_MB         		= "YTCLIPPER_PORT_CLIP_SIZE_LIMIT_IN_MB"
+	
 	CONFIG_KEY_YT_DLP_PROXY							= "YTCLIPPER_YT_DLP_PROXY"
 	CONFIG_KEY_YT_DLP_COMMAND_TIMEOUT_IN_SECONDS	= "YTCLIPPER_YT_DLP_COMMAND_TIMEOUT_IN_SECONDS"
-	CONFIG_KEY_CLIP_SIZE_LIMIT_IN_MB         		= "YTCLIPPER_PORT_CLIP_SIZE_LIMIT_IN_MB"
+
 	CONFIG_KEY_RATE_LIMITER_RATE       				= "YTCLIPPER_RATE_LIMITER_RATE"
 	CONFIG_KEY_RATE_LIMITER_BURST      				= "YTCLIPPER_RATE_LIMITER_BURST"
 	CONFIG_KEY_RATE_LIMITER_EXPIRES_IN_MINUTES		= "YTCLIPPER_RATE_LIMITER_EXPIRES_IN_MINUTES"
+
+	CONFIG_KEY_CLIP_CLEANUP_SCHEDULER_INTERVAL_IN_MINUTES = "YTCLIPPER_CLIP_CLEANUP_SCHEDULER_INTERVAL_IN_MINUTES"
+	CONFIG_KEY_CLIP_CLEANUP_SCHEDULER_CLIP_DIRECTORY_PATH = "YTCLIPPER_CLIP_CLEANUP_SCHEDULER_CLIP_DIRECTORY_PATH"
+	CONFIG_KEY_CLIP_CLEANUP_SCHEDULER_ENABLED = "YTCLIPPER_CLIP_CLEANUP_SCHEDULER_ENABLED"
 )
 
 var CONFIG *Config = NewConfig()
@@ -24,6 +30,7 @@ type Config struct {
 	Debug			bool
 	RateLimiterConfig RateLimiterConfig
 	YtDlpConfig YtDlpConfig
+	ClipCleanUpSchedulerConfig ClipCleanUpSchedulerConfig
 }
 
 type RateLimiterConfig struct {
@@ -35,6 +42,24 @@ type RateLimiterConfig struct {
 type YtDlpConfig struct {
 	CommandTimeoutInSeconds int
 	Proxy string
+}
+
+type ClipCleanUpSchedulerConfig struct {
+	IntervalInMinutes int
+	ClipDirectoryPath string
+	IsEnabled bool
+}
+
+func NewClipCleanUpSchedulerConfig() *ClipCleanUpSchedulerConfig {
+	intervalInMinutes := GetEnvInt(CONFIG_KEY_CLIP_CLEANUP_SCHEDULER_INTERVAL_IN_MINUTES, 5)
+	clipDirectoryPath := GetEnv(CONFIG_KEY_CLIP_CLEANUP_SCHEDULER_CLIP_DIRECTORY_PATH, "./videos")
+	clipSchedulerEnabled := GetEnv(CONFIG_KEY_CLIP_CLEANUP_SCHEDULER_ENABLED, "true") == "true"
+
+	return &ClipCleanUpSchedulerConfig{
+		IntervalInMinutes: intervalInMinutes,
+		ClipDirectoryPath: clipDirectoryPath,
+		IsEnabled: clipSchedulerEnabled,
+	}
 }
 
 func NewYtDlpConfig() *YtDlpConfig{
@@ -71,6 +96,7 @@ func NewConfig() *Config {
 		ClipSizeInMb: clipSizeInMb,
 		RateLimiterConfig:  *NewRateLimiterConfig(),
 		YtDlpConfig:*NewYtDlpConfig(),
+		ClipCleanUpSchedulerConfig: *NewClipCleanUpSchedulerConfig(),
 	}
 }
 

@@ -6,6 +6,7 @@ import (
 	"time"
 	"ytclipper-go/config"
 	"ytclipper-go/routes"
+	"ytclipper-go/scheduler"
 	"ytclipper-go/utils"
 
 	"github.com/MorrisMorrison/gutils/glogger"
@@ -25,27 +26,26 @@ func checkDependencies(){
         log.Fatalf("Dependency check failed: %v", err)
     }
 
-    log.Println("All dependencies are installed.")
+    glogger.Log.Info("All dependencies are installed.")
 }
 
 func setupEcho(){
     glogger.Log.Info("Setup echo")
     e := echo.New()
-    appConfig := config.NewConfig()
     
-    glogger.Log.Infof("Debug enabled: %t", appConfig.Debug)
-    e.Debug = appConfig.Debug
+    glogger.Log.Infof("Debug enabled: %t", config.CONFIG.Debug)
+    e.Debug = config.CONFIG.Debug
     e.Logger.SetOutput(os.Stdout) 
 
     e.Static("/static", "static")
     routes.RegisterRoutes(e)
 
-    glogger.Log.Infof("Starting server on port %s", appConfig.Port)
+    glogger.Log.Infof("Starting server on port %s", config.CONFIG.Port)
     e.Use(middleware.Logger())
 	limiterStore := middleware.NewRateLimiterMemoryStoreWithConfig(middleware.RateLimiterMemoryStoreConfig{
-		Rate:      rate.Limit(appConfig.RateLimiterConfig.Rate),              
-		Burst:     appConfig.RateLimiterConfig.Burst,               
-		ExpiresIn: time.Duration(appConfig.RateLimiterConfig.ExpiresInMinutes) * time.Minute, 
+		Rate:      rate.Limit(config.CONFIG.RateLimiterConfig.Rate),              
+		Burst:     config.CONFIG.RateLimiterConfig.Burst,               
+		ExpiresIn: time.Duration(config.CONFIG.RateLimiterConfig.ExpiresInMinutes) * time.Minute, 
 	})
 
 	e.Use(middleware.RateLimiterWithConfig(middleware.RateLimiterConfig{
@@ -53,11 +53,12 @@ func setupEcho(){
 		Store:   limiterStore,
 	}))
 
-    e.Logger.Fatal(e.Start(":" + appConfig.Port))
+    e.Logger.Fatal(e.Start(":" + config.CONFIG.Port))
 }
 
 func main() {
     glogger.Log.Info("Start ytclipper")
     checkDependencies();
+    scheduler.StartClipCleanUpScheduler()
     setupEcho();
 }

@@ -2,6 +2,7 @@ package jobs
 
 import (
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -20,6 +21,8 @@ type Job struct {
     Status   JobStatus  `json:"status"`
     FilePath string     `json:"filePath,omitempty"`
     Error    string     `json:"error,omitempty"`
+    StartedAt time.Time `json:"startedAt"`
+    CompletedAt time.Time `json:"completedAt"`
 }
 
 var (
@@ -66,11 +69,18 @@ func CompleteJob(jobID, filePath string) {
     if exists {
         job.Status = StatusCompleted
         job.FilePath = filePath
+        job.CompletedAt = time.Now()
     }
 }
 
 func StartJob(jobID string){
-    UpdateJobStatus(jobID, StatusProcessing)
+    JobsLock.Lock()
+    defer JobsLock.Unlock()
+    job, exists := Jobs[jobID]
+    if exists {
+        job.Status = StatusProcessing
+        job.StartedAt = time.Now()
+    }
 }
 
 func GetJobById(jobId string) (*Job, bool) {
