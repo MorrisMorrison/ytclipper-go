@@ -1,14 +1,13 @@
 module ytclipper-go
 
 go 1.23
-
 toolchain go1.23.4
 
 require (
 	github.com/chromedp/chromedp v0.11.2
 	github.com/google/uuid v1.6.0
 	github.com/labstack/echo/v4 v4.13.3
-	golang.org/x/time v0.8.0
+	golang.org/x/time v0.11.0
 )
 
 require (
