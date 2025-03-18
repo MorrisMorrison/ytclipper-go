@@ -19,7 +19,7 @@ func GetJobStatus(c echo.Context) error {
     switch job.Status {
     case jobs.StatusQueued:
     case jobs.StatusProcessing:
-        return c.JSON(http.StatusProcessing, nil)
+        return c.JSON(http.StatusCreated, nil)
     case jobs.StatusCompleted:
         return c.JSON(http.StatusOK, job.FilePath)
     case jobs.StatusError:
