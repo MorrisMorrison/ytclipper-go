@@ -16,11 +16,16 @@ func GetJobStatus(c echo.Context) error {
         return c.JSON(http.StatusNotFound, map[string]string{"error": fmt.Sprintf("Job %s not found", jobID)})
     }
 
-    if (job.Status== jobs.StatusProcessing){
-        return c.JSON(http.StatusCreated, nil)
-    } else if (job.Status == jobs.StatusCompleted){
-        return c.JSON(http.StatusOK, job.FilePath)        
-    }
+    switch job.Status {
+    case jobs.StatusQueued:
+    case jobs.StatusProcessing:
+        return c.JSON(http.StatusProcessing, nil)
+    case jobs.StatusCompleted:
+        return c.JSON(http.StatusOK, job.FilePath)
+    case jobs.StatusError:
+    default:
+        return c.JSON(http.StatusInternalServerError, job.Error)
+    }   
 
-    return c.JSON(http.StatusOK, job)
+    return c.JSON(http.StatusInternalServerError, job.Error)
 }
