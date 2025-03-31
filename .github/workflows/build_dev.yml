@@ -1,4 +1,4 @@
-name: Build and Test (Production)
+name: Build and Test (Development)
 
 on:
   push:
