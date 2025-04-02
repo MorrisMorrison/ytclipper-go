@@ -69,7 +69,7 @@ func GetAvailableFormats(url string) ([]map[string]string, error) {
     glogger.Log.Infof("Get Available Formats: Fetching available formats for URL %s", url)
 
     cmdArgs := []string{"-F", url}
-	cmdArgs = applyProxyArgs(cmdArgs)
+    cmdArgs = applyProxyArgs(cmdArgs)
 
     output, err := executeWithTimeout(time.Duration(config.CONFIG.YtDlpConfig.CommandTimeoutInSeconds)*time.Second, "yt-dlp", cmdArgs...)
     if err != nil {
@@ -78,7 +78,7 @@ func GetAvailableFormats(url string) ([]map[string]string, error) {
     }
 
     if (config.CONFIG.Debug){
-        glogger.Log.Infof("Get Available Formats: yt-dlp command succeeded. Output:\n%s", output) 
+        glogger.Log.Infof("Get Available Formats: yt-dlp command succeeded. Output:\n%s", output)
     }
 
     formats:=parseFormats(string(output))
@@ -114,11 +114,18 @@ func GetVideoDuration(url string) (string, error) {
 }
 
 func ExtractDuration(output string) string {
-    re := regexp.MustCompile(`\d+:\d{2}(?::\d{2})?`)
-    matches := re.FindStringSubmatch(output)
-    if len(matches) > 0 {
-        return matches[0]
+    reWithColon := regexp.MustCompile(`\d+:\d{2}(?::\d{2})?`)
+    matches := reWithColon.FindString(output)
+    if matches != "" {
+        return matches
     }
+    
+    reJustSeconds := regexp.MustCompile(`(?m)^\s*(\d+)\s*$`)
+    secMatches := reJustSeconds.FindStringSubmatch(output)
+    if len(secMatches) > 1 {
+        return secMatches[1]
+    }
+    
     return ""
 }
 
