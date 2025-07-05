@@ -1,15 +1,31 @@
 # ytclipper-go
 [![main](https://github.com/MorrisMorrison/ytclipper-go/actions/workflows/build_and_deploy_prod.yml/badge.svg?branch=main)](https://github.com/MorrisMorrison/ytclipper-go/actions/workflows/build_and_deploy_prod.yml)
 
-A simple web application to create clips from YouTube videos and download them. This is the Go version of [ytclipper](https://github.com/MorrisMorrison/ytclipper).
+A high-performance web application for creating and downloading video clips from YouTube videos. This is the Go version of [ytclipper](https://github.com/MorrisMorrison/ytclipper), built with modern web technologies and designed for production use.
 
 https://github.com/MorrisMorrison/ytclipper/assets/22982151/bc950608-114f-4d10-b9cd-e46c5cf37333
 
 ## Features
-1. Enter YouTube URL.
-2. Select the desired format.
-3. Specify start and end times in `HH:MM:SS` format (e.g., `34`, `1:28`, `1:09:24`).
-4. Download your clip.
+
+### Core Functionality
+- **YouTube Video Clipping**: Extract specific segments from YouTube videos with precise start/end timestamps
+- **Format Selection**: Support for multiple video formats and quality options available from YouTube
+- **Video Preview**: Built-in video player for previewing YouTube videos before clipping
+- **Asynchronous Processing**: Job-based processing system with real-time status tracking
+- **Progress Tracking**: Real-time progress updates for clip creation jobs
+
+### Production Features
+- **Rate Limiting**: Built-in rate limiting to prevent abuse and ensure fair usage
+- **Automatic Cleanup**: Scheduled cleanup of old clips and jobs to manage storage efficiently
+- **Health Monitoring**: Health check endpoint for monitoring and load balancing
+- **Proxy Support**: Optional proxy configuration for yt-dlp operations
+- **Responsive UI**: Clean, dark-themed web interface optimized for all devices
+
+### Usage
+1. Enter a YouTube URL
+2. Select your desired video format and quality
+3. Specify start and end times in flexible format (`34`, `1:28`, `1:09:24`)
+4. Track progress and download your clip when ready
 
 ## Built With
 - [Go](https://golang.org/)
@@ -21,69 +37,186 @@ https://github.com/MorrisMorrison/ytclipper/assets/22982151/bc950608-114f-4d10-b
 
 ---
 
-## Running Locally
+## Quick Start
 
-### Requirements
-Make sure you have the following dependencies installed:
-- [Go](https://golang.org/)
-- [python3](https://www.python.org/downloads/)
-- [pip](https://pypi.org/project/pip/)
-- [certifi](https://pypi.org/project/certifi/)
-- [ffmpeg](https://ffmpeg.org/)
-- [yt-dlp](https://github.com/yt-dlp/yt-dlp)
-- [requests](https://pypi.org/project/requests/)
-- [urrlib3](https://pypi.org/project/urllib3/)
+### Prerequisites
+- **Go 1.21+**: [Download Go](https://golang.org/dl/)
+- **Python 3.8+**: [Download Python](https://www.python.org/downloads/)
+- **FFmpeg**: [Download FFmpeg](https://ffmpeg.org/download.html)
 
-### Setup
-1. Install Go dependencies:
-`go mod tidy`
-2. Run the application:
-`go run main.go`
+### Installation
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/MorrisMorrison/ytclipper-go.git
+   cd ytclipper-go
+   ```
 
-## Running with docker
-Build and run the application in a Docker container:
+2. **Install dependencies**:
+   ```bash
+   go mod tidy
+   ```
 
-1. Build the Docker image:
-`docker build -t ytclipper .`
-2. Run the container
-`docker run -d -e PORT=8080 -p 8080:8080 ytclipper`
+3. **Install Python dependencies**:
+   ```bash
+   pip install yt-dlp certifi requests urllib3
+   ```
 
-### Build
-To build the application:
-`make build`
+4. **Run the application**:
+   ```bash
+   go run main.go
+   ```
 
-### Build Prod
-To run all tests and build the application for production:
-`make build-prod`
+5. **Access the application**:
+   Open your browser and navigate to `http://localhost:8080`
 
-### Tests
-To run tests
-`make test`
-`make e2e`
+### Development Commands
+- **Run application**: `go run main.go` or `make run`
+- **Run tests**: `make test`
+- **Run end-to-end tests**: `make e2e`
+- **Build for production**: `make build-prod`
 
-### Configuration
+## Docker Deployment
 
-The application can be configured using the following environment variables:
+### Quick Docker Setup
+```bash
+# Build the Docker image
+docker build -t ytclipper .
 
-| Environment Variable                         | Description                                            | Default Value  |
-|----------------------------------------------|--------------------------------------------------------|----------------|
-| `YTCLIPPER_PORT`                             | The port on which the application runs.                | `8080`         |
-| `YTCLIPPER_DEBUG`                            | Enable debug mode (true/false).                        | `true`         |
-| `YTCLIPPER_PORT_CLIP_SIZE_LIMIT_IN_MB`       | Maximum clip size (in MB) for yt-dlp.                  | `300`          |
-| `YTCLIPPER_RATE_LIMITER_RATE`                | Rate limiter requests per second.                      | `5`            |
-| `YTCLIPPER_RATE_LIMITER_BURST`               | Maximum number of requests allowed in a burst.         | `20`           |
-| `YTCLIPPER_RATE_LIMITER_EXPIRES_IN_MINUTES`  | Rate limiter token expiration time (in minutes).       | `1`            |
-| `YTCLIPPER_YT_DLP_PROXY`                     | Proxy used by yt-dlp.                     | ``             |
-| `YTCLIPPER_YT_DLP_COMMAND_TIMEOUT_IN_SECONDS`| yt-dlp command timeout (in seconds).                   | `30`           |
-| `YTCLIPPER_CLIP_CLEANUP_SCHEDULER_INTERVAL_IN_MINUTES`                     | Execution interval used by scheduler (in minutes).                     | `5`             |
-| `YTCLIPPER_CLIP_CLEANUP_SCHEDULER_CLIP_DIRECTORY_PATH`| Directory to search for old files to delete.                   | `./videos`           |
-| `YTCLIPPER_CLIP_CLEANUP_SCHEDULER_ENABLED`| Flag to enable/disable the scheduler.                   | `true`           |
+# Run the container
+docker run -d -e PORT=8080 -p 8080:8080 ytclipper
+```
+
+### Docker Compose (Recommended)
+```yaml
+version: '3.8'
+services:
+  ytclipper:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - YTCLIPPER_PORT=8080
+      - YTCLIPPER_DEBUG=false
+      - YTCLIPPER_RATE_LIMITER_RATE=5
+    volumes:
+      - ./videos:/app/videos
+    restart: unless-stopped
+```
+
+## API Endpoints
+
+The application provides a REST API for programmatic access:
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/v1/clip` | Create a new clip job |
+| `GET` | `/api/v1/clip` | Download completed clip |
+| `GET` | `/api/v1/jobs/status` | Check job status |
+| `GET` | `/api/v1/video/duration` | Get video duration |
+| `GET` | `/api/v1/video/formats` | Get available video formats |
+| `GET` | `/health` | Health check endpoint |
+
+## Configuration
+
+The application can be configured using environment variables:
+
+### Server Configuration
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `YTCLIPPER_PORT` | Server port | `8080` |
+| `YTCLIPPER_DEBUG` | Enable debug mode | `true` |
+
+### Rate Limiting
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `YTCLIPPER_RATE_LIMITER_RATE` | Requests per second | `5` |
+| `YTCLIPPER_RATE_LIMITER_BURST` | Maximum burst requests | `20` |
+| `YTCLIPPER_RATE_LIMITER_EXPIRES_IN_MINUTES` | Token expiration (minutes) | `1` |
+
+### Video Processing
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `YTCLIPPER_PORT_CLIP_SIZE_LIMIT_IN_MB` | Maximum clip size (MB) | `300` |
+| `YTCLIPPER_YT_DLP_PROXY` | Proxy for yt-dlp | `` |
+| `YTCLIPPER_YT_DLP_COMMAND_TIMEOUT_IN_SECONDS` | yt-dlp timeout (seconds) | `30` |
+
+### Cleanup Scheduler
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `YTCLIPPER_CLIP_CLEANUP_SCHEDULER_ENABLED` | Enable automatic cleanup | `true` |
+| `YTCLIPPER_CLIP_CLEANUP_SCHEDULER_INTERVAL_IN_MINUTES` | Cleanup interval (minutes) | `5` |
+| `YTCLIPPER_CLIP_CLEANUP_SCHEDULER_CLIP_DIRECTORY_PATH` | Directory to clean | `./videos` |
+
+## Architecture
+
+### System Components
+- **Web Server**: Echo-based HTTP server with middleware for rate limiting and logging
+- **Job Queue**: In-memory job management system with concurrent-safe operations
+- **Video Processor**: yt-dlp and FFmpeg integration for video downloading and clipping
+- **Scheduler**: Background cleanup service for automatic file management
+- **Static Assets**: Responsive web UI with real-time progress tracking
+
+### Data Flow
+1. User submits clip request via web interface
+2. System validates input and creates job
+3. Job queue processes request asynchronously
+4. yt-dlp downloads video segment
+5. FFmpeg processes and optimizes clip
+6. User downloads completed clip
+7. Scheduler automatically cleans up old files
+
+## Security
+
+- **Rate Limiting**: Prevents abuse with configurable request limits
+- **Input Validation**: Sanitizes all user inputs and URL parameters
+- **File Management**: Automatic cleanup prevents disk space exhaustion
+- **Error Handling**: Graceful error handling without exposing internal details
+
+## Monitoring
+
+- **Health Checks**: `/health` endpoint for load balancer integration
+- **Logging**: Structured logging with configurable levels
+- **Metrics**: Job processing statistics and performance metrics
+- **Error Tracking**: Comprehensive error logging and tracking
+
 ---
 
-## TODO
-- [x] automatically delete downloaded videos
-- [x] track created/finished time of jobs
-- [x] kill suspended jobs after a specified timeout
-- [x] save clips in correct file format
-- [ ] add workerpool
+## Contributing
+
+1. **Fork the repository**
+2. **Create a feature branch**: `git checkout -b feature/amazing-feature`
+3. **Make your changes**: Follow the existing code style and patterns
+4. **Run tests**: `make test && make e2e`
+5. **Commit your changes**: `git commit -m 'Add amazing feature'`
+6. **Push to the branch**: `git push origin feature/amazing-feature`
+7. **Open a Pull Request**
+
+### Development Guidelines
+- Follow Go best practices and idioms
+- Add tests for new functionality
+- Update documentation for API changes
+- Ensure all CI checks pass
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- [yt-dlp](https://github.com/yt-dlp/yt-dlp) for powerful YouTube downloading capabilities
+- [FFmpeg](https://ffmpeg.org/) for video processing
+- [Echo](https://echo.labstack.com/) for the excellent web framework
+- The original [ytclipper](https://github.com/MorrisMorrison/ytclipper) project
+
+## Roadmap
+
+- [x] Automatically delete downloaded videos
+- [x] Track created/finished time of jobs
+- [x] Kill suspended jobs after specified timeout
+- [x] Save clips in correct file format
+- [ ] Add worker pool for better concurrency
+- [ ] Add WebSocket support for real-time updates
+- [ ] Implement user authentication and quotas
+- [ ] Add support for batch processing
+- [ ] Implement video thumbnail generation
 
