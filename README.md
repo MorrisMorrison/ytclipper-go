@@ -4,7 +4,8 @@
 A high-performance web application for creating and downloading video clips from YouTube videos. This is the Go version of [ytclipper](https://github.com/MorrisMorrison/ytclipper), built with modern web technologies and designed for production use.
 
 
-https://github.com/user-attachments/assets/55f0935d-7d8f-4ad3-93c1-b82ce8ea4334
+https://github.com/user-attachments/assets/8ab2d567-0ca7-44c6-9c76-07203b2fd986
+
 
 
 ## Features
