@@ -66,15 +66,16 @@ body {
     height: 100vh;
     width: 100vw;
     margin: 0;
-    padding: 0;
-    background-color: var(--bg-primary-light);
+    padding: var(--spacing-lg);
+    background: linear-gradient(135deg, var(--bg-primary-light) 0%, var(--bg-secondary-light) 100%);
     font-family: var(--font-family);
     color: var(--text-primary-light);
-    transition: background-color var(--transition-normal), color var(--transition-normal);
+    transition: background var(--transition-normal), color var(--transition-normal);
+    box-sizing: border-box;
 }
 
 body.dark {
-    background-color: var(--bg-primary);
+    background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-surface) 100%);
     color: var(--text-primary);
 }
 
@@ -109,12 +110,25 @@ body.dark input, body.dark select {
 
 input:focus, select:focus {
     border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgb(56 161 105 / 0.1);
+    box-shadow: 0 0 0 3px rgb(56 161 105 / 0.1), 
+                0 4px 12px rgba(56, 161, 105, 0.15);
     outline: none;
+    transform: translateY(-1px);
 }
 
-input:hover, select:hover {
+input:hover:not(:focus), select:hover:not(:focus) {
     border-color: var(--primary-light);
+    box-shadow: 0 2px 8px rgba(56, 161, 105, 0.08);
+}
+
+/* Enhanced input group styling */
+.flex.flex-row.items-center {
+    gap: var(--spacing-md);
+}
+
+/* Input with button styling */
+.input {
+    flex: 1;
 }
 
 /* Placeholder text styling */
@@ -180,9 +194,56 @@ body.dark select:disabled {
     background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23718096' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3crect x='3' y='11' width='18' height='11' rx='2' ry='2'%3e%3c/rect%3e%3cpath d='m7,11 V7 a5,5 0 0,1 10,0 v4'%3e%3c/path%3e%3c/svg%3e");
 }
 
+/* Main Card Container */
+.main-card {
+    background: var(--bg-primary-light);
+    border-radius: var(--border-radius-xl);
+    padding: var(--spacing-3xl);
+    box-shadow: var(--shadow-lg);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all var(--transition-normal);
+    max-width: 600px;
+    width: 100%;
+    position: relative;
+    overflow: hidden;
+}
+
+body.dark .main-card {
+    background: rgba(74, 85, 104, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 
+                0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.main-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, 
+        transparent 0%, 
+        rgba(56, 161, 105, 0.5) 50%, 
+        transparent 100%);
+    transition: opacity var(--transition-normal);
+}
+
+.main-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg), 0 0 30px rgba(56, 161, 105, 0.1);
+}
+
+body.dark .main-card:hover {
+    box-shadow: 0 32px 64px -12px rgba(0, 0, 0, 0.4), 
+                0 0 0 1px rgba(255, 255, 255, 0.1),
+                0 0 40px rgba(56, 161, 105, 0.15);
+}
+
 /* Buttons */
 button {
-    background-color: var(--primary);
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
     color: white;
     padding: var(--spacing-md) var(--spacing-xl);
     border-radius: var(--border-radius);
@@ -192,24 +253,57 @@ button {
     font-size: var(--font-size-base);
     font-weight: 500;
     font-family: var(--font-family);
-    transition: background-color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
-    box-shadow: var(--shadow-sm);
+    transition: all var(--transition-fast);
+    box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    position: relative;
+    overflow: hidden;
+}
+
+button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, 
+        transparent 0%, 
+        rgba(255, 255, 255, 0.2) 50%, 
+        transparent 100%);
+    transition: left var(--transition-normal);
+}
+
+button:hover::before {
+    left: 100%;
 }
 
 button:focus {
     outline: none;
-    box-shadow: 0 0 0 3px rgb(56 161 105 / 0.2), var(--shadow-md);
+    box-shadow: 0 0 0 3px rgb(56 161 105 / 0.3), 
+                var(--shadow-lg),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 button:hover {
-    background-color: var(--primary-dark);
-    transform: translateY(-1px);
-    box-shadow: var(--shadow-md);
+    background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary) 100%);
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: var(--shadow-lg), 
+                0 0 20px rgba(56, 161, 105, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 button:active {
-    transform: translateY(0);
-    box-shadow: var(--shadow-sm);
+    transform: translateY(-1px) scale(1.01);
+    box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Icon button styling */
+button img {
+    transition: all var(--transition-fast);
+}
+
+button:hover img {
+    transform: scale(1.1);
 }
 
 input:checked + .slider {
@@ -279,22 +373,65 @@ input:checked + .slider:before {
 }
 
 .progress {
-    background-color: rgb(229,233,235);
-    height: 0.2em;
+    background-color: var(--bg-secondary-light);
+    height: 0.75rem;
     position: relative;
     width: 100%;
+    border-radius: var(--border-radius-lg);
+    overflow: hidden;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
 }
+
+body.dark .progress {
+    background-color: var(--bg-surface);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
 .progress-bar-custom {
-    height: 1rem;
-    background-color: #38a169; 
-    background-size: 23em 0.25em;
     height: 100%;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 50%, var(--primary) 100%);
+    background-size: 40px 40px;
     position: relative;
-    animation: cssload-width 3.45s cubic-bezier(1.45, 0, 1, 1) infinite;
-    -o-animation: cssload-width 3.45s cubic-bezier(0.45, 0, 1, 1) infinite;
-    -ms-animation: cssload-width 3.45s cubic-bezier(0.45, 0, 1, 1) infinite;
-    -webkit-animation: cssload-width 3.45s cubic-bezier(0.45, 0, 1, 1) infinite;
-    -moz-animation: cssload-width 3.45s cubic-bezier(0.45, 0, 1, 1) infinite;
+    border-radius: var(--border-radius-lg);
+    transition: width var(--transition-normal);
+    animation: cssload-width 3.45s cubic-bezier(0.45, 0, 1, 1) infinite,
+               progress-shimmer 2s linear infinite;
+    box-shadow: 0 0 10px rgba(56, 161, 105, 0.3);
+}
+
+.progress-bar-custom::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.3) 50%,
+        transparent 100%);
+    animation: progress-shine 2s ease-in-out infinite;
+}
+
+@keyframes progress-shimmer {
+    0% {
+        background-position: -40px 0;
+    }
+    100% {
+        background-position: 40px 0;
+    }
+}
+
+@keyframes progress-shine {
+    0% {
+        transform: translateX(-100%);
+    }
+    50% {
+        transform: translateX(100%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
 }
 
 @keyframes cssload-width {

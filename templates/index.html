@@ -18,7 +18,7 @@
 <body class="dark">
     <div class="flex flex-col items-center justify-center w-100 h-100">
         <div id="searchGroup" class="flex flex-col items-center justify-center w-100 h-90">
-            <div class="pb-14 flex flex-col w-auto">
+            <div class="main-card pb-14 flex flex-col w-auto">
                 <h1 class="title">ytclipper</h1>
                 <div class="flex flex-row items-center">
                     <input autocomplete="off" class="input mr-3" type="text" id="url" placeholder="Paste your youtube url here." title="Only valid youtube links will work" />
@@ -36,9 +36,9 @@
                     </select>
                 </div>
 
-                <div class="flex w-full pb-3 pt-1">
-                    <input step="1" autocomplete="off" class="input mr-5" type="text" id="from" placeholder="from*" title="Provide timestamps as HH:MM:SS." />
-                    <input step="1" autocomplete="off" class="input rl-5" type="text" id="to" placeholder="to*" title="Provide timestamps as HH:MM:SS." />
+                <div class="flex w-full pb-3 pt-1" style="gap: var(--spacing-md);">
+                    <input step="1" autocomplete="off" class="input" type="text" id="from" placeholder="from*" title="Provide timestamps as HH:MM:SS." />
+                    <input step="1" autocomplete="off" class="input" type="text" id="to" placeholder="to*" title="Provide timestamps as HH:MM:SS." />
                 </div>
                 <button id="clipButton" class="button">Clip!</button>
                 <p class="text-gray pt-1 pl-1">* Please provide timestamps as hh:mm:ss (e.g. 34, 1:28, 1:01:24)</p>

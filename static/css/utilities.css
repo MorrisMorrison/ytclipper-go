@@ -31,37 +31,46 @@
     border-radius: 0.375rem;
 }
 
-.mr-3{
-    margin-right: 0.75rem;
-}
 /* Padding Utilities */
 .pt-1 {
-    padding-top: 0.25rem;
+    padding-top: var(--spacing-xs);
 }
 
 .pt-3 {
-    padding-top: 0.75rem;
+    padding-top: var(--spacing-md);
 }
 
 .pt-5 {
-    padding-top: 1.25rem;
+    padding-top: var(--spacing-xl);
 }
 
 .pb-1 {
-    padding-bottom: 0.25rem;
+    padding-bottom: var(--spacing-xs);
 }
 
 .pb-3 {
-    padding-bottom: 0.75rem;
+    padding-bottom: var(--spacing-md);
 }
 
 .pb-5 {
-    padding-bottom: 1.25rem;
+    padding-bottom: var(--spacing-xl);
+}
+
+.pb-14 {
+    padding-bottom: var(--spacing-3xl);
+}
+
+.pl-1 {
+    padding-left: var(--spacing-xs);
 }
 
 /* Margin Utilities */
+.mr-3 {
+    margin-right: var(--spacing-md);
+}
+
 .mr-5 {
-    margin-right: 1.25rem;
+    margin-right: var(--spacing-xl);
 }
 
 .h-5{
