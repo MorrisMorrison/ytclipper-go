@@ -74,10 +74,43 @@ https://github.com/MorrisMorrison/ytclipper/assets/22982151/bc950608-114f-4d10-b
 - **Run tests**: `make test`
 - **Run end-to-end tests**: `make e2e`
 - **Build for production**: `make build-prod`
+- **Download static assets**: `make download-static`
 
 ## Docker Deployment
 
-### Quick Docker Setup
+### Using Makefile (Recommended)
+
+#### Single Container
+```bash
+# Build and run (rebuilds only on changes)
+make docker-run
+
+# Stop and remove container
+make docker-stop
+
+# Restart container
+make docker-restart
+
+# Build image only
+make docker-build
+```
+
+#### Docker Compose
+```bash
+# Start services (recommended for production)
+make compose-up
+
+# Stop services
+make compose-down
+
+# Restart services
+make compose-restart
+
+# View logs
+make compose-logs
+```
+
+### Manual Docker Commands
 ```bash
 # Build the Docker image
 docker build -t ytclipper .
@@ -86,22 +119,12 @@ docker build -t ytclipper .
 docker run -d -e PORT=8080 -p 8080:8080 ytclipper
 ```
 
-### Docker Compose (Recommended)
-```yaml
-version: '3.8'
-services:
-  ytclipper:
-    build: .
-    ports:
-      - "8080:8080"
-    environment:
-      - YTCLIPPER_PORT=8080
-      - YTCLIPPER_DEBUG=false
-      - YTCLIPPER_RATE_LIMITER_RATE=5
-    volumes:
-      - ./videos:/app/videos
-    restart: unless-stopped
-```
+### Docker Compose Configuration
+The included `docker-compose.yml` provides:
+- **Port mapping**: 8080:8080
+- **Volume mounting**: `./videos:/app/videos` for persistent storage
+- **Environment variables**: Production-ready configuration
+- **Restart policy**: `unless-stopped` for reliability
 
 ## API Endpoints
 
@@ -187,15 +210,35 @@ The application can be configured using environment variables:
 2. **Create a feature branch**: `git checkout -b feature/amazing-feature`
 3. **Make your changes**: Follow the existing code style and patterns
 4. **Run tests**: `make test && make e2e`
-5. **Commit your changes**: `git commit -m 'Add amazing feature'`
-6. **Push to the branch**: `git push origin feature/amazing-feature`
-7. **Open a Pull Request**
+5. **Test with Docker**: `make docker-run` to verify containerized deployment
+6. **Commit your changes**: `git commit -m 'Add amazing feature'`
+7. **Push to the branch**: `git push origin feature/amazing-feature`
+8. **Open a Pull Request**
 
 ### Development Guidelines
 - Follow Go best practices and idioms
 - Add tests for new functionality
 - Update documentation for API changes
+- Test both local and Docker deployments
 - Ensure all CI checks pass
+
+### Available Make Commands
+| Command | Description |
+|---------|-------------|
+| `make run` | Run application locally |
+| `make test` | Run unit tests |
+| `make e2e` | Run end-to-end tests |
+| `make build` | Build binary |
+| `make build-prod` | Production build (tests + assets + build) |
+| `make download-static` | Download static assets |
+| `make docker-build` | Build Docker image |
+| `make docker-run` | Build and run container |
+| `make docker-stop` | Stop and remove container |
+| `make docker-restart` | Restart container |
+| `make compose-up` | Start with Docker Compose |
+| `make compose-down` | Stop Docker Compose services |
+| `make compose-restart` | Restart Docker Compose services |
+| `make compose-logs` | View Docker Compose logs |
 
 ## License
 

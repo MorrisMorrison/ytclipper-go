@@ -86,14 +86,20 @@
 
 /* Colors */
 .text-gray {
-    color: #718096; /* Gray-600 */
+    color: var(--text-secondary-light);
+}
+
+body.dark .text-gray {
+    color: var(--text-secondary);
 }
 
 .text-blue {
-    color: #4299e1; /* Blue-500 */
+    color: var(--secondary);
     text-decoration: none;
+    transition: color var(--transition-fast);
 }
 
 .text-blue:hover {
     text-decoration: underline;
+    color: var(--primary);
 }
