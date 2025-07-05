@@ -12,6 +12,9 @@ const (
 	CONFIG_KEY_YT_DLP_CLIP_SIZE_LIMIT_IN_MB         		= "YTCLIPPER_YT_DLP_CLIP_SIZE_LIMIT_IN_MB"
 	CONFIG_KEY_YT_DLP_PROXY									= "YTCLIPPER_YT_DLP_PROXY"
 	CONFIG_KEY_YT_DLP_COMMAND_TIMEOUT_IN_SECONDS			= "YTCLIPPER_YT_DLP_COMMAND_TIMEOUT_IN_SECONDS"
+	CONFIG_KEY_YT_DLP_COOKIES_FILE							= "YTCLIPPER_YT_DLP_COOKIES_FILE"
+	CONFIG_KEY_YT_DLP_USER_AGENT							= "YTCLIPPER_YT_DLP_USER_AGENT"
+	CONFIG_KEY_YT_DLP_EXTRACTOR_RETRIES						= "YTCLIPPER_YT_DLP_EXTRACTOR_RETRIES"
 
 	CONFIG_KEY_RATE_LIMITER_RATE       						= "YTCLIPPER_RATE_LIMITER_RATE"
 	CONFIG_KEY_RATE_LIMITER_BURST      						= "YTCLIPPER_RATE_LIMITER_BURST"
@@ -42,6 +45,9 @@ type YtDlpConfig struct {
 	ClipSizeInMb 	int64
 	CommandTimeoutInSeconds int
 	Proxy string
+	CookiesFile string
+	UserAgent string
+	ExtractorRetries int
 }
 
 type ClipCleanUpSchedulerConfig struct {
@@ -66,11 +72,17 @@ func NewYtDlpConfig() *YtDlpConfig{
 	clipSizeInMb := utils.MbToBytes(GetEnvInt(CONFIG_KEY_YT_DLP_CLIP_SIZE_LIMIT_IN_MB, 300))
 	commandTimeoutInSeconds := GetEnvInt(CONFIG_KEY_YT_DLP_COMMAND_TIMEOUT_IN_SECONDS, 60)
 	proxy := GetEnv(CONFIG_KEY_YT_DLP_PROXY, "")
+	cookiesFile := GetEnv(CONFIG_KEY_YT_DLP_COOKIES_FILE, "")
+	userAgent := GetEnv(CONFIG_KEY_YT_DLP_USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+	extractorRetries := GetEnvInt(CONFIG_KEY_YT_DLP_EXTRACTOR_RETRIES, 3)
 
 	return &YtDlpConfig{
 		ClipSizeInMb: clipSizeInMb,
 		CommandTimeoutInSeconds: commandTimeoutInSeconds,
 		Proxy: proxy,
+		CookiesFile: cookiesFile,
+		UserAgent: userAgent,
+		ExtractorRetries: extractorRetries,
 	}
 } 
 

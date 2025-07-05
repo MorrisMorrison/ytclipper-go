@@ -162,6 +162,9 @@ The application can be configured using environment variables:
 | `YTCLIPPER_PORT_CLIP_SIZE_LIMIT_IN_MB` | Maximum clip size (MB) | `300` |
 | `YTCLIPPER_YT_DLP_PROXY` | Proxy for yt-dlp | `` |
 | `YTCLIPPER_YT_DLP_COMMAND_TIMEOUT_IN_SECONDS` | yt-dlp timeout (seconds) | `30` |
+| `YTCLIPPER_YT_DLP_COOKIES_FILE` | Path to YouTube cookies file | `` |
+| `YTCLIPPER_YT_DLP_USER_AGENT` | Browser user agent string | Chrome 120 |
+| `YTCLIPPER_YT_DLP_EXTRACTOR_RETRIES` | Number of retry attempts | `3` |
 
 ### Cleanup Scheduler
 | Variable | Description | Default |
@@ -194,6 +197,20 @@ The application can be configured using environment variables:
 - **Input Validation**: Sanitizes all user inputs and URL parameters
 - **File Management**: Automatic cleanup prevents disk space exhaustion
 - **Error Handling**: Graceful error handling without exposing internal details
+- **YouTube Authentication**: Cookie-based authentication to bypass bot detection
+
+## YouTube Bot Detection
+
+If you encounter "Sign in to confirm you're not a bot" errors, see our comprehensive guide:
+
+📖 **[YouTube Authentication Guide](YOUTUBE_AUTHENTICATION.md)**
+
+**Quick Fix:**
+```bash
+# Export YouTube cookies and configure
+export YTCLIPPER_YT_DLP_COOKIES_FILE="./cookies/youtube_cookies.txt"
+export YTCLIPPER_YT_DLP_EXTRACTOR_RETRIES=5
+```
 
 ## Monitoring
 

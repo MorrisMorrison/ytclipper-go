@@ -12,6 +12,8 @@ jobs:
     env:
       YTCLIPPER_YT_DLP_PROXY: ${{ secrets.YTDLP_PROXY_URL }}
       YTCLIPPER_CLIP_CLEANUP_SCHEDULER_ENABLED: "false"
+      YTCLIPPER_YT_DLP_EXTRACTOR_RETRIES: "1"
+      YTCLIPPER_YT_DLP_USER_AGENT: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
       GO_VERSION: "1.23" 
       
     steps:
@@ -42,6 +44,15 @@ jobs:
             requests \
             curl_cffi \
             urllib3
+            
+      - name: Setup Anti-Bot Configuration
+        run: |
+          # Create dummy cookies file for CI
+          mkdir -p cookies
+          echo "# Dummy cookies for CI/CD - not for real authentication" > cookies/youtube_cookies.txt
+          echo "# This file prevents cookie-related errors in tests" >> cookies/youtube_cookies.txt
+        env:
+          YTCLIPPER_YT_DLP_COOKIES_FILE: cookies/youtube_cookies.txt
             
       - name: Install Go Dependencies
         run: go mod tidy

@@ -29,7 +29,7 @@ func DownloadAndCutVideo(outputPath string, selectedFormat string, fileSizeLimit
 		url,
 	}
 
-	cmdArgs = applyProxyArgs(cmdArgs)
+	cmdArgs = applyAntiDetectionArgs(cmdArgs)
 
 	output, err := executeWithTimeout(time.Duration(config.CONFIG.YtDlpConfig.CommandTimeoutInSeconds)*time.Second, "yt-dlp", cmdArgs...)
 	return output, err
@@ -69,7 +69,7 @@ func GetAvailableFormats(url string) ([]map[string]string, error) {
     glogger.Log.Infof("Get Available Formats: Fetching available formats for URL %s", url)
 
     cmdArgs := []string{"-F", url}
-    cmdArgs = applyProxyArgs(cmdArgs)
+    cmdArgs = applyAntiDetectionArgs(cmdArgs)
 
     output, err := executeWithTimeout(time.Duration(config.CONFIG.YtDlpConfig.CommandTimeoutInSeconds)*time.Second, "yt-dlp", cmdArgs...)
     if err != nil {
@@ -98,7 +98,7 @@ func GetVideoDuration(url string) (string, error) {
 		url,
 	}
 
-	cmdArgs = applyProxyArgs(cmdArgs)
+	cmdArgs = applyAntiDetectionArgs(cmdArgs)
 	output, err := executeWithTimeout(time.Duration(config.CONFIG.YtDlpConfig.CommandTimeoutInSeconds)*time.Second, "yt-dlp", cmdArgs...)
 	if err != nil {
         glogger.Log.Errorf(err, "Get Video Duration: Error executing yt-dlp. Output\n%s", string(output))
@@ -203,12 +203,39 @@ func getFileExtensionFromFormatID(formatID string, formats []map[string]string) 
     return "", fmt.Errorf("format ID not found")
 }
 
-func applyProxyArgs(cmdArgs []string) []string {
+func applyAntiDetectionArgs(cmdArgs []string) []string {
+	var args []string
+
+	// Apply proxy if configured
 	if config.CONFIG.YtDlpConfig.Proxy != "" {
-        glogger.Log.Infof("Using proxy: %s", config.CONFIG.YtDlpConfig.Proxy)
-		return append([]string{"--proxy", config.CONFIG.YtDlpConfig.Proxy}, cmdArgs...)
+		glogger.Log.Infof("Using proxy: %s", config.CONFIG.YtDlpConfig.Proxy)
+		args = append(args, "--proxy", config.CONFIG.YtDlpConfig.Proxy)
 	}
-	return cmdArgs
+
+	// Apply cookies file if configured
+	if config.CONFIG.YtDlpConfig.CookiesFile != "" {
+		glogger.Log.Infof("Using cookies file: %s", config.CONFIG.YtDlpConfig.CookiesFile)
+		args = append(args, "--cookies", config.CONFIG.YtDlpConfig.CookiesFile)
+	}
+
+	// Apply user agent
+	if config.CONFIG.YtDlpConfig.UserAgent != "" {
+		args = append(args, "--user-agent", config.CONFIG.YtDlpConfig.UserAgent)
+	}
+
+	// Apply extractor retries
+	if config.CONFIG.YtDlpConfig.ExtractorRetries > 0 {
+		args = append(args, "--extractor-retries", fmt.Sprintf("%d", config.CONFIG.YtDlpConfig.ExtractorRetries))
+	}
+
+	// Add anti-bot detection arguments
+	args = append(args,
+		"--sleep-requests", "1",     // Sleep between requests
+		"--sleep-interval", "1",     // Random sleep interval
+		"--max-sleep-interval", "3", // Maximum sleep interval
+	)
+
+	return append(args, cmdArgs...)
 }
 
 func executeWithTimeout(timeout time.Duration, name string, args ...string) ([]byte, error) {
