@@ -308,5 +308,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [ ] Add WebSocket support for real-time updates
 - [ ] Implement user authentication and quotas
 - [ ] Add support for batch processing
-- [ ] Implement video thumbnail generation
 
