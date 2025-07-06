@@ -366,26 +366,26 @@ func applyAlternativeExtraction(cmdArgs []string) []string {
 func executeWithFallback(name string, baseArgs []string) ([]byte, error) {
 	timeout := time.Duration(config.CONFIG.YtDlpConfig.CommandTimeoutInSeconds) * time.Second
 
-	// Strategy 1: Try with aggressive anti-detection first
-	aggressiveArgs := applyAggressiveAntiDetection(baseArgs)
-	glogger.Log.Infof("Attempting yt-dlp with aggressive anti-detection")
-	output, err := executeWithTimeout(timeout, name, aggressiveArgs...)
+	// Strategy 1: Try with legacy configuration first (includes cookies/proxy if available)
+	legacyArgs := applyAntiDetectionArgs(baseArgs)
+	glogger.Log.Infof("Attempting yt-dlp with legacy configuration (cookies/proxy)")
+	output, err := executeWithTimeout(timeout, name, legacyArgs...)
 
 	if err != nil {
-		glogger.Log.Warningf("Aggressive anti-detection failed: %v", err)
+		glogger.Log.Warningf("Legacy configuration failed: %v", err)
 
-		// Strategy 2: Try with alternative extractor approach
-		altArgs := applyAlternativeExtraction(baseArgs)
-		glogger.Log.Infof("Attempting yt-dlp with alternative extraction method")
-		output, err = executeWithTimeout(timeout, name, altArgs...)
+		// Strategy 2: Fallback to aggressive anti-detection
+		aggressiveArgs := applyAggressiveAntiDetection(baseArgs)
+		glogger.Log.Infof("Attempting yt-dlp with aggressive anti-detection")
+		output, err = executeWithTimeout(timeout, name, aggressiveArgs...)
 
 		if err != nil {
-			glogger.Log.Warningf("Alternative extraction failed: %v", err)
+			glogger.Log.Warningf("Aggressive anti-detection failed: %v", err)
 
-			// Strategy 3: Try with legacy full configuration (includes cookies/proxy if available)
-			legacyArgs := applyAntiDetectionArgs(baseArgs)
-			glogger.Log.Infof("Attempting yt-dlp with legacy full anti-detection configuration")
-			output, err = executeWithTimeout(timeout, name, legacyArgs...)
+			// Strategy 3: Final fallback to alternative extraction method
+			altArgs := applyAlternativeExtraction(baseArgs)
+			glogger.Log.Infof("Attempting yt-dlp with alternative extraction method")
+			output, err = executeWithTimeout(timeout, name, altArgs...)
 		}
 	}
 
