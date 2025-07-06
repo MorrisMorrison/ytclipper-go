@@ -349,14 +349,10 @@ func applyAntiDetectionArgs(cmdArgs []string) []string {
 		args = append(args, "--proxy", config.CONFIG.YtDlpConfig.Proxy)
 	}
 
-	// Apply cookies file if configured, otherwise try browser extraction
+	// Apply cookies file if configured
 	if config.CONFIG.YtDlpConfig.CookiesFile != "" {
 		glogger.Log.Infof("Using cookies file: %s", config.CONFIG.YtDlpConfig.CookiesFile)
 		args = append(args, "--cookies", config.CONFIG.YtDlpConfig.CookiesFile)
-	} else {
-		// Fallback to browser cookie extraction for legacy configuration too
-		glogger.Log.Infof("No cookie file configured, trying browser extraction")
-		args = append(args, "--cookies-from-browser", "chrome")
 	}
 
 	// Apply user agent
@@ -434,39 +430,41 @@ func applyUserContext(cmdArgs []string, userAgent, cookies string) []string {
 		args = append(args, "--user-agent", getUserAgent())
 	}
 
-	// Try different cookie approaches
-	cookieApplied := false
-	
-	// First try: Use provided cookies if available
+	// Use provided cookies if available
 	if cookies != "" {
 		glogger.Log.Infof("Using user's browser cookies")
 		// Create temporary cookies file in Netscape format
 		if cookieFile, err := createTempCookieFile(cookies); err == nil {
 			args = append(args, "--cookies", cookieFile)
-			cookieApplied = true
 		} else {
 			glogger.Log.Warningf("Failed to create cookie file: %v", err)
 		}
-	}
-	
-	// Second try: Use browser cookie extraction if no manual cookies provided
-	if !cookieApplied {
-		glogger.Log.Infof("Attempting to extract cookies from browser")
-		// Try the most reliable browser (Chrome is most common)
-		args = append(args, "--cookies-from-browser", "chrome")
-		glogger.Log.Infof("Added --cookies-from-browser chrome")
+	} else {
+		glogger.Log.Infof("No cookies provided by user")
 	}
 
-	// Apply minimal anti-detection
+	// Apply enhanced anti-detection strategies
 	args = append(args,
-		"--extractor-retries", "3",
-		"--sleep-requests", "1",
-		"--sleep-interval", "1",
-		"--max-sleep-interval", "3",
+		"--extractor-retries", "5",
+		"--sleep-requests", "2", 
+		"--sleep-interval", "3",
+		"--max-sleep-interval", "8",
 		"--no-warnings",
-		"--add-header", "Accept-Language:en-US,en;q=0.9",
-		"--add-header", "Accept:text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+		"--geo-bypass",
+		"--no-check-certificate",
+		// Browser-like headers
+		"--add-header", "Accept-Language:en-US,en;q=0.9,*;q=0.5",
+		"--add-header", "Accept:text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
 		"--add-header", "Accept-Encoding:gzip, deflate, br",
+		"--add-header", "Cache-Control:no-cache",
+		"--add-header", "Pragma:no-cache",
+		"--add-header", "DNT:1",
+		"--add-header", "Connection:keep-alive",
+		"--add-header", "Upgrade-Insecure-Requests:1",
+		"--add-header", "Sec-Fetch-Dest:document",
+		"--add-header", "Sec-Fetch-Mode:navigate",
+		"--add-header", "Sec-Fetch-Site:none",
+		"--add-header", "Sec-Fetch-User:?1",
 	)
 
 	return append(args, cmdArgs...)
