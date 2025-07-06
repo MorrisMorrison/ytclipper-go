@@ -28,7 +28,6 @@ func DownloadAndCutVideo(outputPath string, selectedFormat string, fileSizeLimit
 		"-v",
 		"--max-filesize", fmt.Sprintf("%d", fileSizeLimit),
 		"--download-sections", fmt.Sprintf("*%s-%s", from, to),
-		"--downloader", "native",  // Force yt-dlp's native downloader instead of FFmpeg
 		url,
 	}
 
