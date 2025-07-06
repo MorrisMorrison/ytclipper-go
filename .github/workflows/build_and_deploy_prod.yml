@@ -10,10 +10,11 @@ jobs:
     runs-on: ubuntu-latest
     
     env:
+      YTCLIPPER_YT_DLP_PROXY: ${{ secrets.YTDLP_PROXY_URL }}
       YTCLIPPER_CLIP_CLEANUP_SCHEDULER_ENABLED: "false"
       YTCLIPPER_YT_DLP_EXTRACTOR_RETRIES: "1"
       YTCLIPPER_YT_DLP_USER_AGENT: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-      YTCLIPPER_YT_DLP_COOKIES_FILE: "cookies/youtube_cookies.txt"
+      YTCLIPPER_YT_DLP_COOKIES_FILE: ${{ secrets.YTDLP_COOKIES_FILE }}
       GO_VERSION: "1.23" 
       
     steps:
@@ -68,6 +69,7 @@ jobs:
           yt-dlp \
             --user-agent "$YTCLIPPER_YT_DLP_USER_AGENT" \
             --cookies "$YTCLIPPER_YT_DLP_COOKIES_FILE" \
+            --proxy "$YTCLIPPER_YT_DLP_PROXY" \
             --extractor-retries 1 \
             --sleep-requests 1 \
             --simulate \
