@@ -1,0 +1,62 @@
+### Get Job Status - Using Stored Job ID
+# Check status of job created in previous request
+GET {{baseUrl}}/api/v1/jobs/status?jobId={{jobId}}
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+
+###
+
+### Get Job Status - Specific Job ID
+# Check status using a specific job ID
+GET {{baseUrl}}/api/v1/jobs/status?jobId=your-job-id-here
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+
+###
+
+### Get Job Status - Non-existent Job
+# Test error handling with non-existent job ID
+GET {{baseUrl}}/api/v1/jobs/status?jobId=non-existent-job-123
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+
+###
+
+### Get Job Status - Missing Job ID
+# Test error handling with missing jobId parameter
+GET {{baseUrl}}/api/v1/jobs/status
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+
+###
+
+### Get Job Status - Empty Job ID
+# Test error handling with empty jobId parameter
+GET {{baseUrl}}/api/v1/jobs/status?jobId=
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+
+###
+
+### Download Clip - Using Stored Job ID
+# Download completed clip using stored job ID
+GET {{baseUrl}}/api/v1/clip?jobId={{jobId}}
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+
+###
+
+### Download Clip - Specific Job ID
+# Download using a specific job ID
+GET {{baseUrl}}/api/v1/clip?jobId=your-completed-job-id-here
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+
+###
+
+### Download Clip - Non-existent Job
+# Test error handling with non-existent job ID
+GET {{baseUrl}}/api/v1/clip?jobId=non-existent-job-123
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+
+###
+
+### Download Clip - Missing Job ID
+# Test error handling with missing jobId parameter
+GET {{baseUrl}}/api/v1/clip
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+
+###

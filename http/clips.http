@@ -1,0 +1,121 @@
+### Create Clip - Basic Request
+# Create a video clip with standard parameters
+POST {{baseUrl}}/api/v1/clip
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+Content-Type: application/json
+
+{
+  "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "from": "00:00:10",
+  "to": "00:00:20",
+  "format": "136"
+}
+
+> {%
+client.global.set("jobId", response.body);
+%}
+
+###
+
+### Create Clip - Short YouTube URL
+# Test with youtu.be format
+POST {{baseUrl}}/api/v1/clip
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+Content-Type: application/json
+
+{
+  "url": "https://youtu.be/dQw4w9WgXcQ",
+  "from": "00:00:05",
+  "to": "00:00:15",
+  "format": "137"
+}
+
+###
+
+### Create Clip - Longer Duration
+# Create a longer clip (30 seconds)
+POST {{baseUrl}}/api/v1/clip
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+Content-Type: application/json
+
+{
+  "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "from": "00:00:30",
+  "to": "00:01:00",
+  "format": "298"
+}
+
+###
+
+### Create Clip - Different Time Formats
+# Test various time formats
+POST {{baseUrl}}/api/v1/clip
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+Content-Type: application/json
+
+{
+  "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "from": "30",
+  "to": "45",
+  "format": "136"
+}
+
+###
+
+### Create Clip - Invalid URL
+# Test error handling with invalid YouTube URL
+POST {{baseUrl}}/api/v1/clip
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+Content-Type: application/json
+
+{
+  "url": "https://invalid-url.com",
+  "from": "00:00:10",
+  "to": "00:00:20",
+  "format": "136"
+}
+
+###
+
+### Create Clip - Missing Required Fields
+# Test validation with missing fields
+POST {{baseUrl}}/api/v1/clip
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+Content-Type: application/json
+
+{
+  "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "from": "00:00:10"
+}
+
+###
+
+### Create Clip - Invalid Time Format
+# Test with invalid time format
+POST {{baseUrl}}/api/v1/clip
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+Content-Type: application/json
+
+{
+  "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "from": "invalid-time",
+  "to": "00:00:20",
+  "format": "136"
+}
+
+###
+
+### Create Clip - Invalid Format ID
+# Test with non-numeric format ID
+POST {{baseUrl}}/api/v1/clip
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+Content-Type: application/json
+
+{
+  "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "from": "00:00:10",
+  "to": "00:00:20",
+  "format": "invalid-format"
+}
+
+###

@@ -1,0 +1,84 @@
+### Complete Workflow - Step 1: Get Video Duration
+# Step 1: Get the duration of the target video
+GET {{baseUrl}}/api/v1/video/duration?youtubeUrl=https://www.youtube.com/watch?v=dQw4w9WgXcQ
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+
+> {%
+client.global.set("videoDuration", response.body);
+client.log("Video duration: " + response.body + " seconds");
+%}
+
+###
+
+### Complete Workflow - Step 2: Get Available Formats
+# Step 2: Get all available formats for the video
+GET {{baseUrl}}/api/v1/video/formats?youtubeUrl=https://www.youtube.com/watch?v=dQw4w9WgXcQ
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+
+> {%
+const formats = response.body;
+client.log("Available formats: " + JSON.stringify(formats, null, 2));
+
+// Find a good quality format (prefer 720p or 1080p video+audio)
+const preferredFormat = formats.find(f => 
+  f.formatType === "audio and video" && 
+  (f.label.includes("720p") || f.label.includes("1080p"))
+) || formats.find(f => f.formatType === "audio and video") || formats[0];
+
+client.global.set("selectedFormat", preferredFormat.id);
+client.log("Selected format: " + preferredFormat.id + " (" + preferredFormat.label + ")");
+%}
+
+###
+
+### Complete Workflow - Step 3: Create Clip
+# Step 3: Create a clip using the selected format
+POST {{baseUrl}}/api/v1/clip
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+Content-Type: application/json
+
+{
+  "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "from": "00:00:10",
+  "to": "00:00:30",
+  "format": "{{selectedFormat}}"
+}
+
+> {%
+client.global.set("workflowJobId", response.body);
+client.log("Created job with ID: " + response.body);
+%}
+
+###
+
+### Complete Workflow - Step 4: Check Job Status (Polling)
+# Step 4: Check the job status (run this multiple times until completed)
+GET {{baseUrl}}/api/v1/jobs/status?jobId={{workflowJobId}}
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+
+> {%
+if (response.status === 200 && response.body) {
+  client.log("Job completed! File path: " + response.body);
+} else if (response.status === 201) {
+  client.log("Job still processing...");
+} else {
+  client.log("Job failed or not found. Status: " + response.status);
+}
+%}
+
+###
+
+### Complete Workflow - Step 5: Download Clip
+# Step 5: Download the completed clip (only run after job is completed)
+GET {{baseUrl}}/api/v1/clip?jobId={{workflowJobId}}
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+
+> {%
+if (response.status === 200) {
+  client.log("Successfully downloaded clip. Size: " + response.headers.valueOf("Content-Length") + " bytes");
+} else {
+  client.log("Failed to download clip. Status: " + response.status);
+}
+%}
+
+###

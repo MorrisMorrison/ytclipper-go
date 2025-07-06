@@ -1,0 +1,59 @@
+### Quick Start Example 1: Health Check
+# Test if the server is running (no authentication needed)
+GET http://localhost:8080/health
+
+###
+
+### Quick Start Example 2: Get Video Duration  
+# Get the duration of a YouTube video
+GET http://localhost:8080/api/v1/video/duration?youtubeUrl=https://www.youtube.com/watch?v=dQw4w9WgXcQ
+# Add your credentials if Basic Auth is enabled:
+# Authorization: Basic your-username your-password
+
+###
+
+### Quick Start Example 3: Get Available Formats
+# Get all available video formats
+GET http://localhost:8080/api/v1/video/formats?youtubeUrl=https://www.youtube.com/watch?v=dQw4w9WgXcQ
+# Add your credentials if Basic Auth is enabled:
+# Authorization: Basic your-username your-password
+
+###
+
+### Quick Start Example 4: Create a Clip
+# Create a 10-second clip
+POST http://localhost:8080/api/v1/clip
+Content-Type: application/json
+# Add your credentials if Basic Auth is enabled:
+# Authorization: Basic your-username your-password
+
+{
+  "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "from": "00:00:10",
+  "to": "00:00:20",
+  "format": "136"
+}
+
+# Copy the job ID from the response for the next steps
+
+###
+
+### Quick Start Example 5: Check Job Status
+# Replace "your-job-id-here" with the actual job ID from step 4
+GET http://localhost:8080/api/v1/jobs/status?jobId=your-job-id-here
+# Add your credentials if Basic Auth is enabled:
+# Authorization: Basic your-username your-password
+
+# Keep running this until you get a 200 response with a file path
+
+###
+
+### Quick Start Example 6: Download the Clip
+# Replace "your-job-id-here" with the actual job ID from step 4
+GET http://localhost:8080/api/v1/clip?jobId=your-job-id-here
+# Add your credentials if Basic Auth is enabled:
+# Authorization: Basic your-username your-password
+
+# This will download the completed video clip
+
+###

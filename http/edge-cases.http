@@ -1,0 +1,126 @@
+### Long Video URL Test
+# Test with a longer YouTube video
+GET {{baseUrl}}/api/v1/video/duration?youtubeUrl=https://www.youtube.com/watch?v=jNQXAC9IVRw
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+
+###
+
+### Short Video Test
+# Test with a very short video
+POST {{baseUrl}}/api/v1/clip
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+Content-Type: application/json
+
+{
+  "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "from": "00:00:01",
+  "to": "00:00:03",
+  "format": "136"
+}
+
+###
+
+### Large Clip Test (May Hit Size Limit)
+# Test creating a larger clip that might hit the size limit
+POST {{baseUrl}}/api/v1/clip
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+Content-Type: application/json
+
+{
+  "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "from": "00:00:00",
+  "to": "00:03:00",
+  "format": "137"
+}
+
+###
+
+### Invalid Time Range Test
+# Test with "to" time before "from" time
+POST {{baseUrl}}/api/v1/clip
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+Content-Type: application/json
+
+{
+  "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "from": "00:02:00",
+  "to": "00:01:00",
+  "format": "136"
+}
+
+###
+
+### Time Beyond Video Duration
+# Test with times that might be beyond the video duration
+POST {{baseUrl}}/api/v1/clip
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+Content-Type: application/json
+
+{
+  "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "from": "10:00:00",
+  "to": "10:01:00",
+  "format": "136"
+}
+
+###
+
+### Malformed JSON Test
+# Test with malformed JSON
+POST {{baseUrl}}/api/v1/clip
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+Content-Type: application/json
+
+{
+  "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "from": "00:00:10",
+  "to": "00:00:20",
+  "format": "136"
+  // This comment makes it invalid JSON
+}
+
+###
+
+### Empty Request Body Test
+# Test with empty request body
+POST {{baseUrl}}/api/v1/clip
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+Content-Type: application/json
+
+###
+
+### Wrong Content Type Test
+# Test with wrong content type
+POST {{baseUrl}}/api/v1/clip
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+Content-Type: text/plain
+
+{
+  "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "from": "00:00:10",
+  "to": "00:00:20",
+  "format": "136"
+}
+
+###
+
+### Private/Unavailable Video Test
+# Test with a potentially unavailable video
+GET {{baseUrl}}/api/v1/video/duration?youtubeUrl=https://www.youtube.com/watch?v=unavailable123
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+
+###
+
+### Very Long URL Test
+# Test with an extremely long URL
+GET {{baseUrl}}/api/v1/video/duration?youtubeUrl=https://www.youtube.com/watch?v=dQw4w9WgXcQ&feature=youtu.be&list=PL3A5849BDE0581B19&index=1&t=0s&very_long_parameter=this_is_a_very_long_parameter_value_that_should_still_work_fine
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+
+###
+
+### Special Characters in URL Test
+# Test URL with special characters
+GET {{baseUrl}}/api/v1/video/duration?youtubeUrl=https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=10s
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+
+###

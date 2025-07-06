@@ -1,0 +1,12 @@
+### Health Check
+# Test server health - no authentication required
+GET {{baseUrl}}/health
+
+###
+
+### Homepage
+# Get the main HTML page
+GET {{baseUrl}}/
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+
+###

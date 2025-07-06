@@ -1,0 +1,67 @@
+### Test No Authentication
+# Test request without authentication (should fail if auth is configured)
+GET {{baseUrl}}/api/v1/video/duration?youtubeUrl=https://www.youtube.com/watch?v=dQw4w9WgXcQ
+
+###
+
+### Test Invalid Authentication
+# Test with invalid credentials
+GET {{baseUrl}}/api/v1/video/duration?youtubeUrl=https://www.youtube.com/watch?v=dQw4w9WgXcQ
+Authorization: Basic invalid-credentials
+
+###
+
+### Test Health Check Without Auth
+# Health check should work without authentication
+GET {{baseUrl}}/health
+
+###
+
+### Rate Limiting Test 1
+# First request to test rate limiting
+GET {{baseUrl}}/api/v1/video/duration?youtubeUrl=https://www.youtube.com/watch?v=dQw4w9WgXcQ
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+
+###
+
+### Rate Limiting Test 2
+# Second request
+GET {{baseUrl}}/api/v1/video/duration?youtubeUrl=https://www.youtube.com/watch?v=dQw4w9WgXcQ
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+
+###
+
+### Rate Limiting Test 3
+# Third request
+GET {{baseUrl}}/api/v1/video/duration?youtubeUrl=https://www.youtube.com/watch?v=dQw4w9WgXcQ
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+
+###
+
+### Rate Limiting Test 4
+# Fourth request
+GET {{baseUrl}}/api/v1/video/duration?youtubeUrl=https://www.youtube.com/watch?v=dQw4w9WgXcQ
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+
+###
+
+### Rate Limiting Test 5
+# Fifth request
+GET {{baseUrl}}/api/v1/video/duration?youtubeUrl=https://www.youtube.com/watch?v=dQw4w9WgXcQ
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+
+###
+
+### Rate Limiting Test 6
+# Sixth request (might hit rate limit if default is 5 req/sec)
+GET {{baseUrl}}/api/v1/video/duration?youtubeUrl=https://www.youtube.com/watch?v=dQw4w9WgXcQ
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+
+###
+
+### Rate Limiting Test 7
+# Seventh request (should hit rate limit)
+GET {{baseUrl}}/api/v1/video/duration?youtubeUrl=https://www.youtube.com/watch?v=dQw4w9WgXcQ
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+
+###
