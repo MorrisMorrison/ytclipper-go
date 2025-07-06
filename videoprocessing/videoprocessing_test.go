@@ -170,7 +170,3 @@ func TestGetVideoDuration(t *testing.T) {
 	}
 }
 
-func applyTestProxyArgs(cmdArgs []string) []string {
-	// Apply the same enhanced anti-detection arguments that the actual code uses
-	return applyAntiDetectionArgsNoCookiesProxy(cmdArgs)
-}

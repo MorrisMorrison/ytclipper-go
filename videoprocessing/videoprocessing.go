@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -66,15 +65,11 @@ func ProcessClip(jobID string, url string, from string, to string, selectedForma
 }
 
 func GetAvailableFormats(url string) ([]map[string]string, error) {
-	return GetAvailableFormatsWithContext(url, "", "")
-}
-
-func GetAvailableFormatsWithContext(url, userAgent, cookies string) ([]map[string]string, error) {
 	glogger.Log.Infof("Get Available Formats: Fetching available formats for URL %s", url)
 
 	cmdArgs := []string{"-F", url}
 
-	output, err := executeWithFallbackAndContext("yt-dlp", cmdArgs, userAgent, cookies)
+	output, err := executeWithFallback("yt-dlp", cmdArgs)
 	if err != nil {
 		glogger.Log.Errorf(err, "Get Available Formats: Error executing yt-dlp. Output\n%s", string(output))
 		return nil, fmt.Errorf("yt-dlp failed: %w", err)
@@ -87,16 +82,13 @@ func GetAvailableFormatsWithContext(url, userAgent, cookies string) ([]map[strin
 	formats := parseFormats(string(output))
 	if formats == nil {
 		glogger.Log.Errorf(fmt.Errorf("Formats are nil"), "Get Video Duration: Could not find any available formats. Output:/n%s", output)
+		return nil, fmt.Errorf("Could not find any available formats")
 	}
 
-	return parseFormats(string(output)), nil
+	return formats, nil
 }
 
 func GetVideoDuration(url string) (string, error) {
-	return GetVideoDurationWithContext(url, "", "")
-}
-
-func GetVideoDurationWithContext(url, userAgent, cookies string) (string, error) {
 	glogger.Log.Infof("Get Video Duration: Fetch duration for URL %s", url)
 
 	cmdArgs := []string{
@@ -105,7 +97,7 @@ func GetVideoDurationWithContext(url, userAgent, cookies string) (string, error)
 		url,
 	}
 
-	output, err := executeWithFallbackAndContext("yt-dlp", cmdArgs, userAgent, cookies)
+	output, err := executeWithFallback("yt-dlp", cmdArgs)
 	if err != nil {
 		glogger.Log.Errorf(err, "Get Video Duration: Error executing yt-dlp. Output\n%s", string(output))
 		return "", err
@@ -230,115 +222,6 @@ func getUserAgent() string {
 	return userAgents[rand.Intn(len(userAgents))]
 }
 
-// createTempCookieFile converts browser cookies to Netscape format and creates a temporary file
-func createTempCookieFile(cookies string) (string, error) {
-	glogger.Log.Infof("Creating temp cookie file with %d chars of cookies", len(cookies))
-
-	// Create temporary file
-	tempFile, err := os.CreateTemp("", "ytclipper-cookies-*.txt")
-	if err != nil {
-		return "", fmt.Errorf("failed to create temp file: %w", err)
-	}
-	defer tempFile.Close()
-
-	glogger.Log.Infof("Created temp cookie file: %s", tempFile.Name())
-
-	// Write Netscape cookie file header
-	header := "# Netscape HTTP Cookie File\n# This is a generated file! Do not edit.\n\n"
-	if _, err := tempFile.WriteString(header); err != nil {
-		os.Remove(tempFile.Name())
-		return "", fmt.Errorf("failed to write header: %w", err)
-	}
-
-	// Parse and convert cookies to Netscape format
-	cookiePairs := strings.Split(cookies, ";")
-	for _, pair := range cookiePairs {
-		pair = strings.TrimSpace(pair)
-		if pair == "" {
-			continue
-		}
-
-		parts := strings.SplitN(pair, "=", 2)
-		if len(parts) != 2 {
-			continue
-		}
-
-		name := strings.TrimSpace(parts[0])
-		value := strings.TrimSpace(parts[1])
-
-		// Skip empty cookies
-		if name == "" || value == "" {
-			continue
-		}
-
-		// Convert to Netscape format: domain \t flag \t path \t secure \t expiration \t name \t value
-		// We'll use YouTube domain and set reasonable defaults
-		netscapeLine := fmt.Sprintf(".youtube.com\tTRUE\t/\tTRUE\t%d\t%s\t%s\n",
-			time.Now().Add(365*24*time.Hour).Unix(), // Expire in 1 year
-			name,
-			value)
-
-		if _, err := tempFile.WriteString(netscapeLine); err != nil {
-			os.Remove(tempFile.Name())
-			return "", fmt.Errorf("failed to write cookie: %w", err)
-		}
-	}
-
-	// Schedule cleanup after 5 minutes
-	go func() {
-		time.Sleep(5 * time.Minute)
-		os.Remove(tempFile.Name())
-		glogger.Log.Infof("Cleaned up temporary cookie file: %s", tempFile.Name())
-	}()
-
-	return tempFile.Name(), nil
-}
-
-func applyAntiDetectionArgsNoCookiesProxy(cmdArgs []string) []string {
-	var args []string
-
-	// Use rotating user agent
-	userAgent := getUserAgent()
-	glogger.Log.Infof("Using user agent: %s", userAgent)
-	args = append(args, "--user-agent", userAgent)
-
-	// Apply extractor retries
-	if config.CONFIG.YtDlpConfig.ExtractorRetries > 0 {
-		args = append(args, "--extractor-retries", fmt.Sprintf("%d", config.CONFIG.YtDlpConfig.ExtractorRetries))
-	}
-
-	// Enhanced anti-bot detection arguments
-	sleepInterval := config.CONFIG.YtDlpConfig.SleepInterval
-	maxSleep := sleepInterval * 3
-	if maxSleep < 5 {
-		maxSleep = 5
-	}
-
-	args = append(args,
-		"--sleep-requests", fmt.Sprintf("%d", sleepInterval),
-		"--sleep-interval", fmt.Sprintf("%d", sleepInterval),
-		"--max-sleep-interval", fmt.Sprintf("%d", maxSleep),
-		"--no-check-certificate", // Skip SSL verification
-		"--geo-bypass",           // Attempt to bypass geographic restrictions
-		"--no-warnings",          // Reduce output noise
-		"--prefer-free-formats",  // Prefer free formats
-		"--no-abort-on-error",    // Continue on errors
-		"--ignore-errors",        // Ignore download errors
-		"--add-header", "Accept-Language:en-US,en;q=0.9",
-		"--add-header", "Accept:text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-		"--add-header", "Accept-Encoding:gzip, deflate, br",
-		"--add-header", "DNT:1",
-		"--add-header", "Connection:keep-alive",
-		"--add-header", "Upgrade-Insecure-Requests:1",
-		"--add-header", "Sec-Fetch-Dest:document",
-		"--add-header", "Sec-Fetch-Mode:navigate",
-		"--add-header", "Sec-Fetch-Site:none",
-		"--add-header", "Sec-Fetch-User:?1",
-		"--add-header", "Cache-Control:max-age=0",
-	)
-
-	return append(args, cmdArgs...)
-}
 
 func applyAntiDetectionArgs(cmdArgs []string) []string {
 	var args []string
@@ -403,18 +286,18 @@ func applyAggressiveAntiDetection(cmdArgs []string) []string {
 		// Increase retries and timeouts
 		"--extractor-retries", "10",
 		"--sleep-requests", "5",
-		"--sleep-interval", "10", 
+		"--sleep-interval", "10",
 		"--max-sleep-interval", "20",
 		"--socket-timeout", "60",
 		"--retries", "10",
 		"--fragment-retries", "10",
-		
+
 		// Bypass mechanisms
 		"--geo-bypass",
-		"--no-check-certificate", 
+		"--no-check-certificate",
 		"--no-warnings",
 		"--ignore-errors",
-		
+
 		// Browser simulation headers
 		"--add-header", "Accept-Language:en-US,en;q=0.9,*;q=0.5",
 		"--add-header", "Accept:text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
@@ -425,7 +308,7 @@ func applyAggressiveAntiDetection(cmdArgs []string) []string {
 		"--add-header", "Connection:keep-alive",
 		"--add-header", "Upgrade-Insecure-Requests:1",
 		"--add-header", "Sec-Fetch-Dest:document",
-		"--add-header", "Sec-Fetch-Mode:navigate", 
+		"--add-header", "Sec-Fetch-Mode:navigate",
 		"--add-header", "Sec-Fetch-Site:none",
 		"--add-header", "Sec-Fetch-User:?1",
 		"--add-header", "Sec-Ch-Ua:\"Not A(Brand\";v=\"99\", \"Google Chrome\";v=\"121\", \"Chromium\";v=\"121\"",
@@ -463,12 +346,12 @@ func applyAlternativeExtraction(cmdArgs []string) []string {
 		"--sleep-requests", "3",
 		"--sleep-interval", "5",
 		"--max-sleep-interval", "12",
-		
+
 		// Use different extraction methods
 		"--force-json",
 		"--no-warnings",
 		"--prefer-free-formats",
-		
+
 		// Alternative headers that mimic different browser behavior
 		"--add-header", "Accept-Language:en-US,en;q=0.8,fr;q=0.6",
 		"--add-header", "Accept:text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -508,78 +391,6 @@ func executeWithFallback(name string, baseArgs []string) ([]byte, error) {
 	}
 
 	return output, err
-}
-
-func executeWithFallbackAndContext(name string, baseArgs []string, userAgent, cookies string) ([]byte, error) {
-	timeout := time.Duration(config.CONFIG.YtDlpConfig.CommandTimeoutInSeconds) * time.Second
-
-	// Strategy 1: Use user's browser context if available
-	if userAgent != "" || cookies != "" {
-		userArgs := applyUserContext(baseArgs, userAgent, cookies)
-		glogger.Log.Infof("Attempting yt-dlp with user browser context")
-		output, err := executeWithTimeout(timeout, name, userArgs...)
-		if err == nil {
-			return output, err
-		}
-		glogger.Log.Warningf("User context failed: %v", err)
-	}
-
-	// Strategy 2: Fallback to legacy full configuration (includes cookies/proxy if available)
-	legacyArgs := applyAntiDetectionArgs(baseArgs)
-	glogger.Log.Infof("Attempting yt-dlp with legacy full anti-detection configuration")
-	return executeWithTimeout(timeout, name, legacyArgs...)
-}
-
-func applyUserContext(cmdArgs []string, userAgent, cookies string) []string {
-	var args []string
-
-	// Use provided user agent if available
-	if userAgent != "" {
-		glogger.Log.Infof("Using user's browser user agent")
-		args = append(args, "--user-agent", userAgent)
-	} else {
-		// Fallback to rotating user agent
-		args = append(args, "--user-agent", getUserAgent())
-	}
-
-	// Use provided cookies if available
-	if cookies != "" {
-		glogger.Log.Infof("Using user's browser cookies")
-		// Create temporary cookies file in Netscape format
-		if cookieFile, err := createTempCookieFile(cookies); err == nil {
-			args = append(args, "--cookies", cookieFile)
-		} else {
-			glogger.Log.Warningf("Failed to create cookie file: %v", err)
-		}
-	} else {
-		glogger.Log.Infof("No cookies provided by user")
-	}
-
-	// Apply enhanced anti-detection strategies
-	args = append(args,
-		"--extractor-retries", "5",
-		"--sleep-requests", "2",
-		"--sleep-interval", "3",
-		"--max-sleep-interval", "8",
-		"--no-warnings",
-		"--geo-bypass",
-		"--no-check-certificate",
-		// Browser-like headers
-		"--add-header", "Accept-Language:en-US,en;q=0.9,*;q=0.5",
-		"--add-header", "Accept:text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-		"--add-header", "Accept-Encoding:gzip, deflate, br",
-		"--add-header", "Cache-Control:no-cache",
-		"--add-header", "Pragma:no-cache",
-		"--add-header", "DNT:1",
-		"--add-header", "Connection:keep-alive",
-		"--add-header", "Upgrade-Insecure-Requests:1",
-		"--add-header", "Sec-Fetch-Dest:document",
-		"--add-header", "Sec-Fetch-Mode:navigate",
-		"--add-header", "Sec-Fetch-Site:none",
-		"--add-header", "Sec-Fetch-User:?1",
-	)
-
-	return append(args, cmdArgs...)
 }
 
 func executeWithTimeout(timeout time.Duration, name string, args ...string) ([]byte, error) {

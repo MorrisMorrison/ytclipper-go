@@ -21,7 +21,7 @@ https://github.com/user-attachments/assets/8ab2d567-0ca7-44c6-9c76-07203b2fd986
 - **Rate Limiting**: Built-in rate limiting to prevent abuse and ensure fair usage
 - **Automatic Cleanup**: Scheduled cleanup of old clips and jobs to manage storage efficiently
 - **Health Monitoring**: Health check endpoint for monitoring and load balancing
-- **Cookie-Free Bot Detection Bypass**: Advanced anti-detection system without requiring authentication
+- **Advanced Bot Detection Bypass**: 3-tier fallback system with optional cookie/proxy support
 - **Intelligent Fallback**: Multi-tier fallback strategies for maximum compatibility
 - **Responsive UI**: Clean, dark-themed web interface optimized for all devices
 
@@ -169,12 +169,12 @@ The application can be configured using environment variables:
 | `YTCLIPPER_YT_DLP_SLEEP_INTERVAL` | Base sleep interval (seconds) | `2` |
 | `YTCLIPPER_YT_DLP_ENABLE_USER_AGENT_ROTATION` | Enable rotating user agents | `true` |
 
-### Anti-Bot Detection (Cookie-Free)
+### Anti-Bot Detection
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `YTCLIPPER_YT_DLP_USER_AGENT` | Custom user agent (overrides rotation) | `` |
-| `YTCLIPPER_YT_DLP_COOKIES_FILE` | Path to cookies file (legacy) | `` |
-| `YTCLIPPER_YT_DLP_PROXY` | Proxy server (legacy) | `` |
+| `YTCLIPPER_YT_DLP_COOKIES_FILE` | Path to cookies file (optional) | `` |
+| `YTCLIPPER_YT_DLP_PROXY` | Proxy server (optional) | `` |
 
 ### Cleanup Scheduler
 | Variable | Description | Default |
@@ -207,40 +207,47 @@ The application can be configured using environment variables:
 - **Input Validation**: Sanitizes all user inputs and URL parameters
 - **File Management**: Automatic cleanup prevents disk space exhaustion
 - **Error Handling**: Graceful error handling without exposing internal details
-- **Cookie-Free Operation**: No authentication credentials stored or transmitted
+- **Minimal Configuration**: Optional cookie/proxy support with no credentials stored by default
 
 ## YouTube Bot Detection Bypass
 
-The application offers **three progressive approaches** to bypass YouTube's bot detection, automatically selecting the best method for maximum success:
+The application uses a **3-tier fallback strategy** to maximize compatibility and success rate when downloading YouTube videos:
 
-### **User Browser Context** (Primary - Highest Success Rate)
-**Real Browser Session**: Uses your actual browser's YouTube session with consent  
-**Privacy Focused**: Explicit consent required, no server storage  
-**Seamless Integration**: Works automatically when user consents  
-
-**[User Browser Context Guide](docs/USER_BROWSER_CONTEXT.md)**
-
-### **Enhanced Cookie-Free Anti-Detection** (Fallback)
-**No Authentication Required**: Advanced spoofing without cookies  
+### **Tier 1: Enhanced Cookie-Free Anti-Detection** (Primary)
+**No Authentication Required**: Advanced spoofing without cookies or user interaction  
 **User Agent Rotation**: 6 modern browser user agents automatically rotated  
 **Enhanced Headers**: Browser-like HTTP headers for authenticity  
-**Multi-Tier Fallback**: 6 progressive strategies for maximum compatibility  
+**Progressive Retries**: Automatic retry with different strategies on failure  
 
-### **Legacy Cookie Authentication** (Last Resort)
-**Traditional Approach**: Manual cookie extraction and configuration  
-**Maximum Compatibility**: Works when other methods fail  
+### **Tier 2: Optional Cookie Support** (Fallback)
+**Environment Variable Configuration**: Use `YTCLIPPER_YT_DLP_COOKIES_FILE` for cookie file path  
+**Manual Cookie Extraction**: Extract cookies from your browser when needed  
+**Higher Success Rate**: Provides additional authentication for restricted content  
 
-### Quick Setup (Recommended)
+### **Tier 3: Optional Proxy Support** (Last Resort)
+**Proxy Configuration**: Use `YTCLIPPER_YT_DLP_PROXY` for proxy server  
+**Geographic Restrictions**: Bypass location-based restrictions  
+**Network Diversity**: Alternative network path for enhanced reliability  
+
+### Quick Setup (Default Configuration)
 ```bash
-# Enable all approaches (default configuration)
+# Default configuration (no setup required)
 export YTCLIPPER_YT_DLP_ENABLE_USER_AGENT_ROTATION=true
 export YTCLIPPER_YT_DLP_SLEEP_INTERVAL=2
 export YTCLIPPER_YT_DLP_EXTRACTOR_RETRIES=3
+
+# Optional: Add cookie file for enhanced compatibility
+export YTCLIPPER_YT_DLP_COOKIES_FILE=/path/to/cookies.txt
+
+# Optional: Add proxy for geographic restrictions
+export YTCLIPPER_YT_DLP_PROXY=http://proxy-server:port
 ```
 
-### Detailed Guides
-**[User Browser Context Strategy](docs/USER_BROWSER_CONTEXT.md)** (Recommended)  
-**[YouTube Authentication Guide](docs/YOUTUBE_AUTHENTICATION.md)** (Legacy)
+### How It Works
+1. **Automatic Fallback**: System tries each tier progressively until successful
+2. **No User Interaction**: Runs completely automatically with environment variables
+3. **Maximum Compatibility**: Covers edge cases and restricted content
+4. **Zero Configuration**: Works out of the box without any setup
 
 ## Monitoring
 

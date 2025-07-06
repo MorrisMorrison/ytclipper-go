@@ -18,9 +18,9 @@ This happens because:
 
 ## 🛠️ Solutions Implemented
 
-### 1. Cookie Authentication (Recommended)
+### 1. Cookie Authentication (Optional)
 
-**Export cookies from your browser:**
+**Export cookies from your browser if needed:**
 
 #### Method A: Browser Extension
 1. Install "Get cookies.txt LOCALLY" extension
@@ -33,61 +33,101 @@ This happens because:
 2. Open DevTools (F12) → Application → Cookies
 3. Copy all YouTube cookies to a text file in Netscape format
 
-#### Method C: Using yt-dlp directly
-```bash
-# Extract cookies from Chrome
-yt-dlp --cookies-from-browser chrome --write-info-json --skip-download "https://youtube.com/watch?v=dQw4w9WgXcQ"
-```
-
-**Configure ytclipper-go:**
+**Configure ytclipper-go (only if needed):**
 ```bash
 export YTCLIPPER_YT_DLP_COOKIES_FILE="/path/to/youtube_cookies.txt"
 ```
 
-### 2. Anti-Detection Configuration
+**Note:** The application now uses a comprehensive 3-tier fallback strategy as the primary approach. Cookie authentication is only used as a final fallback when the built-in anti-detection methods fail.
 
-The application now includes several anti-detection measures:
+### 2. Built-in Anti-Detection Strategy (Primary)
+
+The application now uses a comprehensive 3-tier fallback strategy as the primary approach:
+
+#### Tier 1: Aggressive Anti-Detection
+- Advanced user agent rotation
+- Comprehensive HTTP headers
+- Browser fingerprinting simulation
+- Aggressive timing patterns
+
+#### Tier 2: Alternative Extraction
+- Alternative header patterns
+- Different extraction methods
+- Modified timing strategies
+
+#### Tier 3: Legacy Configuration
+- Uses environment variables if configured
+- Backward compatibility support
+
+### 3. Optional Environment Configuration
 
 | Environment Variable | Default | Purpose |
 |---------------------|---------|---------|
-| `YTCLIPPER_YT_DLP_COOKIES_FILE` | "" | Path to browser cookies file |
-| `YTCLIPPER_YT_DLP_USER_AGENT` | Chrome 120 | Browser user agent string |
-| `YTCLIPPER_YT_DLP_EXTRACTOR_RETRIES` | 3 | Number of retry attempts |
-| `YTCLIPPER_YT_DLP_PROXY` | "" | Proxy server (if needed) |
+| `YTCLIPPER_YT_DLP_COOKIES_FILE` | "" | Path to browser cookies file (tier 3 fallback) |
+| `YTCLIPPER_YT_DLP_PROXY` | "" | Proxy server (tier 3 fallback) |
 
-### 3. Built-in Anti-Bot Measures
+### 4. Built-in Anti-Bot Measures
 
-The application automatically adds:
-- `--sleep-requests 1` - Sleep between requests
-- `--sleep-interval 1` - Random sleep intervals
-- `--max-sleep-interval 3` - Maximum sleep time
-- Modern user agent headers
-- Cookie-based session persistence
+The application automatically implements:
 
-### 4. Automatic Fallback Strategies
+#### Tier 1 (Aggressive Anti-Detection)
+- Extensive user agent rotation
+- Comprehensive HTTP headers (Accept-Language, Cache-Control, DNT, etc.)
+- Browser fingerprinting simulation
+- Aggressive timing (10-20 second intervals)
+- Geographic and SSL bypass
 
-The application implements intelligent fallback when encountering issues:
+#### Tier 2 (Alternative Extraction)
+- Alternative user agent patterns
+- Different header combinations
+- Modified timing strategies
+- Alternative extraction methods
 
-1. **First attempt**: Full anti-detection with proxy (if configured)
-2. **Second attempt**: Anti-detection without proxy (if proxy fails)
-3. **Third attempt**: Basic execution with minimal arguments
+#### Tier 3 (Legacy Configuration)
+- Uses environment variables if configured
+- Proxy support
+- Cookie file support
+- Standard anti-detection measures
 
-This ensures maximum compatibility across different network environments.
+### 5. No Configuration Required
+
+The primary approach works automatically without any configuration:
+- **Cookie-free by default**
+- **No proxy required**
+- **No user intervention needed**
+- **Comprehensive fallback system**
 
 ## 📝 Configuration Examples
 
-### Local Development
+### Local Development (No Configuration Needed)
 ```bash
-# Set environment variables
+# Run the application - uses built-in 3-tier fallback strategy
+go run main.go
+```
+
+### Local Development (With Optional Configuration)
+```bash
+# Optional: Set environment variables only if needed
 export YTCLIPPER_YT_DLP_COOKIES_FILE="./cookies/youtube_cookies.txt"
-export YTCLIPPER_YT_DLP_USER_AGENT="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-export YTCLIPPER_YT_DLP_EXTRACTOR_RETRIES=5
+export YTCLIPPER_YT_DLP_PROXY="http://proxy.example.com:8080"
 
 # Run the application
 go run main.go
 ```
 
-### Docker Deployment
+### Docker Deployment (No Configuration Needed)
+```yaml
+version: '3.8'
+services:
+  ytclipper:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./videos:/app/videos
+```
+
+### Docker Deployment (With Optional Configuration)
 ```yaml
 version: '3.8'
 services:
@@ -97,7 +137,7 @@ services:
       - "8080:8080"
     environment:
       - YTCLIPPER_YT_DLP_COOKIES_FILE=/app/cookies/youtube_cookies.txt
-      - YTCLIPPER_YT_DLP_EXTRACTOR_RETRIES=5
+      - YTCLIPPER_YT_DLP_PROXY=http://proxy.example.com:8080
     volumes:
       - ./cookies:/app/cookies:ro
       - ./videos:/app/videos
@@ -105,30 +145,28 @@ services:
 
 ### GitHub Actions (CI/CD)
 ```yaml
-- name: Setup YouTube Authentication
+- name: Run ytclipper tests
   run: |
-    # Use a dummy cookies file or skip tests requiring authentication
-    mkdir -p cookies
-    echo "# Dummy cookies for CI" > cookies/youtube_cookies.txt
-  env:
-    YTCLIPPER_YT_DLP_COOKIES_FILE: cookies/youtube_cookies.txt
-    YTCLIPPER_YT_DLP_EXTRACTOR_RETRIES: 1
+    # No configuration needed - uses built-in anti-detection strategies
+    go test ./...
 ```
 
 ## 🔧 Troubleshooting
 
 ### Still Getting Bot Detection?
 
-1. **Update cookies regularly** - YouTube cookies expire
-2. **Use residential proxy** - Avoid datacenter IPs
-3. **Reduce request rate** - Increase sleep intervals
-4. **Update yt-dlp** - `pip install --upgrade yt-dlp`
+The application automatically tries 3 progressive strategies, but if all fail:
+
+1. **Check yt-dlp version** - `pip install --upgrade yt-dlp`
+2. **Use proxy configuration** - Set `YTCLIPPER_YT_DLP_PROXY` environment variable
+3. **Export fresh cookies** - Set `YTCLIPPER_YT_DLP_COOKIES_FILE` environment variable
+4. **Monitor logs** - Check which tier is failing
 
 ### For GitHub Actions:
 
-1. **Mock authentication** - Use dummy data for tests
-2. **Skip real YouTube calls** - Test with local video files
-3. **Use secrets** - Store real cookies in GitHub Secrets (not recommended for public repos)
+1. **No configuration needed** - Built-in strategies work in CI/CD
+2. **Test with mock data** - Use local video files for tests
+3. **Add proxy if needed** - Use GitHub Secrets for proxy configuration
 
 ### Proxy Configuration:
 ```bash
@@ -141,11 +179,12 @@ export YTCLIPPER_YT_DLP_PROXY="socks5://proxy.example.com:1080"
 
 ## 🔒 Security Considerations
 
-- **Never commit cookies** to version control
-- **Use .gitignore** for cookies directory
-- **Rotate cookies regularly** (monthly)
+- **No cookies by default** - Primary approach is cookie-free
+- **Never commit cookies** to version control (if using optional cookie configuration)
+- **Use .gitignore** for cookies directory (if using optional cookie configuration)
+- **Rotate cookies regularly** (if using optional cookie configuration)
 - **Use environment variables** for sensitive data
-- **Consider cookie encryption** for production
+- **Proxy security** - Use trusted proxy services (if using optional proxy configuration)
 
 ## 📁 Recommended Directory Structure
 
@@ -168,40 +207,37 @@ cookies/*.json
 
 ## 🧪 Testing
 
-### Test cookie authentication:
+### Test built-in anti-detection:
 ```bash
-# Set environment variables
-export YTCLIPPER_YT_DLP_COOKIES_FILE="./cookies/youtube_cookies.txt"
-
-# Test with a known video
+# Test with a known video - no configuration needed
 curl -X POST "http://localhost:8080/api/v1/clip" \
   -H "Content-Type: application/json" \
   -d '{"url":"https://youtube.com/watch?v=dQw4w9WgXcQ","from":"0","to":"10","format":"best"}'
 ```
 
-### Verify configuration:
+### Verify fallback configuration (if needed):
 ```bash
-# Check yt-dlp with your cookies
+# Check yt-dlp with optional cookies
 yt-dlp --cookies ./cookies/youtube_cookies.txt --get-title "https://youtube.com/watch?v=dQw4w9WgXcQ"
 ```
 
 ## 💡 Best Practices
 
-1. **Use fresh cookies** from a logged-in YouTube session
-2. **Monitor error logs** for authentication failures
-3. **Implement fallback strategies** for bot detection
-4. **Rate limit your own requests** to avoid triggering detection
-5. **Keep yt-dlp updated** for latest anti-detection measures
-6. **Test regularly** to ensure authentication remains valid
+1. **Use default configuration** - Built-in strategies work for most cases
+2. **Monitor error logs** for failures across all tiers
+3. **Keep yt-dlp updated** for latest anti-detection measures
+4. **Use proxy configuration** only if needed for specific use cases
+5. **Use fresh cookies** only if configuring the optional cookie fallback
+6. **Test regularly** to ensure continued effectiveness
 
 ## 🆘 Emergency Fixes
 
-If you're still getting blocked:
+If you're still getting blocked after all 3 tiers fail:
 
-1. **Change IP address** (restart router or use VPN)
-2. **Clear YouTube cookies** and re-login in browser
-3. **Export fresh cookies** following the guide above
-4. **Reduce concurrent requests** 
-5. **Increase sleep intervals** to 5-10 seconds
+1. **Update yt-dlp** - `pip install --upgrade yt-dlp`
+2. **Configure proxy** - Set `YTCLIPPER_YT_DLP_PROXY` environment variable
+3. **Export fresh cookies** - Set `YTCLIPPER_YT_DLP_COOKIES_FILE` environment variable
+4. **Change IP address** (restart router or use VPN)
+5. **Check logs** to see which tier is consistently failing
 
-This configuration should significantly reduce YouTube bot detection errors in both development and production environments.
+This 3-tier fallback system should significantly reduce YouTube bot detection errors in both development and production environments without requiring any configuration for most use cases.

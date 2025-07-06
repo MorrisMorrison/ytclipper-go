@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document outlines our comprehensive strategy to bypass YouTube bot detection without using cookies or proxies, addressing the user's specific requirement to avoid authentication mechanisms for public YouTube videos.
+This document outlines our comprehensive **PRIMARY** strategy to bypass YouTube bot detection without using cookies or proxies. This is now the **default behavior** for all YouTube video processing, implementing a robust 3-tier fallback system to ensure maximum success rates.
 
 ## Why YouTube Requires "Authentication" for Public Videos
 
@@ -16,7 +16,7 @@ YouTube implements bot detection for public videos because:
 
 Even though videos are publicly accessible via browser, programmatic access is treated differently by YouTube's infrastructure.
 
-## Our Cookie-Free Solution
+## Our Cookie-Free Solution (PRIMARY STRATEGY)
 
 ### 1. **Advanced User Agent Rotation**
 - **6 Modern Browser User Agents**: Chrome, Firefox, Safari, Edge variants
@@ -27,7 +27,7 @@ Even though videos are publicly accessible via browser, programmatic access is t
 ### 2. **Enhanced HTTP Headers**
 - **Browser-Like Headers**: Accept-Language, Accept-Encoding, DNT
 - **Connection Persistence**: Keep-alive connections
-- **Security Headers**: Upgrade-Insecure-Requests
+- **Security Headers**: Upgrade-Insecure-Requests, Sec-Fetch-* headers
 - **Language Preferences**: en-US primary with fallbacks
 
 ### 3. **Intelligent Request Timing**
@@ -36,36 +36,39 @@ Even though videos are publicly accessible via browser, programmatic access is t
 - **Progressive Backoff**: Increases delays if detection occurs
 - **Per-Request Delays**: Sleep between individual API calls
 
-### 4. **Multi-Layer Fallback Strategy**
+### 4. **3-Tier Fallback Strategy**
 
-Our implementation tries 4 progressive strategies:
+Our implementation tries 3 progressive strategies in order:
 
-1. **Enhanced Anti-Detection** (Primary)
-   - Rotating user agents
-   - Browser-like headers
-   - Configurable sleep intervals
-   - Geographic bypass attempts
+1. **Aggressive Anti-Detection** (Primary - Strategy 1)
+   - Rotating user agents with extensive browser simulation
+   - Comprehensive HTTP headers (Accept-Language, Cache-Control, DNT, Connection, etc.)
+   - Aggressive timing (10-20 second sleep intervals)
+   - Maximum retries (10 attempts)
+   - Geographic bypass and SSL certificate bypass
+   - Complete browser fingerprint simulation
 
-2. **Minimal Configuration** (Fallback 1)
-   - User agent only
-   - Basic request structure
-   - Reduced complexity
+2. **Alternative Extraction** (Fallback - Strategy 2)
+   - Different user agent rotation
+   - Alternative HTTP headers with different browser patterns
+   - Modified timing strategy (5-12 second intervals)
+   - Force JSON extraction and prefer free formats
+   - Different extractor retry patterns
+   - Referer header simulation
 
-3. **Legacy Configuration** (Fallback 2)
-   - Includes cookies/proxy if available
-   - Full anti-detection suite
-   - Backward compatibility
-
-4. **Bare Minimum** (Last Resort)
-   - Basic yt-dlp arguments only
-   - No additional headers
-   - Emergency fallback
+3. **Legacy Configuration** (Final Fallback - Strategy 3)
+   - Includes cookies/proxy if available in environment
+   - Backward compatibility with existing configurations
+   - Standard anti-detection suite
+   - Maintains support for legacy deployments
 
 ### 5. **Additional Anti-Detection Measures**
 - **SSL Bypass**: `--no-check-certificate` for problematic connections
 - **Geographic Bypass**: `--geo-bypass` to circumvent region blocks
-- **Flat Extraction**: `--extract-flat` to reduce processing overhead
+- **Error Handling**: `--ignore-errors` to continue processing despite failures
 - **Warning Suppression**: `--no-warnings` to reduce detection fingerprints
+- **Enhanced Retries**: Fragment retries, socket timeout adjustments
+- **Browser Fingerprinting**: Sec-Ch-Ua headers, Sec-Fetch-* headers
 
 ## Configuration
 
@@ -113,29 +116,74 @@ userAgents := []string{
 }
 ```
 
-### Enhanced Headers
+### Strategy 1: Aggressive Anti-Detection Headers
 ```bash
---add-header "Accept-Language:en-US,en;q=0.9"
---add-header "Accept:text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+--add-header "Accept-Language:en-US,en;q=0.9,*;q=0.5"
+--add-header "Accept:text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8"
 --add-header "Accept-Encoding:gzip, deflate, br"
+--add-header "Cache-Control:no-cache"
+--add-header "Pragma:no-cache"
 --add-header "DNT:1"
 --add-header "Connection:keep-alive"
 --add-header "Upgrade-Insecure-Requests:1"
+--add-header "Sec-Fetch-Dest:document"
+--add-header "Sec-Fetch-Mode:navigate"
+--add-header "Sec-Fetch-Site:none"
+--add-header "Sec-Fetch-User:?1"
+--add-header "Sec-Ch-Ua:\"Not A(Brand\";v=\"99\", \"Google Chrome\";v=\"121\", \"Chromium\";v=\"121\""
+--add-header "Sec-Ch-Ua-Mobile:?0"
+--add-header "Sec-Ch-Ua-Platform:\"Linux\""
+```
+
+### Strategy 2: Alternative Extraction Headers
+```bash
+--add-header "Accept-Language:en-US,en;q=0.8,fr;q=0.6"
+--add-header "Accept:text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+--add-header "Accept-Encoding:gzip, deflate"
+--add-header "Connection:keep-alive"
+--add-header "Keep-Alive:timeout=5, max=1000"
+--add-header "Referer:https://www.google.com/"
+```
+
+### Execution Flow
+```go
+func executeWithFallback(name string, baseArgs []string) ([]byte, error) {
+    // Strategy 1: Aggressive anti-detection
+    aggressiveArgs := applyAggressiveAntiDetection(baseArgs)
+    output, err := executeWithTimeout(timeout, name, aggressiveArgs...)
+    
+    if err != nil {
+        // Strategy 2: Alternative extraction
+        altArgs := applyAlternativeExtraction(baseArgs)
+        output, err = executeWithTimeout(timeout, name, altArgs...)
+        
+        if err != nil {
+            // Strategy 3: Legacy configuration
+            legacyArgs := applyAntiDetectionArgs(baseArgs)
+            output, err = executeWithTimeout(timeout, name, legacyArgs...)
+        }
+    }
+    
+    return output, err
+}
 ```
 
 ## Success Metrics
 
-### Expected Improvements
-- **95% reduction** in bot detection errors
-- **Zero dependency** on cookies or proxies
+### Current Implementation Benefits
+- **Primary strategy**: Cookie-free anti-detection is the default behavior
+- **3-tier fallback**: Comprehensive fallback system with different approaches
+- **Zero dependency** on cookies or proxies by default
 - **Automatic fallback** for difficult videos
 - **CI/CD compatibility** without authentication
+- **Backward compatibility** with existing cookie/proxy configurations
 
 ### Monitoring Points
-- Track success/failure rates by strategy used
+- Track success/failure rates by strategy used (aggressive → alternative → legacy)
 - Monitor which fallback level is most effective
 - Log user agent rotation patterns
 - Measure request timing effectiveness
+- Track browser fingerprinting success rates
 
 ## Alternative Approaches (Future Considerations)
 
@@ -156,11 +204,19 @@ userAgents := []string{
 
 ## Troubleshooting
 
+### Understanding the 3-Tier Fallback System
+
+The system automatically tries these strategies in order:
+
+1. **Aggressive Anti-Detection**: Most comprehensive approach with maximum headers and timing
+2. **Alternative Extraction**: Different header patterns and extraction methods
+3. **Legacy Configuration**: Uses cookies/proxy if available in environment
+
 ### If Still Getting Bot Detection
 
 1. **Increase Sleep Interval**
    ```bash
-   export YTCLIPPER_YT_DLP_SLEEP_INTERVAL=5
+   export YTCLIPPER_YT_DLP_SLEEP_INTERVAL=10
    ```
 
 2. **Enable Debug Logging**
@@ -183,6 +239,9 @@ userAgents := []string{
    yt-dlp --no-warnings --get-title "VIDEO_URL"
    ```
 
+5. **Monitor Strategy Usage**
+   Check logs to see which strategy is being used and failing
+
 ### Emergency Fallbacks
 
 If all automated approaches fail:
@@ -191,14 +250,19 @@ If all automated approaches fail:
 2. **Different Video Sources**: Test with various YouTube videos
 3. **Rate Limiting**: Reduce request frequency significantly
 4. **yt-dlp Update**: Ensure latest version with recent fixes
+5. **Fallback Strategy Analysis**: Check which of the 3 tiers is consistently failing
 
 ## Benefits of This Approach
 
+✅ **Primary Strategy**: Cookie-free anti-detection is now the default behavior  
 ✅ **No Cookie Management**: Eliminates cookie expiration issues  
 ✅ **No Proxy Costs**: Removes proxy service dependencies  
 ✅ **CI/CD Friendly**: Works in automated environments  
 ✅ **Self-Contained**: No external authentication requirements  
 ✅ **Maintainable**: Simple configuration management  
 ✅ **Scalable**: Works across different deployment environments  
+✅ **Comprehensive Fallback**: 3-tier strategy ensures maximum success rate  
+✅ **Backward Compatible**: Supports existing cookie/proxy configurations when available  
+✅ **Browser Fingerprinting**: Advanced header simulation for maximum stealth  
 
-This strategy provides a robust, cookie-free solution that mimics legitimate browser behavior while maintaining the simplicity you requested.
+This strategy provides a robust, cookie-free solution that mimics legitimate browser behavior as the primary approach, with comprehensive fallback mechanisms to handle edge cases.
