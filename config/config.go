@@ -26,6 +26,9 @@ const (
 	CONFIG_KEY_CLIP_CLEANUP_SCHEDULER_INTERVAL_IN_MINUTES = "YTCLIPPER_CLIP_CLEANUP_SCHEDULER_INTERVAL_IN_MINUTES"
 	CONFIG_KEY_CLIP_CLEANUP_SCHEDULER_CLIP_DIRECTORY_PATH = "YTCLIPPER_CLIP_CLEANUP_SCHEDULER_CLIP_DIRECTORY_PATH"
 	CONFIG_KEY_CLIP_CLEANUP_SCHEDULER_ENABLED             = "YTCLIPPER_CLIP_CLEANUP_SCHEDULER_ENABLED"
+
+	CONFIG_KEY_AUTH_USERNAME = "YTCLIPPER_AUTH_USERNAME"
+	CONFIG_KEY_AUTH_PASSWORD = "YTCLIPPER_AUTH_PASSWORD"
 )
 
 var CONFIG *Config = NewConfig()
@@ -36,6 +39,7 @@ type Config struct {
 	RateLimiterConfig          RateLimiterConfig
 	YtDlpConfig                YtDlpConfig
 	ClipCleanUpSchedulerConfig ClipCleanUpSchedulerConfig
+	BasicAuthConfig            BasicAuthConfig
 }
 
 type RateLimiterConfig struct {
@@ -60,6 +64,11 @@ type ClipCleanUpSchedulerConfig struct {
 	IntervalInMinutes int
 	ClipDirectoryPath string
 	IsEnabled         bool
+}
+
+type BasicAuthConfig struct {
+	Username string
+	Password string
 }
 
 func NewClipCleanUpSchedulerConfig() *ClipCleanUpSchedulerConfig {
@@ -110,6 +119,16 @@ func NewRateLimiterConfig() *RateLimiterConfig {
 	}
 }
 
+func NewBasicAuthConfig() *BasicAuthConfig {
+	username := GetEnv(CONFIG_KEY_AUTH_USERNAME, "")
+	password := GetEnv(CONFIG_KEY_AUTH_PASSWORD, "")
+
+	return &BasicAuthConfig{
+		Username: username,
+		Password: password,
+	}
+}
+
 func NewConfig() *Config {
 	port := GetEnv(CONFIG_KEY_PORT, "8080")
 	debug := GetEnv(CONFIG_KEY_DEBUG, "true") == "true"
@@ -120,6 +139,7 @@ func NewConfig() *Config {
 		RateLimiterConfig:          *NewRateLimiterConfig(),
 		YtDlpConfig:                *NewYtDlpConfig(),
 		ClipCleanUpSchedulerConfig: *NewClipCleanUpSchedulerConfig(),
+		BasicAuthConfig:            *NewBasicAuthConfig(),
 	}
 }
 
