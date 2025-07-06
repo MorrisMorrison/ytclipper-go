@@ -278,4 +278,3 @@ func testInvalidTimestamps(ctx context.Context) error {
 	log.Printf("Invalid timestamps test passed")
 	return nil
 }
-

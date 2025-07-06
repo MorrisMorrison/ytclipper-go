@@ -222,7 +222,6 @@ func getUserAgent() string {
 	return userAgents[rand.Intn(len(userAgents))]
 }
 
-
 func applyAntiDetectionArgs(cmdArgs []string) []string {
 	var args []string
 

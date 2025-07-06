@@ -169,4 +169,3 @@ func TestGetVideoDuration(t *testing.T) {
 		t.Error("Expected --get-duration argument to be present")
 	}
 }
-
