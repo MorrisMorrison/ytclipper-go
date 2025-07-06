@@ -1,4 +1,4 @@
-.PHONY: clean build download-static test e2e build-prod docker-build docker-run docker-stop compose-up compose-down
+.PHONY: clean build download-static test e2e build-prod fmt lint docker-build docker-run docker-stop compose-up compose-down
 
 run:
 	go run main.go
@@ -15,7 +15,13 @@ e2e:
 build:
 	go build -o ./ytclipper main.go
 
-build-prod: test download-static build
+fmt:
+	go fmt ./...
+
+lint:
+	go vet ./...
+
+build-prod: fmt lint test download-static build
 
 # Docker commands
 docker-build:

@@ -65,11 +65,15 @@ func ProcessClip(jobID string, url string, from string, to string, selectedForma
 }
 
 func GetAvailableFormats(url string) ([]map[string]string, error) {
+	return GetAvailableFormatsWithContext(url, "", "")
+}
+
+func GetAvailableFormatsWithContext(url, userAgent, cookies string) ([]map[string]string, error) {
 	glogger.Log.Infof("Get Available Formats: Fetching available formats for URL %s", url)
 
 	cmdArgs := []string{"-F", url}
 
-	output, err := executeWithFallback("yt-dlp", cmdArgs)
+	output, err := executeWithFallbackAndContext("yt-dlp", cmdArgs, userAgent, cookies)
 	if err != nil {
 		glogger.Log.Errorf(err, "Get Available Formats: Error executing yt-dlp. Output\n%s", string(output))
 		return nil, fmt.Errorf("yt-dlp failed: %w", err)
@@ -88,6 +92,10 @@ func GetAvailableFormats(url string) ([]map[string]string, error) {
 }
 
 func GetVideoDuration(url string) (string, error) {
+	return GetVideoDurationWithContext(url, "", "")
+}
+
+func GetVideoDurationWithContext(url, userAgent, cookies string) (string, error) {
 	glogger.Log.Infof("Get Video Duration: Fetch duration for URL %s", url)
 
 	cmdArgs := []string{
@@ -96,7 +104,7 @@ func GetVideoDuration(url string) (string, error) {
 		url,
 	}
 
-	output, err := executeWithFallback("yt-dlp", cmdArgs)
+	output, err := executeWithFallbackAndContext("yt-dlp", cmdArgs, userAgent, cookies)
 	if err != nil {
 		glogger.Log.Errorf(err, "Get Video Duration: Error executing yt-dlp. Output\n%s", string(output))
 		return "", err
@@ -236,9 +244,9 @@ func applyAntiDetectionArgsNoCookiesProxy(cmdArgs []string) []string {
 
 	// Enhanced anti-bot detection arguments
 	sleepInterval := config.CONFIG.YtDlpConfig.SleepInterval
-	maxSleep := sleepInterval * 2
-	if maxSleep < 3 {
-		maxSleep = 3
+	maxSleep := sleepInterval * 3
+	if maxSleep < 5 {
+		maxSleep = 5
 	}
 
 	args = append(args,
@@ -248,13 +256,20 @@ func applyAntiDetectionArgsNoCookiesProxy(cmdArgs []string) []string {
 		"--no-check-certificate", // Skip SSL verification
 		"--geo-bypass",           // Attempt to bypass geographic restrictions
 		"--no-warnings",          // Reduce output noise
-		"--extract-flat",         // Don't extract video info for playlists
+		"--prefer-free-formats",  // Prefer free formats
+		"--no-abort-on-error",    // Continue on errors
+		"--ignore-errors",        // Ignore download errors
 		"--add-header", "Accept-Language:en-US,en;q=0.9",
 		"--add-header", "Accept:text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
 		"--add-header", "Accept-Encoding:gzip, deflate, br",
 		"--add-header", "DNT:1",
 		"--add-header", "Connection:keep-alive",
 		"--add-header", "Upgrade-Insecure-Requests:1",
+		"--add-header", "Sec-Fetch-Dest:document",
+		"--add-header", "Sec-Fetch-Mode:navigate",
+		"--add-header", "Sec-Fetch-Site:none",
+		"--add-header", "Sec-Fetch-User:?1",
+		"--add-header", "Cache-Control:max-age=0",
 	)
 
 	return append(args, cmdArgs...)
@@ -305,32 +320,127 @@ func executeWithFallback(name string, baseArgs []string) ([]byte, error) {
 
 	if err != nil {
 		glogger.Log.Warningf("Enhanced anti-detection failed: %v", err)
-		
-		// Strategy 2: Try with minimal user agent only
-		minimalArgs := []string{"--user-agent", getUserAgent()}
-		minimalArgs = append(minimalArgs, baseArgs...)
-		glogger.Log.Infof("Attempting yt-dlp with minimal user agent configuration")
-		output, err = executeWithTimeout(timeout, name, minimalArgs...)
-		
+
+		// Strategy 2: Try with alternative extractor and IP spoofing
+		alternativeArgs := []string{
+			"--user-agent", getUserAgent(),
+			"--extractor-retries", "5",
+			"--sleep-requests", "3",
+			"--sleep-interval", "5",
+			"--max-sleep-interval", "10",
+			"--add-header", "X-Forwarded-For:8.8.8.8",
+			"--add-header", "X-Real-IP:8.8.8.8",
+			"--referer", "https://www.google.com/",
+		}
+		alternativeArgs = append(alternativeArgs, baseArgs...)
+		glogger.Log.Infof("Attempting yt-dlp with alternative anti-detection configuration")
+		output, err = executeWithTimeout(timeout, name, alternativeArgs...)
+
 		if err != nil {
-			glogger.Log.Warningf("Minimal configuration failed: %v", err)
-			
-			// Strategy 3: Last resort - try with legacy full configuration (includes cookies/proxy if available)
-			legacyArgs := applyAntiDetectionArgs(baseArgs)
-			glogger.Log.Infof("Attempting yt-dlp with legacy full anti-detection configuration")
-			output, err = executeWithTimeout(timeout, name, legacyArgs...)
-			
+			glogger.Log.Warningf("Alternative configuration failed: %v", err)
+
+			// Strategy 3: Try with aggressive stealth mode
+			stealthArgs := []string{
+				"--user-agent", getUserAgent(),
+				"--sleep-requests", "5",
+				"--sleep-interval", "10",
+				"--max-sleep-interval", "15",
+				"--socket-timeout", "30",
+				"--retries", "10",
+				"--fragment-retries", "10",
+				"--no-check-certificate",
+				"--geo-bypass",
+				"--add-header", "Accept-Language:en-US,en;q=0.9",
+				"--add-header", "Sec-Ch-Ua:\"Chromium\";v=\"121\", \"Not A(Brand\";v=\"99\"",
+				"--add-header", "Sec-Ch-Ua-Mobile:?0",
+				"--add-header", "Sec-Ch-Ua-Platform:\"Linux\"",
+			}
+			stealthArgs = append(stealthArgs, baseArgs...)
+			glogger.Log.Infof("Attempting yt-dlp with aggressive stealth configuration")
+			output, err = executeWithTimeout(timeout, name, stealthArgs...)
+
 			if err != nil {
-				glogger.Log.Warningf("Legacy configuration failed: %v", err)
-				
-				// Strategy 4: Absolute last resort - bare minimum
-				glogger.Log.Infof("Attempting yt-dlp with base arguments only")
-				output, err = executeWithTimeout(timeout, name, baseArgs...)
+				glogger.Log.Warningf("Stealth configuration failed: %v", err)
+
+				// Strategy 4: Try with legacy full configuration (includes cookies/proxy if available)
+				legacyArgs := applyAntiDetectionArgs(baseArgs)
+				glogger.Log.Infof("Attempting yt-dlp with legacy full anti-detection configuration")
+				output, err = executeWithTimeout(timeout, name, legacyArgs...)
+
+				if err != nil {
+					glogger.Log.Warningf("Legacy configuration failed: %v", err)
+
+					// Strategy 5: Last resort - minimal approach with just user agent
+					minimalArgs := []string{"--user-agent", getUserAgent()}
+					minimalArgs = append(minimalArgs, baseArgs...)
+					glogger.Log.Infof("Attempting yt-dlp with minimal user agent only")
+					output, err = executeWithTimeout(timeout, name, minimalArgs...)
+
+					if err != nil {
+						glogger.Log.Warningf("Minimal configuration failed: %v", err)
+
+						// Strategy 6: Absolute last resort - bare minimum
+						glogger.Log.Infof("Attempting yt-dlp with base arguments only (last resort)")
+						output, err = executeWithTimeout(timeout, name, baseArgs...)
+					}
+				}
 			}
 		}
 	}
 
 	return output, err
+}
+
+func executeWithFallbackAndContext(name string, baseArgs []string, userAgent, cookies string) ([]byte, error) {
+	timeout := time.Duration(config.CONFIG.YtDlpConfig.CommandTimeoutInSeconds) * time.Second
+
+	// Strategy 1: Use user's browser context if available
+	if userAgent != "" || cookies != "" {
+		userArgs := applyUserContext(baseArgs, userAgent, cookies)
+		glogger.Log.Infof("Attempting yt-dlp with user browser context")
+		output, err := executeWithTimeout(timeout, name, userArgs...)
+		if err == nil {
+			return output, err
+		}
+		glogger.Log.Warningf("User context failed: %v", err)
+	}
+
+	// Fallback to standard strategies if user context fails or unavailable
+	return executeWithFallback(name, baseArgs)
+}
+
+func applyUserContext(cmdArgs []string, userAgent, cookies string) []string {
+	var args []string
+
+	// Use provided user agent if available
+	if userAgent != "" {
+		glogger.Log.Infof("Using user's browser user agent")
+		args = append(args, "--user-agent", userAgent)
+	} else {
+		// Fallback to rotating user agent
+		args = append(args, "--user-agent", getUserAgent())
+	}
+
+	// Use provided cookies if available
+	if cookies != "" {
+		glogger.Log.Infof("Using user's browser cookies")
+		// Create temporary cookies file
+		args = append(args, "--add-header", "Cookie:"+cookies)
+	}
+
+	// Apply minimal anti-detection
+	args = append(args,
+		"--extractor-retries", "3",
+		"--sleep-requests", "1",
+		"--sleep-interval", "1",
+		"--max-sleep-interval", "3",
+		"--no-warnings",
+		"--add-header", "Accept-Language:en-US,en;q=0.9",
+		"--add-header", "Accept:text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+		"--add-header", "Accept-Encoding:gzip, deflate, br",
+	)
+
+	return append(args, cmdArgs...)
 }
 
 func executeWithTimeout(timeout time.Duration, name string, args ...string) ([]byte, error) {

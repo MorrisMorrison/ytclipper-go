@@ -64,9 +64,9 @@ func TestDownloadAndCutVideo(t *testing.T) {
 	defer func() { execContext = originalExecContext }()
 
 	var capturedArgs []string
-	execContext = func(ctx context.Context,name string, arg ...string) *exec.Cmd {
+	execContext = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
 		capturedArgs = append([]string{name}, arg...)
-		return exec.Command("echo", "mock") 
+		return exec.Command("echo", "mock")
 	}
 
 	outputPath := "./videos/test_clip.mp4"
@@ -118,9 +118,9 @@ func TestGetVideoDuration(t *testing.T) {
 	defer func() { execContext = originalExecContext }()
 
 	var capturedArgs []string
-	execContext = func(ctx context.Context,name string, arg ...string) *exec.Cmd {
+	execContext = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
 		capturedArgs = append([]string{name}, arg...)
-		return exec.Command("echo", "00:03:45") 
+		return exec.Command("echo", "00:03:45")
 	}
 
 	url := "https://www.youtube.com/watch?v=example"

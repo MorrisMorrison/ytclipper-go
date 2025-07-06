@@ -12,11 +12,11 @@ func TestIsValidYoutubeUrl(t *testing.T) {
 		{"https://www.youtube.com/watch?v=dQw4w9WgXcQ", true},
 		{"http://youtu.be/dQw4w9WgXcQ", true},
 		{"https://youtube.com/watch?v=dQw4w9WgXcQ", true},
-		{"https://www.youtube.com/embed/dQw4w9WgXcQ", false}, // Invalid embed URL
+		{"https://www.youtube.com/embed/dQw4w9WgXcQ", false},    // Invalid embed URL
 		{"https://www.youtu.be.com/watch?v=dQw4w9WgXcQ", false}, // Typo in domain
-		{"https://vimeo.com/123456", false}, // Non-YouTube URL
-		{"invalidurl", false}, // Completely invalid URL
-		{"https://youtube.com/watch?", false}, // Missing video ID
+		{"https://vimeo.com/123456", false},                     // Non-YouTube URL
+		{"invalidurl", false},                                   // Completely invalid URL
+		{"https://youtube.com/watch?", false},                   // Missing video ID
 	}
 
 	for _, tt := range tests {
@@ -106,9 +106,9 @@ func TestValidateCreateClipDto(t *testing.T) {
 	}
 
 	tests := []struct {
-		name       string
-		dto        *CreateClipDTO
-		expectErr  bool
+		name        string
+		dto         *CreateClipDTO
+		expectErr   bool
 		expectedMsg string
 	}{
 		{"Valid DTO", validDto, false, ""},

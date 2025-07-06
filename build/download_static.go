@@ -36,11 +36,11 @@ func downloadFile(url, dest string) error {
 
 func main() {
 	files := map[string]string{
-		"https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js": "static/scripts/toastr.min.js",
-		"https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css": "static/css/toastr.min.css",
-		"https://cdnjs.cloudflare.com/ajax/libs/video.js/7.20.3/video.min.js":    "static/scripts/video.min.js",
-		"https://cdnjs.cloudflare.com/ajax/libs/video.js/7.20.3/video-js.min.css": "static/css/video-js.min.css",
-		"https://code.jquery.com/jquery.min.js": "static/scripts/jquery.min.js",
+		"https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js":                         "static/scripts/toastr.min.js",
+		"https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css":                        "static/css/toastr.min.css",
+		"https://cdnjs.cloudflare.com/ajax/libs/video.js/7.20.3/video.min.js":                           "static/scripts/video.min.js",
+		"https://cdnjs.cloudflare.com/ajax/libs/video.js/7.20.3/video-js.min.css":                       "static/css/video-js.min.css",
+		"https://code.jquery.com/jquery.min.js":                                                         "static/scripts/jquery.min.js",
 		"https://raw.githubusercontent.com/videojs/videojs-youtube/refs/heads/main/dist/Youtube.min.js": "static/scripts/Youtube.min.js",
 	}
 

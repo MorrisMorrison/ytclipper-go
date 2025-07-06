@@ -1,10 +1,100 @@
 import { hideProgressBar, enableClipButton, showDownloadLink } from './ui.js';
+
+// Global state for user consent
+let allowYouTubeCookies = false;
+
+// Check if user has made a consent decision
+function hasUserConsentDecision() {
+    return localStorage.getItem('ytclipper-cookie-consent') !== null;
+}
+
+// Get user consent preference
+function getUserConsentPreference() {
+    return localStorage.getItem('ytclipper-cookie-consent') === 'true';
+}
+
+// Set user consent preference
+function setUserConsentPreference(consent) {
+    localStorage.setItem('ytclipper-cookie-consent', consent ? 'true' : 'false');
+    allowYouTubeCookies = consent;
+}
+
+// Function to get YouTube cookies for the current domain
+function getYouTubeCookies() {
+    if (!allowYouTubeCookies) {
+        return '';
+    }
+    
+    try {
+        const cookies = document.cookie
+            .split(';')
+            .filter(cookie => {
+                const name = cookie.trim().split('=')[0];
+                // Include important YouTube cookies
+                return ['VISITOR_INFO1_LIVE', 'YSC', 'PREF', '__Secure-3PAPISID', '__Secure-3PSID', 'LOGIN_INFO'].includes(name);
+            })
+            .join('; ');
+        return cookies;
+    } catch (e) {
+        console.log('Could not access YouTube cookies:', e);
+        return '';
+    }
+}
+
+// Show cookie consent banner if needed
+function showCookieConsentBanner() {
+    if (hasUserConsentDecision()) {
+        allowYouTubeCookies = getUserConsentPreference();
+        return;
+    }
+    
+    const banner = document.getElementById('cookieConsentBanner');
+    if (banner) {
+        banner.classList.remove('hidden');
+        
+        // Setup event listeners
+        document.getElementById('acceptCookies').addEventListener('click', () => {
+            setUserConsentPreference(true);
+            banner.classList.add('hidden');
+            toastr.success('YouTube session sharing enabled for better success rates', 'Enhanced Mode Enabled');
+        });
+        
+        document.getElementById('declineCookies').addEventListener('click', () => {
+            setUserConsentPreference(false);
+            banner.classList.add('hidden');
+            toastr.info('Using standard approach without cookie sharing', 'Standard Mode');
+        });
+    }
+}
+
+// Initialize consent on page load
+document.addEventListener('DOMContentLoaded', showCookieConsentBanner);
+
+// Function to create request options with YouTube cookies
+function createRequestOptions(options = {}) {
+    const ytCookies = getYouTubeCookies();
+    const headers = {
+        ...options.headers,
+    };
+    
+    // Add YouTube cookies if available
+    if (ytCookies) {
+        headers['X-YouTube-Cookies'] = ytCookies;
+    }
+    
+    return {
+        ...options,
+        headers
+    };
+}
+
 export async function fetchAndPopulateFormats(url, dropdown) {
     dropdown.disabled = true;
     dropdown.innerHTML = '<option value="">Loading formats...</option>';
 
     try {
-        const response = await fetch(`/api/v1/video/formats?youtubeUrl=${encodeURIComponent(url)}`);
+        const requestOptions = createRequestOptions();
+        const response = await fetch(`/api/v1/video/formats?youtubeUrl=${encodeURIComponent(url)}`, requestOptions);
         if (!response.ok) throw new Error(await response.text());
 
         const formats = await response.json();
@@ -17,7 +107,8 @@ export async function fetchAndPopulateFormats(url, dropdown) {
 
 export async function getVideoDuration(youtubeUrl) {
     const url = `/api/v1/video/duration?youtubeUrl=${encodeURIComponent(youtubeUrl)}`;
-    const response = await fetch(url);
+    const requestOptions = createRequestOptions();
+    const response = await fetch(url, requestOptions);
     if (response.ok) return await response.text();
     throw new Error('Failed to fetch video duration');
 }

@@ -15,50 +15,50 @@ import (
 	"golang.org/x/time/rate"
 )
 
-func checkDependencies(){
-   glogger.Log.Info("Checking dependencies")
+func checkDependencies() {
+	glogger.Log.Info("Checking dependencies")
 
-    if err := utils.CheckCommand("ffmpeg"); err != nil {
-        log.Fatalf("Dependency check failed: %v", err)
-    }
+	if err := utils.CheckCommand("ffmpeg"); err != nil {
+		log.Fatalf("Dependency check failed: %v", err)
+	}
 
-    if err := utils.CheckCommand("yt-dlp"); err != nil {
-        log.Fatalf("Dependency check failed: %v", err)
-    }
+	if err := utils.CheckCommand("yt-dlp"); err != nil {
+		log.Fatalf("Dependency check failed: %v", err)
+	}
 
-    glogger.Log.Info("All dependencies are installed.")
+	glogger.Log.Info("All dependencies are installed.")
 }
 
-func setupEcho(){
-    glogger.Log.Info("Setup echo")
-    e := echo.New()
-    
-    glogger.Log.Infof("Debug enabled: %t", config.CONFIG.Debug)
-    e.Debug = config.CONFIG.Debug
-    e.Logger.SetOutput(os.Stdout) 
+func setupEcho() {
+	glogger.Log.Info("Setup echo")
+	e := echo.New()
 
-    e.Static("/static", "static")
-    routes.RegisterRoutes(e)
+	glogger.Log.Infof("Debug enabled: %t", config.CONFIG.Debug)
+	e.Debug = config.CONFIG.Debug
+	e.Logger.SetOutput(os.Stdout)
 
-    glogger.Log.Infof("Starting server on port %s", config.CONFIG.Port)
-    e.Use(middleware.Logger())
+	e.Static("/static", "static")
+	routes.RegisterRoutes(e)
+
+	glogger.Log.Infof("Starting server on port %s", config.CONFIG.Port)
+	e.Use(middleware.Logger())
 	limiterStore := middleware.NewRateLimiterMemoryStoreWithConfig(middleware.RateLimiterMemoryStoreConfig{
-		Rate:      rate.Limit(config.CONFIG.RateLimiterConfig.Rate),              
-		Burst:     config.CONFIG.RateLimiterConfig.Burst,               
-		ExpiresIn: time.Duration(config.CONFIG.RateLimiterConfig.ExpiresInMinutes) * time.Minute, 
+		Rate:      rate.Limit(config.CONFIG.RateLimiterConfig.Rate),
+		Burst:     config.CONFIG.RateLimiterConfig.Burst,
+		ExpiresIn: time.Duration(config.CONFIG.RateLimiterConfig.ExpiresInMinutes) * time.Minute,
 	})
 
 	e.Use(middleware.RateLimiterWithConfig(middleware.RateLimiterConfig{
-		Skipper: middleware.DefaultSkipper, 
+		Skipper: middleware.DefaultSkipper,
 		Store:   limiterStore,
 	}))
 
-    e.Logger.Fatal(e.Start(":" + config.CONFIG.Port))
+	e.Logger.Fatal(e.Start(":" + config.CONFIG.Port))
 }
 
 func main() {
-    glogger.Log.Info("Start ytclipper")
-    checkDependencies();
-    scheduler.StartClipCleanUpScheduler()
-    setupEcho();
+	glogger.Log.Info("Start ytclipper")
+	checkDependencies()
+	scheduler.StartClipCleanUpScheduler()
+	setupEcho()
 }

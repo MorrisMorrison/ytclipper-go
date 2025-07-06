@@ -8,16 +8,16 @@ import (
 	"strings"
 )
 
-func MbToBytes(mb int) int64{
+func MbToBytes(mb int) int64 {
 	return (int64(mb) * 1024 * 1024)
 }
 
 func CheckCommand(command string) error {
-    _, err := exec.LookPath(command)
-    if err != nil {
-        return fmt.Errorf("%s is not installed or not in PATH", command)
-    }
-    return nil
+	_, err := exec.LookPath(command)
+	if err != nil {
+		return fmt.Errorf("%s is not installed or not in PATH", command)
+	}
+	return nil
 }
 
 func ToSeconds(duration string) (int, error) {
@@ -60,4 +60,3 @@ func ToSeconds(duration string) (int, error) {
 
 	return totalSeconds, nil
 }
-

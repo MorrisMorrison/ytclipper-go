@@ -21,17 +21,17 @@ func isValidFormat(format string) bool {
 }
 
 func validateCreateClipDto(createClipDto *CreateClipDTO) error {
-    if !isValidYoutubeUrl(createClipDto.Url) {
-        return fmt.Errorf("Invalid YouTube URL")
-    }
+	if !isValidYoutubeUrl(createClipDto.Url) {
+		return fmt.Errorf("Invalid YouTube URL")
+	}
 
-    if !isValidTimeFormat(createClipDto.From) || !isValidTimeFormat(createClipDto.To) {
-        return fmt.Errorf("Invalid time format. Use HH:MM:SS.")
-    }
+	if !isValidTimeFormat(createClipDto.From) || !isValidTimeFormat(createClipDto.To) {
+		return fmt.Errorf("Invalid time format. Use HH:MM:SS.")
+	}
 
-    if !isValidFormat(createClipDto.Format) {
-        return fmt.Errorf("Invalid format. Must be a numeric value.")
-    }
+	if !isValidFormat(createClipDto.Format) {
+		return fmt.Errorf("Invalid format. Must be a numeric value.")
+	}
 
-    return nil
+	return nil
 }

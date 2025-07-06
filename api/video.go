@@ -9,67 +9,83 @@ import (
 )
 
 func GetVideoDuration(c echo.Context) error {
-    url := c.QueryParam("youtubeUrl")
-    if url == "" {
-        c.Logger().Errorf("Url is required")
-        return c.JSON(http.StatusBadRequest, map[string]string{"error": "URL is required"})
-    }
+	url := c.QueryParam("youtubeUrl")
+	if url == "" {
+		c.Logger().Errorf("Url is required")
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "URL is required"})
+	}
 
-    if !isValidYoutubeUrl(url) {
-        c.Logger().Errorf("Invalid Youtube URL: %s", url)
+	if !isValidYoutubeUrl(url) {
+		c.Logger().Errorf("Invalid Youtube URL: %s", url)
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid YouTube URL"})
 	}
 
-    duration, err := videoprocessing.GetVideoDuration(url) 
-    if err != nil {
+	// Extract user browser context
+	userAgent := c.Request().UserAgent()
+	cookies := c.Request().Header.Get("Cookie")
 
-        return c.JSON(http.StatusInternalServerError, map[string]string{
-            "error":   "Failed to get video duration",
-        })
-    }
+	// Check for YouTube-specific cookies sent via custom header
+	youtubeCookies := c.Request().Header.Get("X-YouTube-Cookies")
+	if youtubeCookies != "" {
+		// Prefer YouTube-specific cookies if available
+		cookies = youtubeCookies
+	}
 
-    if duration == "" {
-        c.Logger().Error("Could not extract duration from yt-dlp output")
-        return c.JSON(http.StatusInternalServerError, map[string]string{
-            "error": "Could not extract duration from yt-dlp output",
-        })
-    }
+	duration, err := videoprocessing.GetVideoDurationWithContext(url, userAgent, cookies)
+	if err != nil {
 
-    totalSeconds, err := utils.ToSeconds(duration); 
-    if err != nil {
-        c.Logger().Error("Could not calculate total seconds")
-        return c.JSON(http.StatusInternalServerError, map[string]string{
-            "error": "Could not calculate total seconds",
-        })
-    }
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "Failed to get video duration",
+		})
+	}
 
-    return c.JSON(http.StatusOK, totalSeconds)
+	if duration == "" {
+		c.Logger().Error("Could not extract duration from yt-dlp output")
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "Could not extract duration from yt-dlp output",
+		})
+	}
+
+	totalSeconds, err := utils.ToSeconds(duration)
+	if err != nil {
+		c.Logger().Error("Could not calculate total seconds")
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "Could not calculate total seconds",
+		})
+	}
+
+	return c.JSON(http.StatusOK, totalSeconds)
 }
-
-
 
 func GetAvailableFormats(c echo.Context) error {
-    url := c.QueryParam("youtubeUrl")
-    if url == "" {
-        c.Logger().Errorf("Url is required")
-        return c.JSON(http.StatusBadRequest, map[string]string{"error": "URL is required"})
-    }
+	url := c.QueryParam("youtubeUrl")
+	if url == "" {
+		c.Logger().Errorf("Url is required")
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "URL is required"})
+	}
 
-    if !isValidYoutubeUrl(url) {
-        c.Logger().Errorf("Invalid Youtube URL: %s", url)
+	if !isValidYoutubeUrl(url) {
+		c.Logger().Errorf("Invalid Youtube URL: %s", url)
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid YouTube URL"})
 	}
 
-    formats, err := videoprocessing.GetAvailableFormats(url)
-    if err != nil {
-        return c.JSON(http.StatusInternalServerError, map[string]string{
-            "error":   "Failed to fetch formats",
-        })
-    }
+	// Extract user browser context
+	userAgent := c.Request().UserAgent()
+	cookies := c.Request().Header.Get("Cookie")
 
-    return c.JSON(http.StatusOK, formats)
+	// Check for YouTube-specific cookies sent via custom header
+	youtubeCookies := c.Request().Header.Get("X-YouTube-Cookies")
+	if youtubeCookies != "" {
+		// Prefer YouTube-specific cookies if available
+		cookies = youtubeCookies
+	}
+
+	formats, err := videoprocessing.GetAvailableFormatsWithContext(url, userAgent, cookies)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "Failed to fetch formats",
+		})
+	}
+
+	return c.JSON(http.StatusOK, formats)
 }
-
-
-
-

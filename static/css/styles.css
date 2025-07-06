@@ -791,3 +791,100 @@ body.dark #toast-container > div .toast-message:first-child:last-child {
         font-size: var(--font-size-xs);
     }
 }
+/* Cookie Consent Banner */
+.cookie-consent-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: var(--bg-card);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border-color);
+    padding: var(--spacing-lg);
+    z-index: 1000;
+    box-shadow: var(--shadow-lg);
+}
+
+.cookie-consent-content {
+    max-width: 800px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.cookie-consent-text h3 {
+    color: var(--text-primary);
+    margin: 0 0 var(--spacing-sm) 0;
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.cookie-consent-text p {
+    color: var(--text-secondary);
+    margin: 0 0 var(--spacing-sm) 0;
+    line-height: 1.5;
+}
+
+.cookie-consent-details {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-md);
+    margin: var(--spacing-sm) 0;
+}
+
+.cookie-consent-details p {
+    margin: 0 0 var(--spacing-xs) 0;
+    font-size: 0.9rem;
+}
+
+.cookie-consent-details p:last-child {
+    margin-bottom: 0;
+}
+
+.cookie-consent-buttons {
+    display: flex;
+    gap: var(--spacing-md);
+    flex-wrap: wrap;
+}
+
+.button-primary {
+    background: var(--primary);
+    color: white;
+    border: none;
+}
+
+.button-primary:hover {
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+}
+
+.button-secondary {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+}
+
+.button-secondary:hover {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+@media (min-width: 768px) {
+    .cookie-consent-content {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .cookie-consent-text {
+        flex: 1;
+        margin-right: var(--spacing-lg);
+    }
+    
+    .cookie-consent-buttons {
+        flex-shrink: 0;
+    }
+}
+EOF < /dev/null

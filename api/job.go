@@ -9,23 +9,23 @@ import (
 )
 
 func GetJobStatus(c echo.Context) error {
-    jobID := c.QueryParam("jobId")
+	jobID := c.QueryParam("jobId")
 
-    job, exists := jobs.GetJobById(jobID)
-    if !exists {
-        return c.JSON(http.StatusNotFound, map[string]string{"error": fmt.Sprintf("Job %s not found", jobID)})
-    }
+	job, exists := jobs.GetJobById(jobID)
+	if !exists {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": fmt.Sprintf("Job %s not found", jobID)})
+	}
 
-    switch job.Status {
-    case jobs.StatusQueued:
-    case jobs.StatusProcessing:
-        return c.JSON(http.StatusCreated, nil)
-    case jobs.StatusCompleted:
-        return c.JSON(http.StatusOK, job.FilePath)
-    case jobs.StatusError:
-    default:
-        return c.JSON(http.StatusInternalServerError, job.Error)
-    }   
+	switch job.Status {
+	case jobs.StatusQueued:
+	case jobs.StatusProcessing:
+		return c.JSON(http.StatusCreated, nil)
+	case jobs.StatusCompleted:
+		return c.JSON(http.StatusOK, job.FilePath)
+	case jobs.StatusError:
+	default:
+		return c.JSON(http.StatusInternalServerError, job.Error)
+	}
 
-    return c.JSON(http.StatusInternalServerError, job.Error)
+	return c.JSON(http.StatusInternalServerError, job.Error)
 }

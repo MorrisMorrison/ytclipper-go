@@ -16,6 +16,25 @@
 </head>
 
 <body class="dark">
+    <!-- YouTube Cookie Consent Banner -->
+    <div id="cookieConsentBanner" class="cookie-consent-banner hidden">
+        <div class="cookie-consent-content">
+            <div class="cookie-consent-text">
+                <h3>🍪 YouTube Authentication Helper</h3>
+                <p>To improve success rates, ytclipper can use your browser's YouTube session. This helps bypass bot detection without storing any data on our servers.</p>
+                <div class="cookie-consent-details">
+                    <p><strong>What we access:</strong> Only YouTube session cookies from your current browser</p>
+                    <p><strong>Privacy:</strong> Cookies are sent directly to yt-dlp and never stored</p>
+                    <p><strong>Optional:</strong> You can always decline and use the standard approach</p>
+                </div>
+            </div>
+            <div class="cookie-consent-buttons">
+                <button id="acceptCookies" class="button button-primary">✓ Allow YouTube session</button>
+                <button id="declineCookies" class="button button-secondary">✗ Use standard approach</button>
+            </div>
+        </div>
+    </div>
+
     <div class="flex flex-col items-center justify-center w-100 h-100">
         <div id="searchGroup" class="flex flex-col items-center justify-center w-100 h-90">
             <div class="main-card pb-14 flex flex-col w-auto">

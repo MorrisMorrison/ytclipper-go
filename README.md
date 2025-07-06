@@ -213,23 +213,22 @@ The application can be configured using environment variables:
 
 The application offers **three progressive approaches** to bypass YouTube's bot detection, automatically selecting the best method for maximum success:
 
-### 🚀 **User Browser Context** (Primary - Highest Success Rate)
-✅ **Real Browser Session**: Uses your actual browser's YouTube session with consent  
-✅ **95%+ Success Rate**: Leverages authenticated session YouTube already trusts  
-✅ **Privacy Focused**: Explicit consent required, no server storage  
-✅ **Seamless Integration**: Works automatically when user consents  
+### **User Browser Context** (Primary - Highest Success Rate)
+**Real Browser Session**: Uses your actual browser's YouTube session with consent  
+**Privacy Focused**: Explicit consent required, no server storage  
+**Seamless Integration**: Works automatically when user consents  
 
-📖 **[User Browser Context Guide](USER_BROWSER_CONTEXT.md)**
+**[User Browser Context Guide](USER_BROWSER_CONTEXT.md)**
 
-### 🛡️ **Enhanced Cookie-Free Anti-Detection** (Fallback)
-✅ **No Authentication Required**: Advanced spoofing without cookies  
-✅ **User Agent Rotation**: 6 modern browser user agents automatically rotated  
-✅ **Enhanced Headers**: Browser-like HTTP headers for authenticity  
-✅ **Multi-Tier Fallback**: 6 progressive strategies for maximum compatibility  
+### **Enhanced Cookie-Free Anti-Detection** (Fallback)
+**No Authentication Required**: Advanced spoofing without cookies  
+**User Agent Rotation**: 6 modern browser user agents automatically rotated  
+**Enhanced Headers**: Browser-like HTTP headers for authenticity  
+**Multi-Tier Fallback**: 6 progressive strategies for maximum compatibility  
 
-### 🔧 **Legacy Cookie Authentication** (Last Resort)
-✅ **Traditional Approach**: Manual cookie extraction and configuration  
-✅ **Maximum Compatibility**: Works when other methods fail  
+### **Legacy Cookie Authentication** (Last Resort)
+**Traditional Approach**: Manual cookie extraction and configuration  
+**Maximum Compatibility**: Works when other methods fail  
 
 ### Quick Setup (Recommended)
 ```bash
@@ -240,8 +239,8 @@ export YTCLIPPER_YT_DLP_EXTRACTOR_RETRIES=3
 ```
 
 ### Detailed Guides
-📖 **[User Browser Context Strategy](USER_BROWSER_CONTEXT.md)** (Recommended)  
-📖 **[YouTube Authentication Guide](YOUTUBE_AUTHENTICATION.md)** (Legacy)
+**[User Browser Context Strategy](USER_BROWSER_CONTEXT.md)** (Recommended)  
+**[YouTube Authentication Guide](YOUTUBE_AUTHENTICATION.md)** (Legacy)
 
 ## Monitoring
 
