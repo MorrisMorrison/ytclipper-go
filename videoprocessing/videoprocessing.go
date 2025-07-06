@@ -349,10 +349,14 @@ func applyAntiDetectionArgs(cmdArgs []string) []string {
 		args = append(args, "--proxy", config.CONFIG.YtDlpConfig.Proxy)
 	}
 
-	// Apply cookies file if configured
+	// Apply cookies file if configured, otherwise try browser extraction
 	if config.CONFIG.YtDlpConfig.CookiesFile != "" {
 		glogger.Log.Infof("Using cookies file: %s", config.CONFIG.YtDlpConfig.CookiesFile)
 		args = append(args, "--cookies", config.CONFIG.YtDlpConfig.CookiesFile)
+	} else {
+		// Fallback to browser cookie extraction for legacy configuration too
+		glogger.Log.Infof("No cookie file configured, trying browser extraction")
+		args = append(args, "--cookies-from-browser", "chrome")
 	}
 
 	// Apply user agent
@@ -448,13 +452,9 @@ func applyUserContext(cmdArgs []string, userAgent, cookies string) []string {
 	// Second try: Use browser cookie extraction if no manual cookies provided
 	if !cookieApplied {
 		glogger.Log.Infof("Attempting to extract cookies from browser")
-		// Try common browsers in order of likelihood
-		browsers := []string{"chrome", "firefox", "safari", "edge"}
-		for _, browser := range browsers {
-			args = append(args, "--cookies-from-browser", browser)
-			glogger.Log.Infof("Added --cookies-from-browser %s", browser)
-			break // Only try the first one for now
-		}
+		// Try the most reliable browser (Chrome is most common)
+		args = append(args, "--cookies-from-browser", "chrome")
+		glogger.Log.Infof("Added --cookies-from-browser chrome")
 	}
 
 	// Apply minimal anti-detection
