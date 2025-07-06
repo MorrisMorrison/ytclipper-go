@@ -22,9 +22,9 @@ ytclipper-go now includes automatic cookie monitoring to track YouTube cookie ex
 | `YTCLIPPER_COOKIE_MONITOR_INTERVAL_HOURS` | `24` | How often to check cookie health (hours) |
 | `YTCLIPPER_COOKIE_MONITOR_WARNING_THRESHOLD_DAYS` | `30` | Days before expiration to send warning |
 | `YTCLIPPER_COOKIE_MONITOR_URGENT_THRESHOLD_DAYS` | `7` | Days before expiration to send urgent alert |
-| `YTCLIPPER_COOKIE_MONITOR_NTFY_ENABLED` | `false` | Enable ntfy notifications |
-| `YTCLIPPER_COOKIE_MONITOR_NTFY_SERVER_URL` | `""` | Ntfy server URL (e.g., https://ntfy.sh) |
 | `YTCLIPPER_COOKIE_MONITOR_NTFY_TOPIC` | `ytclipper-cookies` | Ntfy topic for notifications |
+| `YTCLIPPER_NTFY_ENABLED` | `false` | Enable ntfy notifications (global) |
+| `YTCLIPPER_NTFY_SERVER_URL` | `""` | Ntfy server URL (e.g., https://ntfy.sh) |
 
 ### Example Configuration
 
@@ -36,8 +36,8 @@ export YTCLIPPER_COOKIE_MONITOR_WARNING_THRESHOLD_DAYS=14
 export YTCLIPPER_COOKIE_MONITOR_URGENT_THRESHOLD_DAYS=3
 
 # Configure ntfy notifications
-export YTCLIPPER_COOKIE_MONITOR_NTFY_ENABLED=true
-export YTCLIPPER_COOKIE_MONITOR_NTFY_SERVER_URL="https://ntfy.sh"
+export YTCLIPPER_NTFY_ENABLED=true
+export YTCLIPPER_NTFY_SERVER_URL="https://ntfy.sh"
 export YTCLIPPER_COOKIE_MONITOR_NTFY_TOPIC="my-ytclipper-alerts"
 
 # Set your YouTube cookies
@@ -99,8 +99,8 @@ services:
       - YTCLIPPER_COOKIE_MONITOR_URGENT_THRESHOLD_DAYS=7
       
       # Ntfy notifications
-      - YTCLIPPER_COOKIE_MONITOR_NTFY_ENABLED=true
-      - YTCLIPPER_COOKIE_MONITOR_NTFY_SERVER_URL=https://ntfy.sh
+      - YTCLIPPER_NTFY_ENABLED=true
+      - YTCLIPPER_NTFY_SERVER_URL=https://ntfy.sh
       - YTCLIPPER_COOKIE_MONITOR_NTFY_TOPIC=ytclipper-cookies
       
       # YouTube cookies
@@ -124,7 +124,8 @@ YOUTUBE_COOKIES=".youtube.com	TRUE	/	FALSE	1704067200	VISITOR_INFO1_LIVE	xyz123"
 3. Subscribe to the topic on your devices
 4. Configure environment variables:
    ```bash
-   export YTCLIPPER_COOKIE_MONITOR_NTFY_SERVER_URL="https://ntfy.sh"
+   export YTCLIPPER_NTFY_ENABLED=true
+   export YTCLIPPER_NTFY_SERVER_URL="https://ntfy.sh"
    export YTCLIPPER_COOKIE_MONITOR_NTFY_TOPIC="your-name-ytclipper-2024"
    ```
 
@@ -132,7 +133,8 @@ YOUTUBE_COOKIES=".youtube.com	TRUE	/	FALSE	1704067200	VISITOR_INFO1_LIVE	xyz123"
 1. Install ntfy on your server: `docker run -p 80:80 binwiederhier/ntfy serve`
 2. Configure environment variables:
    ```bash
-   export YTCLIPPER_COOKIE_MONITOR_NTFY_SERVER_URL="https://your-ntfy-server.com"
+   export YTCLIPPER_NTFY_ENABLED=true
+   export YTCLIPPER_NTFY_SERVER_URL="https://your-ntfy-server.com"
    export YTCLIPPER_COOKIE_MONITOR_NTFY_TOPIC="ytclipper-cookies"
    ```
 
@@ -145,7 +147,7 @@ YOUTUBE_COOKIES=".youtube.com	TRUE	/	FALSE	1704067200	VISITOR_INFO1_LIVE	xyz123"
    ```
    Starting cookie monitor: Interval 24.000000 hours
    Sending test notification...
-   Successfully sent ntfy notification: 🧪 ytclipper-go Test
+   Successfully sent ntfy notification to topic 'ytclipper-cookies': 🧪 Cookie Monitoring Test
    ```
 
 ### Ongoing Monitoring
@@ -175,7 +177,7 @@ YOUTUBE_COOKIES=".youtube.com	TRUE	/	FALSE	1704067200	VISITOR_INFO1_LIVE	xyz123"
    ```
 2. **Verify environment variables** are set correctly
 3. **Check logs** for error messages
-4. **Ensure ntfy is enabled**: `YTCLIPPER_COOKIE_MONITOR_NTFY_ENABLED=true`
+4. **Ensure ntfy is enabled**: `YTCLIPPER_NTFY_ENABLED=true`
 
 ### Cookie Parsing Issues
 1. **Check cookie format** - must be Netscape format

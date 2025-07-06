@@ -185,11 +185,26 @@ The application can be configured using environment variables:
 | `YTCLIPPER_CLIP_CLEANUP_SCHEDULER_INTERVAL_IN_MINUTES` | Cleanup interval (minutes) | `5` |
 | `YTCLIPPER_CLIP_CLEANUP_SCHEDULER_CLIP_DIRECTORY_PATH` | Directory to clean | `./videos` |
 
+### Cookie Monitoring
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `YTCLIPPER_COOKIE_MONITOR_ENABLED` | Enable cookie expiration monitoring | `true` |
+| `YTCLIPPER_COOKIE_MONITOR_INTERVAL_HOURS` | Check interval (hours) | `24` |
+| `YTCLIPPER_COOKIE_MONITOR_WARNING_THRESHOLD_DAYS` | Warning threshold (days) | `30` |
+| `YTCLIPPER_COOKIE_MONITOR_URGENT_THRESHOLD_DAYS` | Urgent threshold (days) | `7` |
+| `YTCLIPPER_COOKIE_MONITOR_NTFY_TOPIC` | Ntfy topic for cookie alerts | `ytclipper-cookies` |
+
+### Ntfy Notifications (Global)
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `YTCLIPPER_NTFY_ENABLED` | Enable ntfy notifications | `false` |
+| `YTCLIPPER_NTFY_SERVER_URL` | Ntfy server URL | `` |
+
 ### Auth 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `YTCLIPPER_BASIC_AUTH_USERNAME` | Basic Auth Username | `` |
-| `YTCLIPPER_BASIC_AUTH_PASSWORD` | Basic Auth Password | `` |
+| `YTCLIPPER_AUTH_USERNAME` | Basic Auth Username | `` |
+| `YTCLIPPER_AUTH_PASSWORD` | Basic Auth Password | `` |
 
 ## Architecture
 
@@ -251,11 +266,26 @@ export YTCLIPPER_YT_DLP_COOKIES_FILE=/path/to/cookies.txt
 export YTCLIPPER_YT_DLP_PROXY=http://proxy-server:port
 ```
 
+### **Cookie Expiration Monitoring**
+**Automatic Monitoring**: Tracks cookie expiration dates and sends notifications  
+**Configurable Thresholds**: Warning (30 days) and urgent (7 days) alerts  
+**Ntfy Integration**: Push notifications to your devices via ntfy.sh or self-hosted server  
+**Proactive Management**: Prevents service disruption by alerting before expiration  
+
+```bash
+# Enable cookie monitoring with notifications
+export YTCLIPPER_COOKIE_MONITOR_ENABLED=true
+export YTCLIPPER_NTFY_ENABLED=true
+export YTCLIPPER_NTFY_SERVER_URL="https://ntfy.sh"
+export YTCLIPPER_COOKIE_MONITOR_NTFY_TOPIC="ytclipper-alerts"
+```
+
 ### How It Works
 1. **Primary Strategy**: Uses cookie authentication if cookies are configured via environment variables
 2. **Automatic Fallback**: Falls back to anti-detection headers if cookie authentication fails
-3. **No User Interaction**: Runs completely automatically with environment variables
-4. **Simple Configuration**: Two-tier approach with straightforward setup
+3. **Cookie Monitoring**: Automatically tracks cookie health and sends expiration alerts
+4. **No User Interaction**: Runs completely automatically with environment variables
+5. **Simple Configuration**: Two-tier approach with straightforward setup
 
 ## Monitoring
 
