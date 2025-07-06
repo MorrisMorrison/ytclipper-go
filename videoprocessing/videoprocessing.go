@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -231,10 +232,11 @@ func applyAntiDetectionArgs(cmdArgs []string) []string {
 		args = append(args, "--proxy", config.CONFIG.YtDlpConfig.Proxy)
 	}
 
-	// Apply cookies file if configured
-	if config.CONFIG.YtDlpConfig.CookiesFile != "" {
-		glogger.Log.Infof("Using cookies file: %s", config.CONFIG.YtDlpConfig.CookiesFile)
-		args = append(args, "--cookies", config.CONFIG.YtDlpConfig.CookiesFile)
+	// Apply cookies (either from file or content)
+	cookieFile := getCookieFile()
+	if cookieFile != "" {
+		glogger.Log.Infof("Using cookies file: %s", cookieFile)
+		args = append(args, "--cookies", cookieFile)
 	}
 
 	// Apply user agent
@@ -395,7 +397,7 @@ func executeWithFallbackNoProxy(name string, baseArgs []string) ([]byte, error) 
 	timeout := time.Duration(config.CONFIG.YtDlpConfig.CommandTimeoutInSeconds) * time.Second
 
 	// Strategy 1: Try with cookies if available (safest for downloads)
-	if config.CONFIG.YtDlpConfig.CookiesFile != "" {
+	if config.CONFIG.YtDlpConfig.CookiesFile != "" || config.CONFIG.YtDlpConfig.CookiesContent != "" {
 		cookieArgs := applyAntiDetectionArgsNoProxy(baseArgs)
 		glogger.Log.Infof("Attempting yt-dlp download with cookies (no proxy)")
 		output, err := executeWithTimeout(timeout, name, cookieArgs...)
@@ -403,6 +405,8 @@ func executeWithFallbackNoProxy(name string, baseArgs []string) ([]byte, error) 
 			return output, err
 		}
 		glogger.Log.Warningf("Cookie-based download failed: %v", err)
+	} else {
+		glogger.Log.Warningf("No cookies configured - YouTube downloads may fail")
 	}
 
 	// Strategy 2: Try minimal stealth mode (no cookies, no proxy)
@@ -463,10 +467,11 @@ func applyStealthMode(cmdArgs []string) []string {
 func applyAntiDetectionArgsNoProxy(cmdArgs []string) []string {
 	var args []string
 
-	// Apply cookies file if configured (important for downloads)
-	if config.CONFIG.YtDlpConfig.CookiesFile != "" {
-		glogger.Log.Infof("Using cookies file for download: %s", config.CONFIG.YtDlpConfig.CookiesFile)
-		args = append(args, "--cookies", config.CONFIG.YtDlpConfig.CookiesFile)
+	// Apply cookies (either from file or content)
+	cookieFile := getCookieFile()
+	if cookieFile != "" {
+		glogger.Log.Infof("Using cookies for download")
+		args = append(args, "--cookies", cookieFile)
 	}
 
 	// Apply user agent
@@ -500,6 +505,44 @@ func applyAntiDetectionArgsNoProxy(cmdArgs []string) []string {
 	)
 
 	return append(args, cmdArgs...)
+}
+
+func getCookieFile() string {
+	// Priority 1: Use file path if provided
+	if config.CONFIG.YtDlpConfig.CookiesFile != "" {
+		return config.CONFIG.YtDlpConfig.CookiesFile
+	}
+
+	// Priority 2: Create temporary file from content if provided
+	if config.CONFIG.YtDlpConfig.CookiesContent != "" {
+		tempFile, err := createTempCookieFile(config.CONFIG.YtDlpConfig.CookiesContent)
+		if err != nil {
+			glogger.Log.Errorf(err, "Failed to create temporary cookie file")
+			return ""
+		}
+		return tempFile
+	}
+
+	return ""
+}
+
+func createTempCookieFile(content string) (string, error) {
+	// Create temporary file for cookies
+	tempFile, err := os.CreateTemp("", "ytclipper_cookies_*.txt")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temp file: %w", err)
+	}
+	defer tempFile.Close()
+
+	// Write cookie content to temporary file
+	_, err = tempFile.WriteString(content)
+	if err != nil {
+		os.Remove(tempFile.Name())
+		return "", fmt.Errorf("failed to write cookie content: %w", err)
+	}
+
+	glogger.Log.Infof("Created temporary cookie file: %s", tempFile.Name())
+	return tempFile.Name(), nil
 }
 
 func executeWithTimeout(timeout time.Duration, name string, args ...string) ([]byte, error) {
