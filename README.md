@@ -188,8 +188,8 @@ The application can be configured using environment variables:
 ### Auth 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `YTCLIPPER_AUTH_USERNAME` | Basic Auth Username | `` |
-| `YTCLIPPER_AUTH_PASSWORD` | Basic Auth Password | `` |
+| `YTCLIPPER_BASIC_AUTH_USERNAME` | Basic Auth Username | `` |
+| `YTCLIPPER_BASIC_AUTH_PASSWORD` | Basic Auth Password | `` |
 
 ## Architecture
 
