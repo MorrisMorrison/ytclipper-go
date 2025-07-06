@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -21,25 +22,52 @@ const throttledStatus = "THROTTLED"
 var execContext = exec.CommandContext // allows mocking in tests
 
 func DownloadAndCutVideo(outputPath string, selectedFormat string, fileSizeLimit int64, from string, to string, url string) ([]byte, error) {
-	// Build FFmpeg arguments with proxy support
-	ffmpegArgs := fmt.Sprintf("ffmpeg_i:-ss %s -to %s", from, to)
+	// First, download the full video using yt-dlp with proxy support
+	tempOutputPath := strings.Replace(outputPath, filepath.Ext(outputPath), "_temp"+filepath.Ext(outputPath), 1)
 	
-	// Add proxy to FFmpeg if configured
-	if config.CONFIG.YtDlpConfig.Proxy != "" {
-		ffmpegArgs = fmt.Sprintf("ffmpeg_i:-ss %s -to %s -http_proxy %s", from, to, config.CONFIG.YtDlpConfig.Proxy)
-	}
-
-	cmdArgs := []string{
-		"-o", outputPath,
+	downloadArgs := []string{
+		"-o", tempOutputPath,
 		"-f", selectedFormat,
 		"-v",
-		"--max-filesize", fmt.Sprintf("%d", fileSizeLimit),
-		"--downloader", "ffmpeg",
-		"--downloader-args", ffmpegArgs,
+		"--max-filesize", fmt.Sprintf("%d", fileSizeLimit*3), // Allow larger download since we'll clip it
 		url,
 	}
 
-	return executeWithFallback("yt-dlp", cmdArgs)
+	glogger.Log.Infof("Downloading full video to %s", tempOutputPath)
+	output, err := executeWithFallback("yt-dlp", downloadArgs)
+	if err != nil {
+		return output, fmt.Errorf("failed to download video: %w", err)
+	}
+
+	// Then, clip the downloaded video using FFmpeg locally
+	glogger.Log.Infof("Clipping video from %s to %s", tempOutputPath, outputPath)
+	clipArgs := []string{
+		"-i", tempOutputPath,
+		"-ss", from,
+		"-to", to,
+		"-c", "copy",
+		"-avoid_negative_ts", "make_zero",
+		outputPath,
+		"-y", // Overwrite output file
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(config.CONFIG.YtDlpConfig.CommandTimeoutInSeconds)*time.Second)
+	defer cancel()
+
+	cmd := execContext(ctx, "ffmpeg", clipArgs...)
+	clipOutput, clipErr := cmd.CombinedOutput()
+	
+	// Clean up temporary file
+	if err := os.Remove(tempOutputPath); err != nil {
+		glogger.Log.Warningf("Failed to remove temporary file %s: %v", tempOutputPath, err)
+	}
+
+	if clipErr != nil {
+		return clipOutput, fmt.Errorf("failed to clip video: %w", clipErr)
+	}
+
+	glogger.Log.Infof("Successfully clipped video to %s", outputPath)
+	return clipOutput, nil
 }
 
 func ProcessClip(jobID string, url string, from string, to string, selectedFormat string) {

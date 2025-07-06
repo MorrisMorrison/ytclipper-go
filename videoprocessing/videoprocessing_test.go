@@ -63,9 +63,10 @@ func TestDownloadAndCutVideo(t *testing.T) {
 	originalExecContext := execContext
 	defer func() { execContext = originalExecContext }()
 
-	var capturedArgs []string
+	var allCapturedArgs [][]string
 	execContext = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
-		capturedArgs = append([]string{name}, arg...)
+		cmdArgs := append([]string{name}, arg...)
+		allCapturedArgs = append(allCapturedArgs, cmdArgs)
 		return exec.Command("echo", "mock")
 	}
 
@@ -78,43 +79,52 @@ func TestDownloadAndCutVideo(t *testing.T) {
 
 	_, _ = DownloadAndCutVideo(outputPath, selectedFormat, fileSizeLimit, from, to, url)
 
-	// Verify that yt-dlp is called with enhanced anti-detection arguments
-	if len(capturedArgs) < 5 {
-		t.Error("Expected more arguments but got too few")
+	// Should have two command executions: yt-dlp download then ffmpeg clip
+	if len(allCapturedArgs) < 2 {
+		t.Errorf("Expected at least 2 command executions (yt-dlp + ffmpeg), got %d", len(allCapturedArgs))
 		return
 	}
 
-	if capturedArgs[0] != "yt-dlp" {
-		t.Errorf("Expected first arg to be 'yt-dlp', got '%s'", capturedArgs[0])
+	// First command should be yt-dlp for downloading
+	ytdlpArgs := allCapturedArgs[0]
+	if ytdlpArgs[0] != "yt-dlp" {
+		t.Errorf("Expected first command to be 'yt-dlp', got '%s'", ytdlpArgs[0])
 	}
 
-	// Check for user agent presence
+	// Check for user agent presence in yt-dlp command
 	userAgentFound := false
-	for i, arg := range capturedArgs {
-		if arg == "--user-agent" && i+1 < len(capturedArgs) {
+	for i, arg := range ytdlpArgs {
+		if arg == "--user-agent" && i+1 < len(ytdlpArgs) {
 			userAgentFound = true
 			break
 		}
 	}
 	if !userAgentFound {
-		t.Error("Expected --user-agent argument to be present")
+		t.Error("Expected --user-agent argument to be present in yt-dlp command")
 	}
 
-	// Check for enhanced headers (may be present in fallback strategies)
-	// Note: With new strategy order, legacy configuration (strategy 1) may not include headers
-	// Headers are included in aggressive anti-detection (strategy 2) and alternative extraction (strategy 3)
-	headerFound := false
-	for _, arg := range capturedArgs {
-		if arg == "--add-header" {
-			headerFound = true
-			break
+	// Second command should be ffmpeg for clipping
+	ffmpegArgs := allCapturedArgs[1]
+	if ffmpegArgs[0] != "ffmpeg" {
+		t.Errorf("Expected second command to be 'ffmpeg', got '%s'", ffmpegArgs[0])
+	}
+
+	// Check that ffmpeg has the timing arguments
+	ssFound := false
+	toFound := false
+	for i, arg := range ffmpegArgs {
+		if arg == "-ss" && i+1 < len(ffmpegArgs) && ffmpegArgs[i+1] == from {
+			ssFound = true
+		}
+		if arg == "-to" && i+1 < len(ffmpegArgs) && ffmpegArgs[i+1] == to {
+			toFound = true
 		}
 	}
-	// Headers are not guaranteed in strategy 1 (legacy config), so we don't fail if not present
-	if headerFound {
-		t.Log("Enhanced headers found in yt-dlp arguments")
-	} else {
-		t.Log("No enhanced headers found - likely using legacy configuration strategy")
+	if !ssFound {
+		t.Error("Expected -ss argument with correct timing in ffmpeg command")
+	}
+	if !toFound {
+		t.Error("Expected -to argument with correct timing in ffmpeg command")
 	}
 }
 
