@@ -38,33 +38,31 @@ This happens because:
 export YTCLIPPER_YT_DLP_COOKIES_FILE="/path/to/youtube_cookies.txt"
 ```
 
-**Note:** The application now uses a comprehensive 3-tier fallback strategy as the primary approach. Cookie authentication is only used as a final fallback when the built-in anti-detection methods fail.
+**Note:** The application now uses a simplified cookie-based authentication approach. Cookie authentication is the primary strategy, with anti-detection headers as a fallback when cookies are not available.
 
-### 2. Built-in Anti-Detection Strategy (Primary)
+### 2. Built-in Anti-Detection Strategy (Fallback)
 
-The application now uses a comprehensive 3-tier fallback strategy as the primary approach:
+The application uses a simplified 2-tier fallback strategy:
 
-#### Tier 1: Aggressive Anti-Detection
-- Advanced user agent rotation
-- Comprehensive HTTP headers
-- Browser fingerprinting simulation
-- Aggressive timing patterns
+#### Tier 1: Cookie-Based Authentication (Primary)
+- Uses cookie authentication when configured via environment variables
+- Supports both cookie content and cookie files
+- Includes basic anti-detection headers
+- Highest success rate when cookies are available
 
-#### Tier 2: Alternative Extraction
-- Alternative header patterns
-- Different extraction methods
-- Modified timing strategies
-
-#### Tier 3: Legacy Configuration
-- Uses environment variables if configured
-- Backward compatibility support
+#### Tier 2: Anti-Detection Headers (Fallback)
+- User agent rotation (6 modern browser user agents)
+- Enhanced HTTP headers for authenticity
+- No authentication required
+- Automatic retry on failure
 
 ### 3. Optional Environment Configuration
 
 | Environment Variable | Default | Purpose |
 |---------------------|---------|---------|
-| `YTCLIPPER_YT_DLP_COOKIES_FILE` | "" | Path to browser cookies file (tier 3 fallback) |
-| `YTCLIPPER_YT_DLP_PROXY` | "" | Proxy server (tier 3 fallback) |
+| `YTCLIPPER_YT_DLP_COOKIES_CONTENT` | "" | Cookie content as string (tier 1 primary) |
+| `YTCLIPPER_YT_DLP_COOKIES_FILE` | "" | Path to browser cookies file (tier 1 alternative) |
+| `YTCLIPPER_YT_DLP_PROXY` | "" | Proxy server (tier 1 optional) |
 
 ### 4. Built-in Anti-Bot Measures
 

@@ -22,8 +22,8 @@ https://github.com/user-attachments/assets/8ab2d567-0ca7-44c6-9c76-07203b2fd986
 - **Rate Limiting**: Built-in rate limiting to prevent abuse and ensure fair usage
 - **Automatic Cleanup**: Scheduled cleanup of old clips and jobs to manage storage efficiently
 - **Health Monitoring**: Health check endpoint for monitoring and load balancing
-- **Advanced Bot Detection Bypass**: 3-tier fallback system with optional cookie/proxy support
-- **Intelligent Fallback**: Multi-tier fallback strategies for maximum compatibility
+- **Simple Bot Detection Bypass**: Cookie-based authentication with automatic fallback
+- **Intelligent Fallback**: Dual-tier strategy with user agent rotation and anti-detection headers
 - **Responsive UI**: Clean, dark-themed web interface optimized for all devices
 
 ### Usage
@@ -175,6 +175,7 @@ The application can be configured using environment variables:
 |----------|-------------|---------|
 | `YTCLIPPER_YT_DLP_USER_AGENT` | Custom user agent (overrides rotation) | `` |
 | `YTCLIPPER_YT_DLP_COOKIES_FILE` | Path to cookies file (optional) | `` |
+| `YTCLIPPER_YT_DLP_COOKIES_CONTENT` | Cookie content as string (optional) | `` |
 | `YTCLIPPER_YT_DLP_PROXY` | Proxy server (optional) | `` |
 
 ### Cleanup Scheduler
@@ -212,24 +213,19 @@ The application can be configured using environment variables:
 
 ## YouTube Bot Detection Bypass
 
-The application uses a **3-tier fallback strategy** to maximize compatibility and success rate when downloading YouTube videos:
+The application uses a **simplified cookie-based authentication approach** with automatic fallback to maximize compatibility:
 
-### **Tier 1: Legacy Configuration (Cookies/Proxy)** (Primary)
-**Environment Variable Configuration**: Use `YTCLIPPER_YT_DLP_COOKIES_FILE` for cookie file path and `YTCLIPPER_YT_DLP_PROXY` for proxy server  
-**Highest Success Rate**: Provides authentication for restricted content when configured  
-**Geographic Restrictions**: Bypass location-based restrictions with proxy support  
-**Network Diversity**: Alternative network path for enhanced reliability  
+### **Primary Strategy: Cookie Authentication**
+**Cookie Content**: Use `YTCLIPPER_YT_DLP_COOKIES_CONTENT` environment variable to provide cookie data directly  
+**Cookie File**: Use `YTCLIPPER_YT_DLP_COOKIES_FILE` for cookie file path (alternative to content)  
+**Proxy Support**: Use `YTCLIPPER_YT_DLP_PROXY` for proxy server when needed  
+**High Success Rate**: Provides authentication for restricted content when configured  
 
-### **Tier 2: Enhanced Cookie-Free Anti-Detection** (Secondary)
-**No Authentication Required**: Advanced spoofing without cookies or user interaction  
+### **Fallback Strategy: Anti-Detection Headers**
+**No Authentication Required**: Works without cookies when authentication is not available  
 **User Agent Rotation**: 6 modern browser user agents automatically rotated  
 **Enhanced Headers**: Browser-like HTTP headers for authenticity  
-**Progressive Retries**: Automatic retry with different strategies on failure  
-
-### **Tier 3: Alternative Extraction** (Final Fallback)
-**Alternative Extraction Methods**: Different header patterns and extraction methods  
-**Backup Strategies**: Final fallback for difficult videos  
-**Comprehensive Coverage**: Handles edge cases and challenging content  
+**Automatic Retry**: Retry with different user agent on failure  
 
 ### Quick Setup (Default Configuration)
 ```bash
@@ -238,7 +234,10 @@ export YTCLIPPER_YT_DLP_ENABLE_USER_AGENT_ROTATION=true
 export YTCLIPPER_YT_DLP_SLEEP_INTERVAL=2
 export YTCLIPPER_YT_DLP_EXTRACTOR_RETRIES=3
 
-# Optional: Add cookie file for enhanced compatibility
+# Option 1: Use cookie content directly (recommended)
+export YTCLIPPER_YT_DLP_COOKIES_CONTENT=".youtube.com	TRUE	/	FALSE	1704067200	VISITOR_INFO1_LIVE	xyz123"
+
+# Option 2: Use cookie file path
 export YTCLIPPER_YT_DLP_COOKIES_FILE=/path/to/cookies.txt
 
 # Optional: Add proxy for geographic restrictions
@@ -246,10 +245,10 @@ export YTCLIPPER_YT_DLP_PROXY=http://proxy-server:port
 ```
 
 ### How It Works
-1. **Automatic Fallback**: System tries each tier progressively until successful
-2. **No User Interaction**: Runs completely automatically with environment variables
-3. **Maximum Compatibility**: Covers edge cases and restricted content
-4. **Optimal Configuration**: Works best with cookies/proxy configured, but provides fallback options
+1. **Primary Strategy**: Uses cookie authentication if cookies are configured via environment variables
+2. **Automatic Fallback**: Falls back to anti-detection headers if cookie authentication fails
+3. **No User Interaction**: Runs completely automatically with environment variables
+4. **Simple Configuration**: Two-tier approach with straightforward setup
 
 ## Monitoring
 

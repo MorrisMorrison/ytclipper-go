@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document outlines our comprehensive **PRIMARY** strategy to bypass YouTube bot detection without using cookies or proxies. This is now the **default behavior** for all YouTube video processing, implementing a robust 3-tier fallback system to ensure maximum success rates.
+This document outlines our **FALLBACK** strategy to bypass YouTube bot detection without using cookies or proxies. This is the **secondary tier** in our 2-tier fallback system, used when cookie authentication is not available or fails.
 
 ## Why YouTube Requires "Authentication" for Public Videos
 
@@ -36,32 +36,23 @@ Even though videos are publicly accessible via browser, programmatic access is t
 - **Progressive Backoff**: Increases delays if detection occurs
 - **Per-Request Delays**: Sleep between individual API calls
 
-### 4. **3-Tier Fallback Strategy**
+### 4. **2-Tier Fallback Strategy**
 
-Our implementation tries 3 progressive strategies in order:
+Our implementation uses a simplified 2-tier approach:
 
-1. **Legacy Configuration** (Primary - Strategy 1)
-   - Includes cookies/proxy if available in environment
-   - Highest success rate when proxy/cookies are configured
-   - Backward compatibility with existing configurations
-   - Standard anti-detection suite
-   - Maintains support for legacy deployments
+1. **Cookie-Based Authentication** (Primary - Strategy 1)
+   - Uses cookie authentication when configured via environment variables
+   - Supports both cookie content (`YTCLIPPER_YT_DLP_COOKIES_CONTENT`) and cookie files
+   - Includes basic anti-detection headers and user agent rotation
+   - Highest success rate when cookies are available
+   - Optional proxy support for enhanced compatibility
 
-2. **Aggressive Anti-Detection** (Secondary - Strategy 2)
-   - Rotating user agents with extensive browser simulation
-   - Comprehensive HTTP headers (Accept-Language, Cache-Control, DNT, Connection, etc.)
-   - Aggressive timing (10-20 second sleep intervals)
-   - Maximum retries (10 attempts)
-   - Geographic bypass and SSL certificate bypass
-   - Complete browser fingerprint simulation
-
-3. **Alternative Extraction** (Final Fallback - Strategy 3)
-   - Different user agent rotation
-   - Alternative HTTP headers with different browser patterns
-   - Modified timing strategy (5-12 second intervals)
-   - Force JSON extraction and prefer free formats
-   - Different extractor retry patterns
-   - Referer header simulation
+2. **Anti-Detection Headers** (Fallback - Strategy 2)
+   - User agent rotation (6 modern browser user agents)
+   - Enhanced HTTP headers for authenticity
+   - Sleep intervals between requests
+   - Automatic retry mechanisms
+   - No authentication required - pure cookie-free approach
 
 ### 5. **Additional Anti-Detection Measures**
 - **SSL Bypass**: `--no-check-certificate` for problematic connections
@@ -80,27 +71,29 @@ Our implementation tries 3 progressive strategies in order:
 | `YTCLIPPER_YT_DLP_ENABLE_USER_AGENT_ROTATION` | `true` | Enable user agent rotation |
 | `YTCLIPPER_YT_DLP_SLEEP_INTERVAL` | `2` | Base sleep interval in seconds |
 | `YTCLIPPER_YT_DLP_EXTRACTOR_RETRIES` | `3` | Number of retry attempts |
-| `YTCLIPPER_YT_DLP_COOKIES_FILE` | `""` | Empty - no cookies used |
-| `YTCLIPPER_YT_DLP_PROXY` | `""` | Empty - no proxy used |
+| `YTCLIPPER_YT_DLP_COOKIES_CONTENT` | `""` | Cookie content (tier 1 primary) |
+| `YTCLIPPER_YT_DLP_COOKIES_FILE` | `""` | Cookie file path (tier 1 alternative) |
+| `YTCLIPPER_YT_DLP_PROXY` | `""` | Proxy server (tier 1 optional) |
 
 ### Production Configuration
 
 ```bash
-# Cookie-free, proxy-free configuration
+# Cookie-based configuration (recommended)
+export YTCLIPPER_YT_DLP_COOKIES_CONTENT=".youtube.com	TRUE	/	FALSE	1704067200	VISITOR_INFO1_LIVE	xyz123"
 export YTCLIPPER_YT_DLP_ENABLE_USER_AGENT_ROTATION=true
 export YTCLIPPER_YT_DLP_SLEEP_INTERVAL=3
 export YTCLIPPER_YT_DLP_EXTRACTOR_RETRIES=5
-export YTCLIPPER_YT_DLP_COOKIES_FILE=""
-export YTCLIPPER_YT_DLP_PROXY=""
 ```
 
 ### Development Configuration
 
 ```bash
-# Faster for development, still cookie-free
+# Faster for development, fallback to cookie-free approach
 export YTCLIPPER_YT_DLP_ENABLE_USER_AGENT_ROTATION=true
 export YTCLIPPER_YT_DLP_SLEEP_INTERVAL=1
 export YTCLIPPER_YT_DLP_EXTRACTOR_RETRIES=3
+# Optional: Add cookies for enhanced success rates
+# export YTCLIPPER_YT_DLP_COOKIES_CONTENT=".youtube.com	TRUE	/	FALSE	1704067200	VISITOR_INFO1_LIVE	xyz123"
 ```
 
 ## Technical Implementation
