@@ -394,23 +394,34 @@ func executeWithFallback(name string, baseArgs []string) ([]byte, error) {
 func executeWithFallbackNoProxy(name string, baseArgs []string) ([]byte, error) {
 	timeout := time.Duration(config.CONFIG.YtDlpConfig.CommandTimeoutInSeconds) * time.Second
 
-	// Strategy 1: Try with user agent and headers only (no proxy for downloads)
-	noProxyArgs := applyAntiDetectionArgsNoProxy(baseArgs)
-	glogger.Log.Infof("Attempting yt-dlp download without proxy (enhanced anti-detection)")
-	output, err := executeWithTimeout(timeout, name, noProxyArgs...)
+	// Strategy 1: Try with cookies if available (safest for downloads)
+	if config.CONFIG.YtDlpConfig.CookiesFile != "" {
+		cookieArgs := applyAntiDetectionArgsNoProxy(baseArgs)
+		glogger.Log.Infof("Attempting yt-dlp download with cookies (no proxy)")
+		output, err := executeWithTimeout(timeout, name, cookieArgs...)
+		if err == nil {
+			return output, err
+		}
+		glogger.Log.Warningf("Cookie-based download failed: %v", err)
+	}
+
+	// Strategy 2: Try minimal stealth mode (no cookies, no proxy)
+	stealthArgs := applyStealthMode(baseArgs)
+	glogger.Log.Infof("Attempting yt-dlp download in stealth mode (no auth)")
+	output, err := executeWithTimeout(timeout, name, stealthArgs...)
 
 	if err != nil {
-		glogger.Log.Warningf("No-proxy enhanced anti-detection failed: %v", err)
+		glogger.Log.Warningf("Stealth mode failed: %v", err)
 
-		// Strategy 2: Try minimal arguments (basic yt-dlp)
+		// Strategy 3: Try basic user agent only
 		basicArgs := append([]string{"--user-agent", getUserAgent()}, baseArgs...)
-		glogger.Log.Infof("Attempting yt-dlp download with basic configuration")
+		glogger.Log.Infof("Attempting yt-dlp download with basic user agent")
 		output, err = executeWithTimeout(timeout, name, basicArgs...)
 
 		if err != nil {
-			glogger.Log.Warningf("Basic configuration failed: %v", err)
+			glogger.Log.Warningf("Basic user agent failed: %v", err)
 
-			// Strategy 3: Try completely vanilla yt-dlp
+			// Strategy 4: Last resort - completely vanilla
 			glogger.Log.Infof("Attempting yt-dlp download with vanilla configuration")
 			output, err = executeWithTimeout(timeout, name, baseArgs...)
 		}
@@ -419,8 +430,44 @@ func executeWithFallbackNoProxy(name string, baseArgs []string) ([]byte, error) 
 	return output, err
 }
 
+func applyStealthMode(cmdArgs []string) []string {
+	var args []string
+
+	// Use a clean browser user agent
+	args = append(args, "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36")
+
+	// Minimal anti-detection without authentication
+	args = append(args,
+		"--extractor-retries", "2",
+		"--sleep-requests", "2",
+		"--sleep-interval", "2", 
+		"--max-sleep-interval", "5",
+		"--socket-timeout", "20",
+		"--retries", "2",
+		"--no-check-certificate", // Sometimes helps with CDN issues
+	)
+
+	// Basic browser headers
+	args = append(args,
+		"--add-header", "Accept:text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+		"--add-header", "Accept-Language:en-US,en;q=0.5",
+		"--add-header", "Accept-Encoding:gzip, deflate",
+		"--add-header", "DNT:1",
+		"--add-header", "Connection:keep-alive",
+		"--add-header", "Upgrade-Insecure-Requests:1",
+	)
+
+	return append(args, cmdArgs...)
+}
+
 func applyAntiDetectionArgsNoProxy(cmdArgs []string) []string {
 	var args []string
+
+	// Apply cookies file if configured (important for downloads)
+	if config.CONFIG.YtDlpConfig.CookiesFile != "" {
+		glogger.Log.Infof("Using cookies file for download: %s", config.CONFIG.YtDlpConfig.CookiesFile)
+		args = append(args, "--cookies", config.CONFIG.YtDlpConfig.CookiesFile)
+	}
 
 	// Apply user agent
 	args = append(args, "--user-agent", getUserAgent())
