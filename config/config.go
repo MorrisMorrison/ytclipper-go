@@ -7,53 +7,53 @@ import (
 )
 
 const (
-	CONFIG_KEY_PORT                    						= "YTCLIPPER_PORT"
-	CONFIG_KEY_DEBUG                    					= "YTCLIPPER_DEBUG"
-	CONFIG_KEY_YT_DLP_CLIP_SIZE_LIMIT_IN_MB         		= "YTCLIPPER_YT_DLP_CLIP_SIZE_LIMIT_IN_MB"
-	CONFIG_KEY_YT_DLP_PROXY									= "YTCLIPPER_YT_DLP_PROXY"
-	CONFIG_KEY_YT_DLP_COMMAND_TIMEOUT_IN_SECONDS			= "YTCLIPPER_YT_DLP_COMMAND_TIMEOUT_IN_SECONDS"
-	CONFIG_KEY_YT_DLP_COOKIES_FILE							= "YTCLIPPER_YT_DLP_COOKIES_FILE"
-	CONFIG_KEY_YT_DLP_USER_AGENT							= "YTCLIPPER_YT_DLP_USER_AGENT"
-	CONFIG_KEY_YT_DLP_EXTRACTOR_RETRIES						= "YTCLIPPER_YT_DLP_EXTRACTOR_RETRIES"
+	CONFIG_KEY_PORT                              = "YTCLIPPER_PORT"
+	CONFIG_KEY_DEBUG                             = "YTCLIPPER_DEBUG"
+	CONFIG_KEY_YT_DLP_CLIP_SIZE_LIMIT_IN_MB      = "YTCLIPPER_YT_DLP_CLIP_SIZE_LIMIT_IN_MB"
+	CONFIG_KEY_YT_DLP_PROXY                      = "YTCLIPPER_YT_DLP_PROXY"
+	CONFIG_KEY_YT_DLP_COMMAND_TIMEOUT_IN_SECONDS = "YTCLIPPER_YT_DLP_COMMAND_TIMEOUT_IN_SECONDS"
+	CONFIG_KEY_YT_DLP_COOKIES_FILE               = "YTCLIPPER_YT_DLP_COOKIES_FILE"
+	CONFIG_KEY_YT_DLP_USER_AGENT                 = "YTCLIPPER_YT_DLP_USER_AGENT"
+	CONFIG_KEY_YT_DLP_EXTRACTOR_RETRIES          = "YTCLIPPER_YT_DLP_EXTRACTOR_RETRIES"
 
-	CONFIG_KEY_RATE_LIMITER_RATE       						= "YTCLIPPER_RATE_LIMITER_RATE"
-	CONFIG_KEY_RATE_LIMITER_BURST      						= "YTCLIPPER_RATE_LIMITER_BURST"
-	CONFIG_KEY_RATE_LIMITER_EXPIRES_IN_MINUTES				= "YTCLIPPER_RATE_LIMITER_EXPIRES_IN_MINUTES"
+	CONFIG_KEY_RATE_LIMITER_RATE               = "YTCLIPPER_RATE_LIMITER_RATE"
+	CONFIG_KEY_RATE_LIMITER_BURST              = "YTCLIPPER_RATE_LIMITER_BURST"
+	CONFIG_KEY_RATE_LIMITER_EXPIRES_IN_MINUTES = "YTCLIPPER_RATE_LIMITER_EXPIRES_IN_MINUTES"
 
-	CONFIG_KEY_CLIP_CLEANUP_SCHEDULER_INTERVAL_IN_MINUTES 	= "YTCLIPPER_CLIP_CLEANUP_SCHEDULER_INTERVAL_IN_MINUTES"
-	CONFIG_KEY_CLIP_CLEANUP_SCHEDULER_CLIP_DIRECTORY_PATH 	= "YTCLIPPER_CLIP_CLEANUP_SCHEDULER_CLIP_DIRECTORY_PATH"
-	CONFIG_KEY_CLIP_CLEANUP_SCHEDULER_ENABLED 				= "YTCLIPPER_CLIP_CLEANUP_SCHEDULER_ENABLED"
+	CONFIG_KEY_CLIP_CLEANUP_SCHEDULER_INTERVAL_IN_MINUTES = "YTCLIPPER_CLIP_CLEANUP_SCHEDULER_INTERVAL_IN_MINUTES"
+	CONFIG_KEY_CLIP_CLEANUP_SCHEDULER_CLIP_DIRECTORY_PATH = "YTCLIPPER_CLIP_CLEANUP_SCHEDULER_CLIP_DIRECTORY_PATH"
+	CONFIG_KEY_CLIP_CLEANUP_SCHEDULER_ENABLED             = "YTCLIPPER_CLIP_CLEANUP_SCHEDULER_ENABLED"
 )
 
 var CONFIG *Config = NewConfig()
 
 type Config struct {
-	Port			string
-	Debug			bool
-	RateLimiterConfig RateLimiterConfig
-	YtDlpConfig YtDlpConfig
+	Port                       string
+	Debug                      bool
+	RateLimiterConfig          RateLimiterConfig
+	YtDlpConfig                YtDlpConfig
 	ClipCleanUpSchedulerConfig ClipCleanUpSchedulerConfig
 }
 
 type RateLimiterConfig struct {
-	Rate 	float64
-	Burst	int
+	Rate             float64
+	Burst            int
 	ExpiresInMinutes int
 }
 
 type YtDlpConfig struct {
-	ClipSizeInMb 	int64
+	ClipSizeInMb            int64
 	CommandTimeoutInSeconds int
-	Proxy string
-	CookiesFile string
-	UserAgent string
-	ExtractorRetries int
+	Proxy                   string
+	CookiesFile             string
+	UserAgent               string
+	ExtractorRetries        int
 }
 
 type ClipCleanUpSchedulerConfig struct {
 	IntervalInMinutes int
 	ClipDirectoryPath string
-	IsEnabled bool
+	IsEnabled         bool
 }
 
 func NewClipCleanUpSchedulerConfig() *ClipCleanUpSchedulerConfig {
@@ -64,27 +64,27 @@ func NewClipCleanUpSchedulerConfig() *ClipCleanUpSchedulerConfig {
 	return &ClipCleanUpSchedulerConfig{
 		IntervalInMinutes: intervalInMinutes,
 		ClipDirectoryPath: clipDirectoryPath,
-		IsEnabled: clipSchedulerEnabled,
+		IsEnabled:         clipSchedulerEnabled,
 	}
 }
 
-func NewYtDlpConfig() *YtDlpConfig{
+func NewYtDlpConfig() *YtDlpConfig {
 	clipSizeInMb := utils.MbToBytes(GetEnvInt(CONFIG_KEY_YT_DLP_CLIP_SIZE_LIMIT_IN_MB, 300))
 	commandTimeoutInSeconds := GetEnvInt(CONFIG_KEY_YT_DLP_COMMAND_TIMEOUT_IN_SECONDS, 60)
 	proxy := GetEnv(CONFIG_KEY_YT_DLP_PROXY, "")
 	cookiesFile := GetEnv(CONFIG_KEY_YT_DLP_COOKIES_FILE, "")
-	userAgent := GetEnv(CONFIG_KEY_YT_DLP_USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+	userAgent := GetEnv(CONFIG_KEY_YT_DLP_USER_AGENT, "")
 	extractorRetries := GetEnvInt(CONFIG_KEY_YT_DLP_EXTRACTOR_RETRIES, 3)
 
 	return &YtDlpConfig{
-		ClipSizeInMb: clipSizeInMb,
+		ClipSizeInMb:            clipSizeInMb,
 		CommandTimeoutInSeconds: commandTimeoutInSeconds,
-		Proxy: proxy,
-		CookiesFile: cookiesFile,
-		UserAgent: userAgent,
-		ExtractorRetries: extractorRetries,
+		Proxy:                   proxy,
+		CookiesFile:             cookiesFile,
+		UserAgent:               userAgent,
+		ExtractorRetries:        extractorRetries,
 	}
-} 
+}
 
 func NewRateLimiterConfig() *RateLimiterConfig {
 	rate := GetEnvInt(CONFIG_KEY_RATE_LIMITER_RATE, 5)
@@ -92,7 +92,7 @@ func NewRateLimiterConfig() *RateLimiterConfig {
 	expiresInMinutes := GetEnvInt(CONFIG_KEY_RATE_LIMITER_EXPIRES_IN_MINUTES, 1)
 
 	return &RateLimiterConfig{
-		Rate: 			  float64(rate),
+		Rate:             float64(rate),
 		Burst:            burst,
 		ExpiresInMinutes: expiresInMinutes,
 	}
@@ -102,12 +102,11 @@ func NewConfig() *Config {
 	port := GetEnv(CONFIG_KEY_PORT, "8080")
 	debug := GetEnv(CONFIG_KEY_DEBUG, "true") == "true"
 
-
 	return &Config{
-		Port:  port,
-		Debug: debug,
-		RateLimiterConfig:  *NewRateLimiterConfig(),
-		YtDlpConfig:*NewYtDlpConfig(),
+		Port:                       port,
+		Debug:                      debug,
+		RateLimiterConfig:          *NewRateLimiterConfig(),
+		YtDlpConfig:                *NewYtDlpConfig(),
 		ClipCleanUpSchedulerConfig: *NewClipCleanUpSchedulerConfig(),
 	}
 }
@@ -117,8 +116,8 @@ func GetEnvInt(key string, fallback int) int {
 	if value == "" {
 		return fallback
 	}
-	intValue, err:=strconv.Atoi(value)
-	if err != nil{
+	intValue, err := strconv.Atoi(value)
+	if err != nil {
 		return fallback
 	}
 	return intValue
