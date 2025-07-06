@@ -24,6 +24,7 @@ const onClipButtonClick = async () => {
     disableClipButton();
     hideProgressBar();
 
+    toastr.success("Clip processing started.");
     const url = document.getElementById("url").value;
     const from = document.getElementById("from").value;
     const to = document.getElementById("to").value;
@@ -65,7 +66,6 @@ const onClipButtonClick = async () => {
         break;
     }
         
-        toastr.success("Clip processing started.");
     } catch (err) {
         toastr.error("Failed to create clip: " + err.message);
     }
