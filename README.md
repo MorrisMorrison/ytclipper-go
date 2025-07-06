@@ -218,7 +218,7 @@ The application offers **three progressive approaches** to bypass YouTube's bot 
 **Privacy Focused**: Explicit consent required, no server storage  
 **Seamless Integration**: Works automatically when user consents  
 
-**[User Browser Context Guide](USER_BROWSER_CONTEXT.md)**
+**[User Browser Context Guide](docs/USER_BROWSER_CONTEXT.md)**
 
 ### **Enhanced Cookie-Free Anti-Detection** (Fallback)
 **No Authentication Required**: Advanced spoofing without cookies  
@@ -239,8 +239,8 @@ export YTCLIPPER_YT_DLP_EXTRACTOR_RETRIES=3
 ```
 
 ### Detailed Guides
-**[User Browser Context Strategy](USER_BROWSER_CONTEXT.md)** (Recommended)  
-**[YouTube Authentication Guide](YOUTUBE_AUTHENTICATION.md)** (Legacy)
+**[User Browser Context Strategy](docs/USER_BROWSER_CONTEXT.md)** (Recommended)  
+**[YouTube Authentication Guide](docs/YOUTUBE_AUTHENTICATION.md)** (Legacy)
 
 ## Monitoring
 

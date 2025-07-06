@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -229,6 +230,66 @@ func getUserAgent() string {
 	return userAgents[rand.Intn(len(userAgents))]
 }
 
+// createTempCookieFile converts browser cookies to Netscape format and creates a temporary file
+func createTempCookieFile(cookies string) (string, error) {
+	// Create temporary file
+	tempFile, err := os.CreateTemp("", "ytclipper-cookies-*.txt")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temp file: %w", err)
+	}
+	defer tempFile.Close()
+
+	// Write Netscape cookie file header
+	header := "# Netscape HTTP Cookie File\n# This is a generated file! Do not edit.\n\n"
+	if _, err := tempFile.WriteString(header); err != nil {
+		os.Remove(tempFile.Name())
+		return "", fmt.Errorf("failed to write header: %w", err)
+	}
+
+	// Parse and convert cookies to Netscape format
+	cookiePairs := strings.Split(cookies, ";")
+	for _, pair := range cookiePairs {
+		pair = strings.TrimSpace(pair)
+		if pair == "" {
+			continue
+		}
+
+		parts := strings.SplitN(pair, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+
+		name := strings.TrimSpace(parts[0])
+		value := strings.TrimSpace(parts[1])
+
+		// Skip empty cookies
+		if name == "" || value == "" {
+			continue
+		}
+
+		// Convert to Netscape format: domain \t flag \t path \t secure \t expiration \t name \t value
+		// We'll use YouTube domain and set reasonable defaults
+		netscapeLine := fmt.Sprintf(".youtube.com\tTRUE\t/\tTRUE\t%d\t%s\t%s\n",
+			time.Now().Add(365*24*time.Hour).Unix(), // Expire in 1 year
+			name,
+			value)
+
+		if _, err := tempFile.WriteString(netscapeLine); err != nil {
+			os.Remove(tempFile.Name())
+			return "", fmt.Errorf("failed to write cookie: %w", err)
+		}
+	}
+
+	// Schedule cleanup after 5 minutes
+	go func() {
+		time.Sleep(5 * time.Minute)
+		os.Remove(tempFile.Name())
+		glogger.Log.Infof("Cleaned up temporary cookie file: %s", tempFile.Name())
+	}()
+
+	return tempFile.Name(), nil
+}
+
 func applyAntiDetectionArgsNoCookiesProxy(cmdArgs []string) []string {
 	var args []string
 
@@ -293,6 +354,9 @@ func applyAntiDetectionArgs(cmdArgs []string) []string {
 	// Apply user agent
 	if config.CONFIG.YtDlpConfig.UserAgent != "" {
 		args = append(args, "--user-agent", config.CONFIG.YtDlpConfig.UserAgent)
+	} else {
+		// Fallback to rotating user agent
+		args = append(args, "--user-agent", getUserAgent())
 	}
 
 	// Apply extractor retries
@@ -321,71 +385,10 @@ func executeWithFallback(name string, baseArgs []string) ([]byte, error) {
 	if err != nil {
 		glogger.Log.Warningf("Enhanced anti-detection failed: %v", err)
 
-		// Strategy 2: Try with alternative extractor and IP spoofing
-		alternativeArgs := []string{
-			"--user-agent", getUserAgent(),
-			"--extractor-retries", "5",
-			"--sleep-requests", "3",
-			"--sleep-interval", "5",
-			"--max-sleep-interval", "10",
-			"--add-header", "X-Forwarded-For:8.8.8.8",
-			"--add-header", "X-Real-IP:8.8.8.8",
-			"--referer", "https://www.google.com/",
-		}
-		alternativeArgs = append(alternativeArgs, baseArgs...)
-		glogger.Log.Infof("Attempting yt-dlp with alternative anti-detection configuration")
-		output, err = executeWithTimeout(timeout, name, alternativeArgs...)
-
-		if err != nil {
-			glogger.Log.Warningf("Alternative configuration failed: %v", err)
-
-			// Strategy 3: Try with aggressive stealth mode
-			stealthArgs := []string{
-				"--user-agent", getUserAgent(),
-				"--sleep-requests", "5",
-				"--sleep-interval", "10",
-				"--max-sleep-interval", "15",
-				"--socket-timeout", "30",
-				"--retries", "10",
-				"--fragment-retries", "10",
-				"--no-check-certificate",
-				"--geo-bypass",
-				"--add-header", "Accept-Language:en-US,en;q=0.9",
-				"--add-header", "Sec-Ch-Ua:\"Chromium\";v=\"121\", \"Not A(Brand\";v=\"99\"",
-				"--add-header", "Sec-Ch-Ua-Mobile:?0",
-				"--add-header", "Sec-Ch-Ua-Platform:\"Linux\"",
-			}
-			stealthArgs = append(stealthArgs, baseArgs...)
-			glogger.Log.Infof("Attempting yt-dlp with aggressive stealth configuration")
-			output, err = executeWithTimeout(timeout, name, stealthArgs...)
-
-			if err != nil {
-				glogger.Log.Warningf("Stealth configuration failed: %v", err)
-
-				// Strategy 4: Try with legacy full configuration (includes cookies/proxy if available)
-				legacyArgs := applyAntiDetectionArgs(baseArgs)
-				glogger.Log.Infof("Attempting yt-dlp with legacy full anti-detection configuration")
-				output, err = executeWithTimeout(timeout, name, legacyArgs...)
-
-				if err != nil {
-					glogger.Log.Warningf("Legacy configuration failed: %v", err)
-
-					// Strategy 5: Last resort - minimal approach with just user agent
-					minimalArgs := []string{"--user-agent", getUserAgent()}
-					minimalArgs = append(minimalArgs, baseArgs...)
-					glogger.Log.Infof("Attempting yt-dlp with minimal user agent only")
-					output, err = executeWithTimeout(timeout, name, minimalArgs...)
-
-					if err != nil {
-						glogger.Log.Warningf("Minimal configuration failed: %v", err)
-
-						// Strategy 6: Absolute last resort - bare minimum
-						glogger.Log.Infof("Attempting yt-dlp with base arguments only (last resort)")
-						output, err = executeWithTimeout(timeout, name, baseArgs...)
-					}
-				}
-			}
-		}
+		// Strategy 2: Try with legacy full configuration (includes cookies/proxy if available)
+		legacyArgs := applyAntiDetectionArgs(baseArgs)
+		glogger.Log.Infof("Attempting yt-dlp with legacy full anti-detection configuration")
+		output, err = executeWithTimeout(timeout, name, legacyArgs...)
 	}
 
 	return output, err
@@ -405,8 +408,10 @@ func executeWithFallbackAndContext(name string, baseArgs []string, userAgent, co
 		glogger.Log.Warningf("User context failed: %v", err)
 	}
 
-	// Fallback to standard strategies if user context fails or unavailable
-	return executeWithFallback(name, baseArgs)
+	// Strategy 2: Fallback to legacy full configuration (includes cookies/proxy if available)
+	legacyArgs := applyAntiDetectionArgs(baseArgs)
+	glogger.Log.Infof("Attempting yt-dlp with legacy full anti-detection configuration")
+	return executeWithTimeout(timeout, name, legacyArgs...)
 }
 
 func applyUserContext(cmdArgs []string, userAgent, cookies string) []string {
@@ -424,8 +429,12 @@ func applyUserContext(cmdArgs []string, userAgent, cookies string) []string {
 	// Use provided cookies if available
 	if cookies != "" {
 		glogger.Log.Infof("Using user's browser cookies")
-		// Create temporary cookies file
-		args = append(args, "--add-header", "Cookie:"+cookies)
+		// Create temporary cookies file in Netscape format
+		if cookieFile, err := createTempCookieFile(cookies); err == nil {
+			args = append(args, "--cookies", cookieFile)
+		} else {
+			glogger.Log.Warningf("Failed to create cookie file: %v", err)
+		}
 	}
 
 	// Apply minimal anti-detection
