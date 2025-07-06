@@ -283,10 +283,33 @@ func executeWithFallback(name string, baseArgs []string) ([]byte, error) {
 	if err != nil {
 		glogger.Log.Warningf("Legacy configuration failed: %v", err)
 
-		// Strategy 2: Simple fallback with basic user agent only
-		basicArgs := append([]string{"--user-agent", getUserAgent()}, baseArgs...)
-		glogger.Log.Infof("Attempting yt-dlp with basic user agent fallback")
-		output, err = executeWithTimeout(timeout, name, basicArgs...)
+		// Strategy 2: Enhanced fallback without cookies (for expired cookie scenarios)
+		enhancedArgs := []string{
+			"--user-agent", getUserAgent(),
+			"--sleep-requests", "2",
+			"--sleep-interval", "3",
+			"--max-sleep-interval", "8",
+			"--extractor-retries", "5",
+			"--retries", "3",
+			"--socket-timeout", "30",
+			"--add-header", "Accept-Language:en-US,en;q=0.9",
+			"--add-header", "Accept:text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+			"--add-header", "Accept-Encoding:gzip, deflate",
+			"--add-header", "Connection:keep-alive",
+			"--add-header", "Referer:https://www.google.com/",
+		}
+		enhancedArgs = append(enhancedArgs, baseArgs...)
+		glogger.Log.Infof("Attempting yt-dlp with enhanced fallback (no cookies)")
+		output, err = executeWithTimeout(timeout, name, enhancedArgs...)
+
+		if err != nil {
+			glogger.Log.Warningf("Enhanced fallback failed: %v", err)
+
+			// Strategy 3: Basic fallback
+			basicArgs := append([]string{"--user-agent", getUserAgent()}, baseArgs...)
+			glogger.Log.Infof("Attempting yt-dlp with basic user agent fallback")
+			output, err = executeWithTimeout(timeout, name, basicArgs...)
+		}
 	}
 
 	return output, err
