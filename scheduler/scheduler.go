@@ -5,7 +5,9 @@ import (
 	"path/filepath"
 	"time"
 	"ytclipper-go/config"
+	"ytclipper-go/cookies"
 	"ytclipper-go/jobs"
+	"ytclipper-go/services"
 
 	"github.com/MorrisMorrison/gutils/glogger"
 )
@@ -16,6 +18,49 @@ func StartClipCleanUpScheduler() {
 
 	startFileCleanUpScheduler(intervalInMinutes, retentionInMinutes, config.CONFIG.ClipCleanUpSchedulerConfig.ClipDirectoryPath)
 	startJobCleanUpScheduler(intervalInMinutes, retentionInMinutes)
+}
+
+func StartCookieMonitorScheduler() {
+	if !config.CONFIG.CookieMonitorConfig.Enabled {
+		glogger.Log.Info("Cookie monitoring is disabled")
+		return
+	}
+
+	intervalHours := time.Duration(config.CONFIG.CookieMonitorConfig.IntervalHours) * time.Hour
+
+	ntfyService := services.NewNtfyService()
+
+	cookieNotificationService := cookies.NewCookieNotificationService(ntfyService)
+
+	cookieMonitor := cookies.NewCookieMonitor(cookieNotificationService)
+
+	glogger.Log.Infof("Starting cookie monitor: Interval %f hours", intervalHours.Hours())
+
+	// Send test notification if ntfy is enabled
+	if config.CONFIG.NtfyConfig.Enabled {
+		glogger.Log.Info("Sending test notification...")
+		if err := cookieNotificationService.SendTestNotification(); err != nil {
+			glogger.Log.Errorf(err, "Failed to send test notification")
+		}
+	}
+
+	if err := cookieMonitor.CheckCookieHealth(); err != nil {
+		glogger.Log.Errorf(err, "Initial cookie health check failed")
+	}
+
+	ticker := time.NewTicker(intervalHours)
+	go func() {
+		for range ticker.C {
+			if !config.CONFIG.CookieMonitorConfig.Enabled {
+				continue
+			}
+
+			glogger.Log.Info("Running periodic cookie health check...")
+			if err := cookieMonitor.CheckCookieHealth(); err != nil {
+				glogger.Log.Errorf(err, "Periodic cookie health check failed")
+			}
+		}
+	}()
 }
 
 func startFileCleanUpScheduler(interval time.Duration, retention time.Duration, clipDir string) {

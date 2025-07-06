@@ -27,6 +27,15 @@ const (
 	CONFIG_KEY_CLIP_CLEANUP_SCHEDULER_CLIP_DIRECTORY_PATH = "YTCLIPPER_CLIP_CLEANUP_SCHEDULER_CLIP_DIRECTORY_PATH"
 	CONFIG_KEY_CLIP_CLEANUP_SCHEDULER_ENABLED             = "YTCLIPPER_CLIP_CLEANUP_SCHEDULER_ENABLED"
 
+	CONFIG_KEY_COOKIE_MONITOR_ENABLED             = "YTCLIPPER_COOKIE_MONITOR_ENABLED"
+	CONFIG_KEY_COOKIE_MONITOR_INTERVAL_HOURS      = "YTCLIPPER_COOKIE_MONITOR_INTERVAL_HOURS"
+	CONFIG_KEY_COOKIE_MONITOR_WARNING_THRESHOLD   = "YTCLIPPER_COOKIE_MONITOR_WARNING_THRESHOLD_DAYS"
+	CONFIG_KEY_COOKIE_MONITOR_URGENT_THRESHOLD    = "YTCLIPPER_COOKIE_MONITOR_URGENT_THRESHOLD_DAYS"
+	CONFIG_KEY_COOKIE_MONITOR_TOPIC               = "YTCLIPPER_COOKIE_MONITOR_NTFY_TOPIC"
+
+	CONFIG_KEY_NTFY_ENABLED    = "YTCLIPPER_NTFY_ENABLED"
+	CONFIG_KEY_NTFY_SERVER_URL = "YTCLIPPER_NTFY_SERVER_URL"
+
 	CONFIG_KEY_AUTH_USERNAME = "YTCLIPPER_AUTH_USERNAME"
 	CONFIG_KEY_AUTH_PASSWORD = "YTCLIPPER_AUTH_PASSWORD"
 )
@@ -39,6 +48,8 @@ type Config struct {
 	RateLimiterConfig          RateLimiterConfig
 	YtDlpConfig                YtDlpConfig
 	ClipCleanUpSchedulerConfig ClipCleanUpSchedulerConfig
+	CookieMonitorConfig        CookieMonitorConfig
+	NtfyConfig                 NtfyConfig
 	BasicAuthConfig            BasicAuthConfig
 }
 
@@ -64,6 +75,19 @@ type ClipCleanUpSchedulerConfig struct {
 	IntervalInMinutes int
 	ClipDirectoryPath string
 	IsEnabled         bool
+}
+
+type CookieMonitorConfig struct {
+	Enabled              bool
+	IntervalHours        int
+	WarningThresholdDays int
+	UrgentThresholdDays  int
+	NtfyTopic            string
+}
+
+type NtfyConfig struct {
+	Enabled   bool
+	ServerURL string
 }
 
 type BasicAuthConfig struct {
@@ -119,6 +143,32 @@ func NewRateLimiterConfig() *RateLimiterConfig {
 	}
 }
 
+func NewCookieMonitorConfig() *CookieMonitorConfig {
+	enabled := GetEnv(CONFIG_KEY_COOKIE_MONITOR_ENABLED, "true") == "true"
+	intervalHours := GetEnvInt(CONFIG_KEY_COOKIE_MONITOR_INTERVAL_HOURS, 24)
+	warningThresholdDays := GetEnvInt(CONFIG_KEY_COOKIE_MONITOR_WARNING_THRESHOLD, 30)
+	urgentThresholdDays := GetEnvInt(CONFIG_KEY_COOKIE_MONITOR_URGENT_THRESHOLD, 7)
+	ntfyTopic := GetEnv(CONFIG_KEY_COOKIE_MONITOR_TOPIC, "ytclipper-cookies")
+
+	return &CookieMonitorConfig{
+		Enabled:              enabled,
+		IntervalHours:        intervalHours,
+		WarningThresholdDays: warningThresholdDays,
+		UrgentThresholdDays:  urgentThresholdDays,
+		NtfyTopic:            ntfyTopic,
+	}
+}
+
+func NewNtfyConfig() *NtfyConfig {
+	enabled := GetEnv(CONFIG_KEY_NTFY_ENABLED, "false") == "true"
+	serverURL := GetEnv(CONFIG_KEY_NTFY_SERVER_URL, "")
+
+	return &NtfyConfig{
+		Enabled:   enabled,
+		ServerURL: serverURL,
+	}
+}
+
 func NewBasicAuthConfig() *BasicAuthConfig {
 	username := GetEnv(CONFIG_KEY_AUTH_USERNAME, "")
 	password := GetEnv(CONFIG_KEY_AUTH_PASSWORD, "")
@@ -139,6 +189,8 @@ func NewConfig() *Config {
 		RateLimiterConfig:          *NewRateLimiterConfig(),
 		YtDlpConfig:                *NewYtDlpConfig(),
 		ClipCleanUpSchedulerConfig: *NewClipCleanUpSchedulerConfig(),
+		CookieMonitorConfig:        *NewCookieMonitorConfig(),
+		NtfyConfig:                 *NewNtfyConfig(),
 		BasicAuthConfig:            *NewBasicAuthConfig(),
 	}
 }
