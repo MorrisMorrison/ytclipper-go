@@ -8,7 +8,7 @@ RUN apt-get update && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install yt-dlp separately, as it may not have a Debian package
-RUN python3 -m pip install --no-warn-script-location yt-dlp --break-system-packages
+RUN python3 -m pip install --no-warn-script-location --upgrade yt-dlp --break-system-packages
 
 # Create videos directory
 RUN mkdir -p /app/videos && chmod 777 /app/videos
