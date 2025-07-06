@@ -185,6 +185,12 @@ The application can be configured using environment variables:
 | `YTCLIPPER_CLIP_CLEANUP_SCHEDULER_INTERVAL_IN_MINUTES` | Cleanup interval (minutes) | `5` |
 | `YTCLIPPER_CLIP_CLEANUP_SCHEDULER_CLIP_DIRECTORY_PATH` | Directory to clean | `./videos` |
 
+### Auth 
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `YTCLIPPER_AUTH_USERNAME` | Basic Auth Username | `` |
+| `YTCLIPPER_AUTH_PASSWORD` | Basic Auth Password | `` |
+
 ## Architecture
 
 ### System Components
@@ -210,6 +216,7 @@ The application can be configured using environment variables:
 - **File Management**: Automatic cleanup prevents disk space exhaustion
 - **Error Handling**: Graceful error handling without exposing internal details
 - **Minimal Configuration**: Optional cookie/proxy support with no credentials stored by default
+- **Basic Auth**: Optional Basic Auth support when configuration is set
 
 ## YouTube Bot Detection Bypass
 
