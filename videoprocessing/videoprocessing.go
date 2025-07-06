@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -22,52 +21,16 @@ const throttledStatus = "THROTTLED"
 var execContext = exec.CommandContext // allows mocking in tests
 
 func DownloadAndCutVideo(outputPath string, selectedFormat string, fileSizeLimit int64, from string, to string, url string) ([]byte, error) {
-	// First, download the full video using yt-dlp with proxy support
-	tempOutputPath := strings.Replace(outputPath, filepath.Ext(outputPath), "_temp"+filepath.Ext(outputPath), 1)
-	
-	downloadArgs := []string{
-		"-o", tempOutputPath,
+	cmdArgs := []string{
+		"-o", outputPath,
 		"-f", selectedFormat,
 		"-v",
-		"--max-filesize", fmt.Sprintf("%d", fileSizeLimit*3), // Allow larger download since we'll clip it
+		"--max-filesize", fmt.Sprintf("%d", fileSizeLimit),
+		"--download-sections", fmt.Sprintf("*%s-%s", from, to),
 		url,
 	}
 
-	glogger.Log.Infof("Downloading full video to %s", tempOutputPath)
-	output, err := executeWithFallback("yt-dlp", downloadArgs)
-	if err != nil {
-		return output, fmt.Errorf("failed to download video: %w", err)
-	}
-
-	// Then, clip the downloaded video using FFmpeg locally
-	glogger.Log.Infof("Clipping video from %s to %s", tempOutputPath, outputPath)
-	clipArgs := []string{
-		"-i", tempOutputPath,
-		"-ss", from,
-		"-to", to,
-		"-c", "copy",
-		"-avoid_negative_ts", "make_zero",
-		outputPath,
-		"-y", // Overwrite output file
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(config.CONFIG.YtDlpConfig.CommandTimeoutInSeconds)*time.Second)
-	defer cancel()
-
-	cmd := execContext(ctx, "ffmpeg", clipArgs...)
-	clipOutput, clipErr := cmd.CombinedOutput()
-	
-	// Clean up temporary file
-	if err := os.Remove(tempOutputPath); err != nil {
-		glogger.Log.Warningf("Failed to remove temporary file %s: %v", tempOutputPath, err)
-	}
-
-	if clipErr != nil {
-		return clipOutput, fmt.Errorf("failed to clip video: %w", clipErr)
-	}
-
-	glogger.Log.Infof("Successfully clipped video to %s", outputPath)
-	return clipOutput, nil
+	return executeWithFallback("yt-dlp", cmdArgs)
 }
 
 func ProcessClip(jobID string, url string, from string, to string, selectedFormat string) {
