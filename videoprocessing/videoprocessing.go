@@ -251,11 +251,23 @@ func applyAntiDetectionArgs(cmdArgs []string) []string {
 		args = append(args, "--extractor-retries", fmt.Sprintf("%d", config.CONFIG.YtDlpConfig.ExtractorRetries))
 	}
 
-	// Add anti-bot detection arguments
+	// Add anti-bot detection arguments (restored from working legacy config)
 	args = append(args,
-		"--sleep-requests", "1", // Sleep between requests
-		"--sleep-interval", "1", // Random sleep interval
-		"--max-sleep-interval", "3", // Maximum sleep interval
+		"--sleep-requests", "3",
+		"--sleep-interval", "5",
+		"--max-sleep-interval", "12",
+		"--no-warnings",
+		"--prefer-free-formats",
+	)
+
+	// Add enhanced headers for better authentication
+	args = append(args,
+		"--add-header", "Accept-Language:en-US,en;q=0.8,fr;q=0.6",
+		"--add-header", "Accept:text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+		"--add-header", "Accept-Encoding:gzip, deflate",
+		"--add-header", "Connection:keep-alive",
+		"--add-header", "Keep-Alive:timeout=5, max=1000",
+		"--add-header", "Referer:https://www.google.com/",
 	)
 
 	return append(args, cmdArgs...)
@@ -264,10 +276,10 @@ func applyAntiDetectionArgs(cmdArgs []string) []string {
 func executeWithFallback(name string, baseArgs []string) ([]byte, error) {
 	timeout := time.Duration(config.CONFIG.YtDlpConfig.CommandTimeoutInSeconds) * time.Second
 
-	// Strategy 1: Try with anti-detection configuration (includes cookies/proxy if available)
-	antiDetectionArgs := applyAntiDetectionArgs(baseArgs)
-	glogger.Log.Infof("Attempting yt-dlp with anti-detection configuration")
-	output, err := executeWithTimeout(timeout, name, antiDetectionArgs...)
+	// Strategy 1: Try with legacy configuration (includes cookies/proxy if available)
+	legacyArgs := applyAntiDetectionArgs(baseArgs)
+	glogger.Log.Infof("Attempting yt-dlp with legacy configuration (cookies/proxy)")
+	output, err := executeWithTimeout(timeout, name, legacyArgs...)
 
 	if err != nil {
 		glogger.Log.Warningf("Anti-detection configuration failed: %v", err)
