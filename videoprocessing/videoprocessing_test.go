@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+	"strings"
 	"testing"
 )
 
@@ -79,7 +80,7 @@ func TestDownloadAndCutVideo(t *testing.T) {
 
 	_, _ = DownloadAndCutVideo(outputPath, selectedFormat, fileSizeLimit, from, to, url)
 
-	// Verify that yt-dlp is called with enhanced anti-detection arguments
+	// Verify that yt-dlp is called with basic arguments
 	if len(capturedArgs) < 5 {
 		t.Error("Expected more arguments but got too few")
 		return
@@ -89,7 +90,7 @@ func TestDownloadAndCutVideo(t *testing.T) {
 		t.Errorf("Expected first arg to be 'yt-dlp', got '%s'", capturedArgs[0])
 	}
 
-	// Check for user agent presence
+	// Check for user agent presence (always required in simplified approach)
 	userAgentFound := false
 	for i, arg := range capturedArgs {
 		if arg == "--user-agent" && i+1 < len(capturedArgs) {
@@ -114,19 +115,34 @@ func TestDownloadAndCutVideo(t *testing.T) {
 		t.Errorf("Expected --download-sections argument with value '%s'", expectedSection)
 	}
 
-	// Check for enhanced headers (may be present in fallback strategies)
-	headerFound := false
-	for _, arg := range capturedArgs {
-		if arg == "--add-header" {
-			headerFound = true
+	// Check for anti-bot detection arguments
+	sleepRequestsFound := false
+	for i, arg := range capturedArgs {
+		if arg == "--sleep-requests" && i+1 < len(capturedArgs) {
+			sleepRequestsFound = true
 			break
 		}
 	}
-	// Headers are not guaranteed in strategy 1 (legacy config), so we don't fail if not present
-	if headerFound {
-		t.Log("Enhanced headers found in yt-dlp arguments")
-	} else {
-		t.Log("No enhanced headers found - likely using legacy configuration strategy")
+	if !sleepRequestsFound {
+		t.Error("Expected --sleep-requests argument to be present")
+	}
+
+	// Verify that output path and format are included in the base arguments
+	outputPathFound := false
+	formatFound := false
+	for i, arg := range capturedArgs {
+		if arg == "-o" && i+1 < len(capturedArgs) && capturedArgs[i+1] == outputPath {
+			outputPathFound = true
+		}
+		if arg == "-f" && i+1 < len(capturedArgs) && capturedArgs[i+1] == selectedFormat {
+			formatFound = true
+		}
+	}
+	if !outputPathFound {
+		t.Error("Expected output path argument to be present")
+	}
+	if !formatFound {
+		t.Error("Expected format argument to be present")
 	}
 }
 
@@ -152,7 +168,7 @@ func TestGetVideoDuration(t *testing.T) {
 		t.Errorf("Expected duration: %s, but got: %s", expectedDuration, duration)
 	}
 
-	// Verify that yt-dlp is called with enhanced anti-detection arguments
+	// Verify that yt-dlp is called with basic anti-detection arguments
 	if len(capturedArgs) < 3 {
 		t.Error("Expected more arguments but got too few")
 		return
@@ -162,7 +178,7 @@ func TestGetVideoDuration(t *testing.T) {
 		t.Errorf("Expected first arg to be 'yt-dlp', got '%s'", capturedArgs[0])
 	}
 
-	// Check for user agent presence
+	// Check for user agent presence (always required in simplified approach)
 	userAgentFound := false
 	for i, arg := range capturedArgs {
 		if arg == "--user-agent" && i+1 < len(capturedArgs) {
@@ -176,13 +192,147 @@ func TestGetVideoDuration(t *testing.T) {
 
 	// Check that the original arguments are preserved
 	getDurationFound := false
+	noWarningsFound := false
 	for _, arg := range capturedArgs {
 		if arg == "--get-duration" {
 			getDurationFound = true
-			break
+		}
+		if arg == "--no-warnings" {
+			noWarningsFound = true
 		}
 	}
 	if !getDurationFound {
 		t.Error("Expected --get-duration argument to be present")
+	}
+	if !noWarningsFound {
+		t.Error("Expected --no-warnings argument to be present")
+	}
+
+	// Check for anti-bot detection arguments
+	sleepRequestsFound := false
+	for i, arg := range capturedArgs {
+		if arg == "--sleep-requests" && i+1 < len(capturedArgs) {
+			sleepRequestsFound = true
+			break
+		}
+	}
+	if !sleepRequestsFound {
+		t.Error("Expected --sleep-requests argument to be present")
+	}
+}
+
+func TestGetUserAgent(t *testing.T) {
+	// Test that getUserAgent returns a valid user agent string
+	userAgent := getUserAgent()
+	if userAgent == "" {
+		t.Error("Expected non-empty user agent")
+	}
+
+	// Should contain common browser identifiers
+	if !strings.Contains(userAgent, "Mozilla") {
+		t.Error("Expected user agent to contain Mozilla")
+	}
+
+	// Test multiple calls return different agents (when rotation is enabled)
+	userAgent1 := getUserAgent()
+	userAgent2 := getUserAgent()
+	// Note: We can't guarantee they're different due to randomization,
+	// but we can verify both are valid
+	if userAgent1 == "" || userAgent2 == "" {
+		t.Error("Expected valid user agents from multiple calls")
+	}
+}
+
+func TestApplyAntiDetectionArgs(t *testing.T) {
+	baseArgs := []string{"-f", "22", "https://example.com"}
+
+	// Test with basic configuration
+	enhancedArgs := applyAntiDetectionArgs(baseArgs)
+
+	// Should contain user agent
+	userAgentFound := false
+	for i, arg := range enhancedArgs {
+		if arg == "--user-agent" && i+1 < len(enhancedArgs) {
+			userAgentFound = true
+			break
+		}
+	}
+	if !userAgentFound {
+		t.Error("Expected --user-agent argument in enhanced args")
+	}
+
+	// Should contain sleep arguments
+	sleepFound := false
+	for _, arg := range enhancedArgs {
+		if arg == "--sleep-requests" {
+			sleepFound = true
+			break
+		}
+	}
+	if !sleepFound {
+		t.Error("Expected --sleep-requests argument in enhanced args")
+	}
+
+	// Should preserve original arguments
+	for _, baseArg := range baseArgs {
+		found := false
+		for _, enhancedArg := range enhancedArgs {
+			if enhancedArg == baseArg {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Expected original argument '%s' to be preserved", baseArg)
+		}
+	}
+}
+
+func TestExecuteWithFallbackMock(t *testing.T) {
+	originalExecContext := execContext
+	defer func() { execContext = originalExecContext }()
+
+	callCount := 0
+	var capturedArgs [][]string
+
+	// Mock exec function that fails on first call, succeeds on second
+	execContext = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
+		capturedArgs = append(capturedArgs, append([]string{name}, arg...))
+		callCount++
+
+		if callCount == 1 {
+			// First call fails (anti-detection strategy)
+			return exec.Command("false") // Command that always fails
+		} else {
+			// Second call succeeds (basic fallback)
+			return exec.Command("echo", "success")
+		}
+	}
+
+	baseArgs := []string{"-f", "22", "https://example.com"}
+	output, err := executeWithFallback("yt-dlp", baseArgs)
+
+	if err != nil {
+		t.Errorf("Expected executeWithFallback to succeed with fallback, but got error: %v", err)
+	}
+
+	if strings.TrimSpace(string(output)) != "success" {
+		t.Errorf("Expected output 'success', but got: %s", string(output))
+	}
+
+	// Should have made exactly 2 calls
+	if callCount != 2 {
+		t.Errorf("Expected 2 calls (primary + fallback), but got %d", callCount)
+	}
+
+	// Verify both calls were made
+	if len(capturedArgs) != 2 {
+		t.Errorf("Expected 2 captured argument sets, but got %d", len(capturedArgs))
+	}
+
+	// First call should have more arguments (anti-detection)
+	// Second call should have fewer arguments (basic fallback)
+	if len(capturedArgs[0]) <= len(capturedArgs[1]) {
+		t.Error("Expected first call to have more arguments than second call")
 	}
 }
