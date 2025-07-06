@@ -1,11 +1,11 @@
 package main
 
 import (
-	"crypto/subtle"
 	"log"
 	"os"
 	"time"
 	"ytclipper-go/config"
+	custommiddleware "ytclipper-go/middleware"
 	"ytclipper-go/routes"
 	"ytclipper-go/scheduler"
 	"ytclipper-go/utils"
@@ -40,24 +40,7 @@ func setupEcho() {
 
 	e.Static("/static", "static")
 
-	// Setup basic auth middleware if credentials are configured
-	if config.CONFIG.BasicAuthConfig.Username != "" && config.CONFIG.BasicAuthConfig.Password != "" {
-		glogger.Log.Info("Basic authentication enabled")
-		e.Use(middleware.BasicAuthWithConfig(middleware.BasicAuthConfig{
-			Validator: func(username, password string, c echo.Context) (bool, error) {
-				// Use constant time comparison to prevent timing attacks
-				return subtle.ConstantTimeCompare([]byte(username), []byte(config.CONFIG.BasicAuthConfig.Username)) == 1 &&
-					subtle.ConstantTimeCompare([]byte(password), []byte(config.CONFIG.BasicAuthConfig.Password)) == 1, nil
-			},
-			Skipper: func(c echo.Context) bool {
-				// Skip authentication for health check endpoint
-				return c.Path() == "/health"
-			},
-			Realm: "YTClipper",
-		}))
-	} else {
-		glogger.Log.Info("Basic authentication disabled - no credentials configured")
-	}
+	e.Use(custommiddleware.BasicAuthMiddleware())
 
 	routes.RegisterRoutes(e)
 

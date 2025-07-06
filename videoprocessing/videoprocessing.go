@@ -301,15 +301,6 @@ func executeWithFallback(name string, baseArgs []string) ([]byte, error) {
 		enhancedArgs = append(enhancedArgs, baseArgs...)
 		glogger.Log.Infof("Attempting yt-dlp with enhanced fallback (no cookies)")
 		output, err = executeWithTimeout(timeout, name, enhancedArgs...)
-
-		if err != nil {
-			glogger.Log.Warningf("Enhanced fallback failed: %v", err)
-
-			// Strategy 3: Basic fallback
-			basicArgs := append([]string{"--user-agent", getUserAgent()}, baseArgs...)
-			glogger.Log.Infof("Attempting yt-dlp with basic user agent fallback")
-			output, err = executeWithTimeout(timeout, name, basicArgs...)
-		}
 	}
 
 	return output, err
