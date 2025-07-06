@@ -13,7 +13,10 @@ function createRequestOptions(options = {}) {
 export async function fetchAndPopulateFormats(url, dropdown) {
     dropdown.disabled = true;
     dropdown.innerHTML = '<option value="">Loading formats...</option>';
-
+            toastr.success(
+          "This may take a few seconds.",
+          "Fetching available formats."
+        )
     try {
         const requestOptions = createRequestOptions();
         const response = await fetch(`/api/v1/video/formats?youtubeUrl=${encodeURIComponent(url)}`, requestOptions);
