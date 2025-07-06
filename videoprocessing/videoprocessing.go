@@ -347,7 +347,6 @@ func applyAlternativeExtraction(cmdArgs []string) []string {
 		"--max-sleep-interval", "12",
 
 		// Use different extraction methods
-		"--force-json",
 		"--no-warnings",
 		"--prefer-free-formats",
 

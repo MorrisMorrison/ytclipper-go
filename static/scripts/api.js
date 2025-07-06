@@ -83,6 +83,7 @@ export async function getJobStatus(jobId){
           "Download Timeout"
         );
         enableClipButton();
+        hideProgressBar();
         break;
       case 500:
         toastr.error(
@@ -90,6 +91,7 @@ export async function getJobStatus(jobId){
           "Download Error"
         );
         enableClipButton();
+        hideProgressBar();
         break;
       default:
         toastr.error(
