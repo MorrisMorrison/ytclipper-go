@@ -201,7 +201,6 @@ func getFileExtensionFromFormatID(formatID string, formats []map[string]string) 
 	return "", fmt.Errorf("format ID not found")
 }
 
-// getUserAgent returns a rotating user agent or the configured one
 func getUserAgent() string {
 	if !config.CONFIG.YtDlpConfig.EnableUserAgentRotation {
 		if config.CONFIG.YtDlpConfig.UserAgent != "" {

@@ -115,18 +115,6 @@ func TestDownloadAndCutVideo(t *testing.T) {
 		t.Errorf("Expected --download-sections argument with value '%s'", expectedSection)
 	}
 
-	// Check for anti-bot detection arguments
-	sleepRequestsFound := false
-	for i, arg := range capturedArgs {
-		if arg == "--sleep-requests" && i+1 < len(capturedArgs) {
-			sleepRequestsFound = true
-			break
-		}
-	}
-	if !sleepRequestsFound {
-		t.Error("Expected --sleep-requests argument to be present")
-	}
-
 	// Verify that output path and format are included in the base arguments
 	outputPathFound := false
 	formatFound := false
@@ -207,18 +195,6 @@ func TestGetVideoDuration(t *testing.T) {
 	if !noWarningsFound {
 		t.Error("Expected --no-warnings argument to be present")
 	}
-
-	// Check for anti-bot detection arguments
-	sleepRequestsFound := false
-	for i, arg := range capturedArgs {
-		if arg == "--sleep-requests" && i+1 < len(capturedArgs) {
-			sleepRequestsFound = true
-			break
-		}
-	}
-	if !sleepRequestsFound {
-		t.Error("Expected --sleep-requests argument to be present")
-	}
 }
 
 func TestGetUserAgent(t *testing.T) {
@@ -295,16 +271,16 @@ func TestExecuteWithFallbackMock(t *testing.T) {
 	callCount := 0
 	var capturedArgs [][]string
 
-	// Mock exec function that fails on first two calls, succeeds on third
+	// Mock exec function that fails on first call, succeeds on second
 	execContext = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
 		capturedArgs = append(capturedArgs, append([]string{name}, arg...))
 		callCount++
 
-		if callCount <= 2 {
-			// First two calls fail (legacy + enhanced strategies)
+		if callCount <= 1 {
+			// First call fails (legacy strategy)
 			return exec.Command("false") // Command that always fails
 		} else {
-			// Third call succeeds (basic fallback)
+			// Second call succeeds (enhanced fallback)
 			return exec.Command("echo", "success")
 		}
 	}
@@ -320,23 +296,20 @@ func TestExecuteWithFallbackMock(t *testing.T) {
 		t.Errorf("Expected output 'success', but got: %s", string(output))
 	}
 
-	// Should have made exactly 3 calls (legacy + enhanced + basic)
-	if callCount != 3 {
-		t.Errorf("Expected 3 calls (legacy + enhanced + basic fallback), but got %d", callCount)
+	// Should have made exactly 2 calls (legacy + enhanced)
+	if callCount != 2 {
+		t.Errorf("Expected 2 calls (legacy + enhanced fallback), but got %d", callCount)
 	}
 
 	// Verify all calls were made
-	if len(capturedArgs) != 3 {
-		t.Errorf("Expected 3 captured argument sets, but got %d", len(capturedArgs))
+	if len(capturedArgs) != 2 {
+		t.Errorf("Expected 2 captured argument sets, but got %d", len(capturedArgs))
 	}
 
-	// First call should have anti-detection args (legacy)
-	// Second call should have enhanced fallback args
-	// Third call should have basic fallback args (fewest)
-	if len(capturedArgs[0]) <= len(capturedArgs[2]) {
-		t.Error("Expected first call (legacy) to have more arguments than third call (basic)")
-	}
-	if len(capturedArgs[1]) <= len(capturedArgs[2]) {
-		t.Error("Expected second call (enhanced) to have more arguments than third call (basic)")
+	// Verify both calls had the yt-dlp command
+	for i, args := range capturedArgs {
+		if len(args) == 0 || args[0] != "yt-dlp" {
+			t.Errorf("Expected call %d to have 'yt-dlp' as first argument", i+1)
+		}
 	}
 }
