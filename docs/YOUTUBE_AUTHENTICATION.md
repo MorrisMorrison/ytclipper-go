@@ -68,24 +68,18 @@ The application uses a simplified 2-tier fallback strategy:
 
 The application automatically implements:
 
-#### Tier 1 (Aggressive Anti-Detection)
-- Extensive user agent rotation
-- Comprehensive HTTP headers (Accept-Language, Cache-Control, DNT, etc.)
-- Browser fingerprinting simulation
-- Aggressive timing (10-20 second intervals)
-- Geographic and SSL bypass
+#### Primary Strategy (Cookie-Based Authentication)
+- Uses cookie authentication when configured via environment variables
+- Supports both cookie content and cookie files
+- Includes basic anti-detection headers
+- Highest success rate when cookies are available
+- Optional proxy support
 
-#### Tier 2 (Alternative Extraction)
-- Alternative user agent patterns
-- Different header combinations
-- Modified timing strategies
-- Alternative extraction methods
-
-#### Tier 3 (Legacy Configuration)
-- Uses environment variables if configured
-- Proxy support
-- Cookie file support
-- Standard anti-detection measures
+#### Fallback Strategy (Enhanced Anti-Detection)
+- User agent rotation (6 modern browser user agents)
+- Enhanced HTTP headers for authenticity
+- No authentication required
+- Automatic retry on failure
 
 ### 5. No Configuration Required
 
@@ -99,7 +93,7 @@ The primary approach works automatically without any configuration:
 
 ### Local Development (No Configuration Needed)
 ```bash
-# Run the application - uses built-in 3-tier fallback strategy
+# Run the application - uses built-in 2-tier fallback strategy
 go run main.go
 ```
 
@@ -153,7 +147,7 @@ services:
 
 ### Still Getting Bot Detection?
 
-The application automatically tries 3 progressive strategies, but if all fail:
+The application automatically tries 2 progressive strategies, but if all fail:
 
 1. **Check yt-dlp version** - `pip install --upgrade yt-dlp`
 2. **Use proxy configuration** - Set `YTCLIPPER_YT_DLP_PROXY` environment variable
@@ -230,7 +224,7 @@ yt-dlp --cookies ./cookies/youtube_cookies.txt --get-title "https://youtube.com/
 
 ## 🆘 Emergency Fixes
 
-If you're still getting blocked after all 3 tiers fail:
+If you're still getting blocked after both tiers fail:
 
 1. **Update yt-dlp** - `pip install --upgrade yt-dlp`
 2. **Configure proxy** - Set `YTCLIPPER_YT_DLP_PROXY` environment variable
@@ -238,4 +232,4 @@ If you're still getting blocked after all 3 tiers fail:
 4. **Change IP address** (restart router or use VPN)
 5. **Check logs** to see which tier is consistently failing
 
-This 3-tier fallback system should significantly reduce YouTube bot detection errors in both development and production environments without requiring any configuration for most use cases.
+This 2-tier fallback system should significantly reduce YouTube bot detection errors in both development and production environments without requiring any configuration for most use cases.

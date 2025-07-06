@@ -91,15 +91,14 @@ Most browsers can export cookies in this format through developer tools or brows
 ## How It Works
 
 ### Request Flow
-1. **Tier 1**: Attempt with legacy configuration (cookies/proxy) if available
-2. **Tier 2**: If tier 1 fails, try aggressive anti-detection settings
-3. **Tier 3**: If tier 2 fails, fall back to alternative extraction methods
+1. **Tier 1**: Attempt with cookie-based authentication (cookies/proxy) if available
+2. **Tier 2**: If tier 1 fails, try enhanced anti-detection headers
 
 ### Success Monitoring
 The system logs success rates for each tier:
 ```
 INFO: Tier 1 (cookie-based) success rate: 95%
-INFO: Tier 2 (anti-detection) success rate: 85%
+INFO: Tier 2 (enhanced anti-detection) success rate: 85%
 ```
 
 ## Security Considerations
@@ -181,7 +180,7 @@ env | grep YTCLIPPER_YT_DLP
 ### Development Environment
 ```bash
 # No configuration needed - relies on built-in fallback strategies
-# (will use tiers 2 and 3 without cookies/proxy)
+# (will use tier 2 fallback without cookies/proxy)
 ./ytclipper-go
 ```
 

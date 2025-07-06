@@ -129,15 +129,6 @@ userAgents := []string{
 --add-header "Sec-Ch-Ua-Platform:\"Linux\""
 ```
 
-### Strategy 3: Alternative Extraction Headers
-```bash
---add-header "Accept-Language:en-US,en;q=0.8,fr;q=0.6"
---add-header "Accept:text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
---add-header "Accept-Encoding:gzip, deflate"
---add-header "Connection:keep-alive"
---add-header "Keep-Alive:timeout=5, max=1000"
---add-header "Referer:https://www.google.com/"
-```
 
 ### Execution Flow
 ```go
@@ -147,15 +138,9 @@ func executeWithFallback(name string, baseArgs []string) ([]byte, error) {
     output, err := executeWithTimeout(timeout, name, legacyArgs...)
     
     if err != nil {
-        // Strategy 2: Aggressive anti-detection
-        aggressiveArgs := applyAggressiveAntiDetection(baseArgs)
-        output, err = executeWithTimeout(timeout, name, aggressiveArgs...)
-        
-        if err != nil {
-            // Strategy 3: Alternative extraction
-            altArgs := applyAlternativeExtraction(baseArgs)
-            output, err = executeWithTimeout(timeout, name, altArgs...)
-        }
+        // Strategy 2: Enhanced anti-detection headers
+        enhancedArgs := applyEnhancedAntiDetection(baseArgs)
+        output, err = executeWithTimeout(timeout, name, enhancedArgs...)
     }
     
     return output, err
@@ -166,14 +151,14 @@ func executeWithFallback(name string, baseArgs []string) ([]byte, error) {
 
 ### Current Implementation Benefits
 - **Primary strategy**: Legacy configuration (cookies/proxy) is tried first for highest success rate
-- **3-tier fallback**: Comprehensive fallback system with different approaches
+- **2-tier fallback**: Comprehensive fallback system with different approaches
 - **Cookie-free fallback** for environments without authentication
 - **Automatic fallback** for difficult videos
 - **CI/CD compatibility** with cookie-free strategies as fallback
 - **Backward compatibility** with existing cookie/proxy configurations
 
 ### Monitoring Points
-- Track success/failure rates by strategy used (legacy → aggressive → alternative)
+- Track success/failure rates by strategy used (legacy → anti-detection)
 - Monitor which fallback level is most effective
 - Log user agent rotation patterns
 - Measure request timing effectiveness
@@ -198,13 +183,12 @@ func executeWithFallback(name string, baseArgs []string) ([]byte, error) {
 
 ## Troubleshooting
 
-### Understanding the 3-Tier Fallback System
+### Understanding the 2-Tier Fallback System
 
 The system automatically tries these strategies in order:
 
 1. **Legacy Configuration**: Uses cookies/proxy if available in environment (highest success rate)
-2. **Aggressive Anti-Detection**: Most comprehensive approach with maximum headers and timing
-3. **Alternative Extraction**: Different header patterns and extraction methods
+2. **Enhanced Anti-Detection**: Cookie-free approach with comprehensive headers and timing
 
 ### If Still Getting Bot Detection
 
@@ -245,7 +229,7 @@ If all automated approaches fail:
 3. **Different Video Sources**: Test with various YouTube videos
 4. **Rate Limiting**: Reduce request frequency significantly
 5. **yt-dlp Update**: Ensure latest version with recent fixes
-6. **Fallback Strategy Analysis**: Check which of the 3 tiers is consistently failing
+6. **Fallback Strategy Analysis**: Check which of the 2 tiers is consistently failing
 
 ## Benefits of This Approach
 
@@ -256,7 +240,7 @@ If all automated approaches fail:
 ✅ **Self-Contained**: No external authentication requirements for fallback tiers  
 ✅ **Maintainable**: Simple configuration management  
 ✅ **Scalable**: Works across different deployment environments  
-✅ **Comprehensive Fallback**: 3-tier strategy ensures maximum success rate  
+✅ **Comprehensive Fallback**: 2-tier strategy ensures maximum success rate  
 ✅ **Backward Compatible**: Prioritizes existing cookie/proxy configurations when available  
 ✅ **Browser Fingerprinting**: Advanced header simulation for maximum stealth  
 
