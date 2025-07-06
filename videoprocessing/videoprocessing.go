@@ -21,11 +21,10 @@ const throttledStatus = "THROTTLED"
 var execContext = exec.CommandContext // allows mocking in tests
 
 func DownloadAndCutVideo(outputPath string, selectedFormat string, fileSizeLimit int64, from string, to string, url string) ([]byte, error) {
-	glogger.Log.Infof("DownloadAndCutVideo: Starting download with format %s for URL %s", selectedFormat, url)
-
 	cmdArgs := []string{
 		"-o", outputPath,
 		"-f", selectedFormat,
+		"-v",
 		"--max-filesize", fmt.Sprintf("%d", fileSizeLimit),
 		"--downloader", "ffmpeg",
 		"--downloader-args", fmt.Sprintf("ffmpeg_i:-ss %s -to %s", from, to),
@@ -366,54 +365,26 @@ func applyAlternativeExtraction(cmdArgs []string) []string {
 func executeWithFallback(name string, baseArgs []string) ([]byte, error) {
 	timeout := time.Duration(config.CONFIG.YtDlpConfig.CommandTimeoutInSeconds) * time.Second
 
-	// Strategy 1: Use minimal arguments first (often works best)
-	minimalArgs := applyMinimalArgs(baseArgs)
-	glogger.Log.Infof("Attempting yt-dlp with minimal configuration")
-	output, err := executeWithTimeout(timeout, name, minimalArgs...)
+	// Strategy 1: Try with legacy configuration first (includes cookies/proxy if available)
+	legacyArgs := applyAntiDetectionArgs(baseArgs)
+	glogger.Log.Infof("Attempting yt-dlp with legacy configuration (cookies/proxy)")
+	output, err := executeWithTimeout(timeout, name, legacyArgs...)
 
 	if err != nil {
-		glogger.Log.Warningf("Minimal configuration failed: %v", err)
+		glogger.Log.Warningf("Legacy configuration failed: %v", err)
 
-		// Strategy 2: Try with basic anti-detection
-		basicArgs := applyBasicAntiDetection(baseArgs)
-		glogger.Log.Infof("Attempting yt-dlp with basic anti-detection")
-		output, err = executeWithTimeout(timeout, name, basicArgs...)
+		// Strategy 2: Fallback to aggressive anti-detection
+		aggressiveArgs := applyAggressiveAntiDetection(baseArgs)
+		glogger.Log.Infof("Attempting yt-dlp with aggressive anti-detection")
+		output, err = executeWithTimeout(timeout, name, aggressiveArgs...)
 
 		if err != nil {
-			glogger.Log.Warningf("Basic anti-detection failed: %v", err)
+			glogger.Log.Warningf("Aggressive anti-detection failed: %v", err)
 
-			// Strategy 3: Try with cookies/proxy if available
-			if config.CONFIG.YtDlpConfig.CookiesFile != "" || config.CONFIG.YtDlpConfig.Proxy != "" {
-				legacyArgs := applyAntiDetectionArgs(baseArgs)
-				glogger.Log.Infof("Attempting yt-dlp with cookies/proxy configuration")
-				output, err = executeWithTimeout(timeout, name, legacyArgs...)
-
-				if err != nil {
-					glogger.Log.Warningf("Cookies/proxy configuration failed: %v", err)
-				}
-			}
-
-			// Strategy 4: Final fallback - try without format selection for downloads
-			if err != nil && len(baseArgs) > 1 && baseArgs[0] == "-o" {
-				// For downloads, try without specific format
-				fallbackArgs := make([]string, 0, len(baseArgs))
-				skipNext := false
-				for _, arg := range baseArgs {
-					if skipNext {
-						skipNext = false
-						continue
-					}
-					if arg == "-f" {
-						skipNext = true
-						continue
-					}
-					fallbackArgs = append(fallbackArgs, arg)
-				}
-
-				finalArgs := applyMinimalArgs(fallbackArgs)
-				glogger.Log.Infof("Attempting yt-dlp without format specification as final fallback")
-				output, err = executeWithTimeout(timeout, name, finalArgs...)
-			}
+			// Strategy 3: Final fallback to alternative extraction method
+			altArgs := applyAlternativeExtraction(baseArgs)
+			glogger.Log.Infof("Attempting yt-dlp with alternative extraction method")
+			output, err = executeWithTimeout(timeout, name, altArgs...)
 		}
 	}
 
@@ -432,32 +403,4 @@ func executeWithTimeout(timeout time.Duration, name string, args ...string) ([]b
 	}
 
 	return output, err
-}
-
-func applyMinimalArgs(cmdArgs []string) []string {
-	// Start with just the basic command - sometimes less is more
-	var args []string
-
-	// Only add the most essential arguments
-	args = append(args,
-		"--no-warnings",
-		"--extractor-retries", "3",
-		"--socket-timeout", "30",
-	)
-
-	return append(args, cmdArgs...)
-}
-
-func applyBasicAntiDetection(cmdArgs []string) []string {
-	var args []string
-
-	// Very basic anti-detection - just user agent and minimal timing
-	args = append(args,
-		"--user-agent", getUserAgent(),
-		"--no-warnings",
-		"--extractor-retries", "5",
-		"--socket-timeout", "30",
-	)
-
-	return append(args, cmdArgs...)
 }
