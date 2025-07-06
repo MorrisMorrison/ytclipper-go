@@ -15,6 +15,8 @@ const (
 	CONFIG_KEY_YT_DLP_COOKIES_FILE               = "YTCLIPPER_YT_DLP_COOKIES_FILE"
 	CONFIG_KEY_YT_DLP_USER_AGENT                 = "YTCLIPPER_YT_DLP_USER_AGENT"
 	CONFIG_KEY_YT_DLP_EXTRACTOR_RETRIES          = "YTCLIPPER_YT_DLP_EXTRACTOR_RETRIES"
+	CONFIG_KEY_YT_DLP_SLEEP_INTERVAL             = "YTCLIPPER_YT_DLP_SLEEP_INTERVAL"
+	CONFIG_KEY_YT_DLP_ENABLE_USER_AGENT_ROTATION = "YTCLIPPER_YT_DLP_ENABLE_USER_AGENT_ROTATION"
 
 	CONFIG_KEY_RATE_LIMITER_RATE               = "YTCLIPPER_RATE_LIMITER_RATE"
 	CONFIG_KEY_RATE_LIMITER_BURST              = "YTCLIPPER_RATE_LIMITER_BURST"
@@ -48,6 +50,8 @@ type YtDlpConfig struct {
 	CookiesFile             string
 	UserAgent               string
 	ExtractorRetries        int
+	SleepInterval           int
+	EnableUserAgentRotation bool
 }
 
 type ClipCleanUpSchedulerConfig struct {
@@ -75,6 +79,8 @@ func NewYtDlpConfig() *YtDlpConfig {
 	cookiesFile := GetEnv(CONFIG_KEY_YT_DLP_COOKIES_FILE, "")
 	userAgent := GetEnv(CONFIG_KEY_YT_DLP_USER_AGENT, "")
 	extractorRetries := GetEnvInt(CONFIG_KEY_YT_DLP_EXTRACTOR_RETRIES, 3)
+	sleepInterval := GetEnvInt(CONFIG_KEY_YT_DLP_SLEEP_INTERVAL, 2)
+	enableUserAgentRotation := GetEnv(CONFIG_KEY_YT_DLP_ENABLE_USER_AGENT_ROTATION, "true") == "true"
 
 	return &YtDlpConfig{
 		ClipSizeInMb:            clipSizeInMb,
@@ -83,6 +89,8 @@ func NewYtDlpConfig() *YtDlpConfig {
 		CookiesFile:             cookiesFile,
 		UserAgent:               userAgent,
 		ExtractorRetries:        extractorRetries,
+		SleepInterval:           sleepInterval,
+		EnableUserAgentRotation: enableUserAgentRotation,
 	}
 }
 

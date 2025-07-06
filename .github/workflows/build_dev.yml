@@ -12,8 +12,10 @@ jobs:
     env:
       YTCLIPPER_CLIP_CLEANUP_SCHEDULER_ENABLED: "false"
       YTCLIPPER_YT_DLP_EXTRACTOR_RETRIES: "1"
-      YTCLIPPER_YT_DLP_USER_AGENT: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-      YTCLIPPER_YT_DLP_COOKIES_FILE: "cookies/youtube_cookies.txt"
+      YTCLIPPER_YT_DLP_SLEEP_INTERVAL: "1"
+      YTCLIPPER_YT_DLP_ENABLE_USER_AGENT_ROTATION: "true"
+      YTCLIPPER_YT_DLP_COOKIES_FILE: ""
+      YTCLIPPER_YT_DLP_PROXY: ""
       GO_VERSION: "1.23" 
       
     steps:
@@ -45,14 +47,12 @@ jobs:
             curl_cffi \
             urllib3
             
-      - name: Setup Anti-Bot Configuration
+      - name: Setup Cookie-Free Configuration
         run: |
-          # Create dummy cookies file for CI
-          mkdir -p cookies
-          echo "# Dummy cookies for CI/CD - not for real authentication" > cookies/youtube_cookies.txt
-          echo "# This file prevents cookie-related errors in tests" >> cookies/youtube_cookies.txt
-        env:
-          YTCLIPPER_YT_DLP_COOKIES_FILE: cookies/youtube_cookies.txt
+          # No cookies or proxy needed - using enhanced user agent rotation
+          echo "Using cookie-free and proxy-free configuration with enhanced anti-detection"
+          echo "User agent rotation: enabled"
+          echo "Sleep interval: 1 second"
             
       - name: Install Go Dependencies
         run: go mod tidy
