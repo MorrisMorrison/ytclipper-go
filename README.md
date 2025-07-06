@@ -213,21 +213,22 @@ The application can be configured using environment variables:
 
 The application uses a **3-tier fallback strategy** to maximize compatibility and success rate when downloading YouTube videos:
 
-### **Tier 1: Enhanced Cookie-Free Anti-Detection** (Primary)
+### **Tier 1: Legacy Configuration (Cookies/Proxy)** (Primary)
+**Environment Variable Configuration**: Use `YTCLIPPER_YT_DLP_COOKIES_FILE` for cookie file path and `YTCLIPPER_YT_DLP_PROXY` for proxy server  
+**Highest Success Rate**: Provides authentication for restricted content when configured  
+**Geographic Restrictions**: Bypass location-based restrictions with proxy support  
+**Network Diversity**: Alternative network path for enhanced reliability  
+
+### **Tier 2: Enhanced Cookie-Free Anti-Detection** (Secondary)
 **No Authentication Required**: Advanced spoofing without cookies or user interaction  
 **User Agent Rotation**: 6 modern browser user agents automatically rotated  
 **Enhanced Headers**: Browser-like HTTP headers for authenticity  
 **Progressive Retries**: Automatic retry with different strategies on failure  
 
-### **Tier 2: Optional Cookie Support** (Fallback)
-**Environment Variable Configuration**: Use `YTCLIPPER_YT_DLP_COOKIES_FILE` for cookie file path  
-**Manual Cookie Extraction**: Extract cookies from your browser when needed  
-**Higher Success Rate**: Provides additional authentication for restricted content  
-
-### **Tier 3: Optional Proxy Support** (Last Resort)
-**Proxy Configuration**: Use `YTCLIPPER_YT_DLP_PROXY` for proxy server  
-**Geographic Restrictions**: Bypass location-based restrictions  
-**Network Diversity**: Alternative network path for enhanced reliability  
+### **Tier 3: Alternative Extraction** (Final Fallback)
+**Alternative Extraction Methods**: Different header patterns and extraction methods  
+**Backup Strategies**: Final fallback for difficult videos  
+**Comprehensive Coverage**: Handles edge cases and challenging content  
 
 ### Quick Setup (Default Configuration)
 ```bash
@@ -247,7 +248,7 @@ export YTCLIPPER_YT_DLP_PROXY=http://proxy-server:port
 1. **Automatic Fallback**: System tries each tier progressively until successful
 2. **No User Interaction**: Runs completely automatically with environment variables
 3. **Maximum Compatibility**: Covers edge cases and restricted content
-4. **Zero Configuration**: Works out of the box without any setup
+4. **Optimal Configuration**: Works best with cookies/proxy configured, but provides fallback options
 
 ## Monitoring
 

@@ -16,7 +16,7 @@ YouTube implements bot detection for public videos because:
 
 Even though videos are publicly accessible via browser, programmatic access is treated differently by YouTube's infrastructure.
 
-## Our Cookie-Free Solution (PRIMARY STRATEGY)
+## Our Cookie-Free Solution (FALLBACK STRATEGY)
 
 ### 1. **Advanced User Agent Rotation**
 - **6 Modern Browser User Agents**: Chrome, Firefox, Safari, Edge variants
@@ -40,7 +40,14 @@ Even though videos are publicly accessible via browser, programmatic access is t
 
 Our implementation tries 3 progressive strategies in order:
 
-1. **Aggressive Anti-Detection** (Primary - Strategy 1)
+1. **Legacy Configuration** (Primary - Strategy 1)
+   - Includes cookies/proxy if available in environment
+   - Highest success rate when proxy/cookies are configured
+   - Backward compatibility with existing configurations
+   - Standard anti-detection suite
+   - Maintains support for legacy deployments
+
+2. **Aggressive Anti-Detection** (Secondary - Strategy 2)
    - Rotating user agents with extensive browser simulation
    - Comprehensive HTTP headers (Accept-Language, Cache-Control, DNT, Connection, etc.)
    - Aggressive timing (10-20 second sleep intervals)
@@ -48,19 +55,13 @@ Our implementation tries 3 progressive strategies in order:
    - Geographic bypass and SSL certificate bypass
    - Complete browser fingerprint simulation
 
-2. **Alternative Extraction** (Fallback - Strategy 2)
+3. **Alternative Extraction** (Final Fallback - Strategy 3)
    - Different user agent rotation
    - Alternative HTTP headers with different browser patterns
    - Modified timing strategy (5-12 second intervals)
    - Force JSON extraction and prefer free formats
    - Different extractor retry patterns
    - Referer header simulation
-
-3. **Legacy Configuration** (Final Fallback - Strategy 3)
-   - Includes cookies/proxy if available in environment
-   - Backward compatibility with existing configurations
-   - Standard anti-detection suite
-   - Maintains support for legacy deployments
 
 ### 5. **Additional Anti-Detection Measures**
 - **SSL Bypass**: `--no-check-certificate` for problematic connections
@@ -116,7 +117,7 @@ userAgents := []string{
 }
 ```
 
-### Strategy 1: Aggressive Anti-Detection Headers
+### Strategy 2: Aggressive Anti-Detection Headers
 ```bash
 --add-header "Accept-Language:en-US,en;q=0.9,*;q=0.5"
 --add-header "Accept:text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8"
@@ -135,7 +136,7 @@ userAgents := []string{
 --add-header "Sec-Ch-Ua-Platform:\"Linux\""
 ```
 
-### Strategy 2: Alternative Extraction Headers
+### Strategy 3: Alternative Extraction Headers
 ```bash
 --add-header "Accept-Language:en-US,en;q=0.8,fr;q=0.6"
 --add-header "Accept:text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
@@ -148,19 +149,19 @@ userAgents := []string{
 ### Execution Flow
 ```go
 func executeWithFallback(name string, baseArgs []string) ([]byte, error) {
-    // Strategy 1: Aggressive anti-detection
-    aggressiveArgs := applyAggressiveAntiDetection(baseArgs)
-    output, err := executeWithTimeout(timeout, name, aggressiveArgs...)
+    // Strategy 1: Legacy configuration (cookies/proxy)
+    legacyArgs := applyAntiDetectionArgs(baseArgs)
+    output, err := executeWithTimeout(timeout, name, legacyArgs...)
     
     if err != nil {
-        // Strategy 2: Alternative extraction
-        altArgs := applyAlternativeExtraction(baseArgs)
-        output, err = executeWithTimeout(timeout, name, altArgs...)
+        // Strategy 2: Aggressive anti-detection
+        aggressiveArgs := applyAggressiveAntiDetection(baseArgs)
+        output, err = executeWithTimeout(timeout, name, aggressiveArgs...)
         
         if err != nil {
-            // Strategy 3: Legacy configuration
-            legacyArgs := applyAntiDetectionArgs(baseArgs)
-            output, err = executeWithTimeout(timeout, name, legacyArgs...)
+            // Strategy 3: Alternative extraction
+            altArgs := applyAlternativeExtraction(baseArgs)
+            output, err = executeWithTimeout(timeout, name, altArgs...)
         }
     }
     
@@ -171,15 +172,15 @@ func executeWithFallback(name string, baseArgs []string) ([]byte, error) {
 ## Success Metrics
 
 ### Current Implementation Benefits
-- **Primary strategy**: Cookie-free anti-detection is the default behavior
+- **Primary strategy**: Legacy configuration (cookies/proxy) is tried first for highest success rate
 - **3-tier fallback**: Comprehensive fallback system with different approaches
-- **Zero dependency** on cookies or proxies by default
+- **Cookie-free fallback** for environments without authentication
 - **Automatic fallback** for difficult videos
-- **CI/CD compatibility** without authentication
+- **CI/CD compatibility** with cookie-free strategies as fallback
 - **Backward compatibility** with existing cookie/proxy configurations
 
 ### Monitoring Points
-- Track success/failure rates by strategy used (aggressive → alternative → legacy)
+- Track success/failure rates by strategy used (legacy → aggressive → alternative)
 - Monitor which fallback level is most effective
 - Log user agent rotation patterns
 - Measure request timing effectiveness
@@ -208,9 +209,9 @@ func executeWithFallback(name string, baseArgs []string) ([]byte, error) {
 
 The system automatically tries these strategies in order:
 
-1. **Aggressive Anti-Detection**: Most comprehensive approach with maximum headers and timing
-2. **Alternative Extraction**: Different header patterns and extraction methods
-3. **Legacy Configuration**: Uses cookies/proxy if available in environment
+1. **Legacy Configuration**: Uses cookies/proxy if available in environment (highest success rate)
+2. **Aggressive Anti-Detection**: Most comprehensive approach with maximum headers and timing
+3. **Alternative Extraction**: Different header patterns and extraction methods
 
 ### If Still Getting Bot Detection
 
@@ -246,23 +247,24 @@ The system automatically tries these strategies in order:
 
 If all automated approaches fail:
 
-1. **Manual IP Change**: Restart router/change network
-2. **Different Video Sources**: Test with various YouTube videos
-3. **Rate Limiting**: Reduce request frequency significantly
-4. **yt-dlp Update**: Ensure latest version with recent fixes
-5. **Fallback Strategy Analysis**: Check which of the 3 tiers is consistently failing
+1. **Configure Cookies/Proxy**: Add authentication via environment variables
+2. **Manual IP Change**: Restart router/change network
+3. **Different Video Sources**: Test with various YouTube videos
+4. **Rate Limiting**: Reduce request frequency significantly
+5. **yt-dlp Update**: Ensure latest version with recent fixes
+6. **Fallback Strategy Analysis**: Check which of the 3 tiers is consistently failing
 
 ## Benefits of This Approach
 
-✅ **Primary Strategy**: Cookie-free anti-detection is now the default behavior  
-✅ **No Cookie Management**: Eliminates cookie expiration issues  
-✅ **No Proxy Costs**: Removes proxy service dependencies  
-✅ **CI/CD Friendly**: Works in automated environments  
-✅ **Self-Contained**: No external authentication requirements  
+✅ **Primary Strategy**: Legacy configuration (cookies/proxy) is tried first for highest success rate  
+✅ **Cookie-Free Fallback**: Eliminates cookie expiration issues when authentication not available  
+✅ **Proxy-Free Fallback**: Removes proxy service dependencies when not configured  
+✅ **CI/CD Friendly**: Works in automated environments with fallback strategies  
+✅ **Self-Contained**: No external authentication requirements for fallback tiers  
 ✅ **Maintainable**: Simple configuration management  
 ✅ **Scalable**: Works across different deployment environments  
 ✅ **Comprehensive Fallback**: 3-tier strategy ensures maximum success rate  
-✅ **Backward Compatible**: Supports existing cookie/proxy configurations when available  
+✅ **Backward Compatible**: Prioritizes existing cookie/proxy configurations when available  
 ✅ **Browser Fingerprinting**: Advanced header simulation for maximum stealth  
 
-This strategy provides a robust, cookie-free solution that mimics legitimate browser behavior as the primary approach, with comprehensive fallback mechanisms to handle edge cases.
+This strategy provides a robust solution that prioritizes the most effective authentication methods first, with comprehensive cookie-free fallback mechanisms to handle edge cases.

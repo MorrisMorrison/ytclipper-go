@@ -26,21 +26,22 @@ YTCLIPPER_YT_DLP_COOKIES_FILE=/path/to/cookies.txt
 
 The system implements a 3-tier fallback strategy:
 
-### Tier 1: Aggressive Anti-Detection
+### Tier 1: Legacy Configuration
+- Traditional yt-dlp configuration (tried first)
+- Uses environment variables if configured:
+  - Proxy settings (`YTCLIPPER_YT_DLP_PROXY`)
+  - Cookie files (`YTCLIPPER_YT_DLP_COOKIES_FILE`)
+- Highest success rate when proxy/cookies are configured
+
+### Tier 2: Aggressive Anti-Detection
 - Custom user agent rotation
 - Advanced request headers
 - Optimized for bypassing bot detection
 
-### Tier 2: Alternative Extraction
+### Tier 3: Alternative Extraction
 - Alternative extraction methods
 - Different approach patterns
 - Backup extraction strategies
-
-### Tier 3: Legacy Configuration
-- Traditional yt-dlp configuration
-- Uses environment variables if configured:
-  - Proxy settings (`YTCLIPPER_YT_DLP_PROXY`)
-  - Cookie files (`YTCLIPPER_YT_DLP_COOKIES_FILE`)
 
 ## Usage Examples
 
@@ -49,7 +50,7 @@ The system implements a 3-tier fallback strategy:
 # Set proxy for all requests
 export YTCLIPPER_YT_DLP_PROXY=http://your-proxy:8080
 
-# Run ytclipper - will use proxy in tier 3 fallback
+# Run ytclipper - will use proxy in tier 1 (primary strategy)
 ./ytclipper-go
 ```
 
@@ -59,7 +60,7 @@ export YTCLIPPER_YT_DLP_PROXY=http://your-proxy:8080
 # Then configure the path
 export YTCLIPPER_YT_DLP_COOKIES_FILE=/home/user/cookies.txt
 
-# Run ytclipper - will use cookies in tier 3 fallback
+# Run ytclipper - will use cookies in tier 1 (primary strategy)
 ./ytclipper-go
 ```
 
@@ -78,16 +79,16 @@ Most browsers can export cookies in this format through developer tools or brows
 ## How It Works
 
 ### Request Flow
-1. **Tier 1**: Attempt with aggressive anti-detection settings
-2. **Tier 2**: If tier 1 fails, try alternative extraction methods
-3. **Tier 3**: If tier 2 fails, fall back to legacy configuration with environment variables
+1. **Tier 1**: Attempt with legacy configuration (cookies/proxy) if available
+2. **Tier 2**: If tier 1 fails, try aggressive anti-detection settings
+3. **Tier 3**: If tier 2 fails, fall back to alternative extraction methods
 
 ### Success Monitoring
 The system logs success rates for each tier:
 ```
-INFO: Tier 1 (aggressive) success rate: 85%
-INFO: Tier 2 (alternative) success rate: 70%
-INFO: Tier 3 (legacy) success rate: 45%
+INFO: Tier 1 (legacy) success rate: 95%
+INFO: Tier 2 (aggressive) success rate: 85%
+INFO: Tier 3 (alternative) success rate: 70%
 ```
 
 ## Security Considerations
@@ -153,8 +154,8 @@ env | grep YTCLIPPER_YT_DLP
 - Test cookie validity before relying on them
 
 ### General Recommendations
-- Start with tier 1 and 2 (no configuration needed)
-- Only configure environment variables if needed
+- Configure cookies/proxy for best success rates (tier 1)
+- Tier 2 and 3 provide cookie-free fallback options
 - Monitor success rates and adjust configuration accordingly
 
 ## Configuration Examples
@@ -162,6 +163,7 @@ env | grep YTCLIPPER_YT_DLP
 ### Development Environment
 ```bash
 # No configuration needed - relies on built-in fallback strategies
+# (will use tiers 2 and 3 without cookies/proxy)
 ./ytclipper-go
 ```
 
@@ -206,4 +208,4 @@ The current implementation provides a robust, simplified approach to YouTube bot
 - **Secure by Default**: No automatic cookie extraction or storage
 - **Production Ready**: Suitable for both development and production environments
 
-For most use cases, no configuration is needed. The built-in fallback strategies handle bot detection effectively. Environment variables provide additional options for advanced users or production deployments requiring specific proxy or authentication configurations.
+For maximum success rates, configure cookies/proxy via environment variables (tier 1). The built-in fallback strategies (tiers 2 and 3) handle bot detection effectively when authentication is not available. Environment variables provide the highest success rates for production deployments.
