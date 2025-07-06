@@ -64,6 +64,16 @@ The application automatically adds:
 - Modern user agent headers
 - Cookie-based session persistence
 
+### 4. Automatic Fallback Strategies
+
+The application implements intelligent fallback when encountering issues:
+
+1. **First attempt**: Full anti-detection with proxy (if configured)
+2. **Second attempt**: Anti-detection without proxy (if proxy fails)
+3. **Third attempt**: Basic execution with minimal arguments
+
+This ensures maximum compatibility across different network environments.
+
 ## 📝 Configuration Examples
 
 ### Local Development

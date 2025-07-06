@@ -10,10 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     
     env:
-      YTCLIPPER_YT_DLP_PROXY: ${{ secrets.YTDLP_PROXY_URL }}
       YTCLIPPER_CLIP_CLEANUP_SCHEDULER_ENABLED: "false"
       YTCLIPPER_YT_DLP_EXTRACTOR_RETRIES: "1"
       YTCLIPPER_YT_DLP_USER_AGENT: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+      YTCLIPPER_YT_DLP_COOKIES_FILE: "cookies/youtube_cookies.txt"
       GO_VERSION: "1.23" 
       
     steps:
@@ -61,20 +61,20 @@ jobs:
           go version
           ffmpeg -version
           
-      - name: Test YouTube Connectivity
+      - name: Test YouTube Connectivity  
         run: |
           echo "Testing yt-dlp with anti-bot configuration..."
+          echo "Testing direct connection (no proxy in CI)..."
           yt-dlp \
-            --proxy ${{ secrets.YTDLP_PROXY_URL }} \
             --user-agent "$YTCLIPPER_YT_DLP_USER_AGENT" \
             --cookies "$YTCLIPPER_YT_DLP_COOKIES_FILE" \
-            --extractor-retries $YTCLIPPER_YT_DLP_EXTRACTOR_RETRIES \
+            --extractor-retries 1 \
             --sleep-requests 1 \
             --simulate \
-            https://www.youtube.com/watch?v=dQw4w9WgXcQ || echo "YouTube test failed - continuing with build"
+            https://www.youtube.com/watch?v=dQw4w9WgXcQ && echo "✅ YouTube connectivity test successful" || echo "❌ YouTube test failed - this is expected in CI, continuing with build"
           
-          echo "Testing YouTube accessibility..."
-          curl -I https://www.youtube.com || echo "Direct YouTube access failed"
+          echo "Testing basic YouTube accessibility..."
+          curl -I https://www.youtube.com || echo "Direct YouTube access failed - expected in some CI environments"
           
       - name: Start Server
         run: |
