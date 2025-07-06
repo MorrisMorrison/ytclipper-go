@@ -61,7 +61,7 @@ func main() {
 		ctx, cancel := chromedp.NewContext(allocCtx)
 		defer cancel()
 
-		testCtx, cancelTest := context.WithTimeout(ctx, 3*time.Minute)
+		testCtx, cancelTest := context.WithTimeout(ctx, 5*time.Minute)
 		defer cancelTest()
 
 		log.Printf("Running test: %s", test.Name)

@@ -55,12 +55,15 @@ jobs:
           ffmpeg -version
           
       - name: Test YouTube Connectivity  
-        continue-on-error: true
+        continue-on-error: false 
         run: |
+          echo "Testing basic YouTube accessibility..."
+          curl -I https://www.youtube.com || echo "Direct YouTube access failed - expected in some CI environments"
+          
           echo "Testing yt-dlp with anti-bot configuration..."
           
           # Build yt-dlp command conditionally
-          YTDLP_CMD="yt-dlp --extractor-retries 1 --sleep-requests 1 --simulate --no-write-info-json --no-write-description --no-write-annotations"
+          YTDLP_CMD="yt-dlp --verbose --extractor-retries 3 --retries 3 --socket-timeout 60 --sleep-requests 1 --simulate --no-write-info-json --no-write-description --no-write-annotations"
           
           if [ -n "$YTCLIPPER_YT_DLP_PROXY" ]; then
             YTDLP_CMD="$YTDLP_CMD --proxy '$YTCLIPPER_YT_DLP_PROXY'"
@@ -70,8 +73,6 @@ jobs:
           echo "Running: $YTDLP_CMD https://www.youtube.com/watch?v=dQw4w9WgXcQ"
           eval "$YTDLP_CMD https://www.youtube.com/watch?v=dQw4w9WgXcQ" && echo "✅ YouTube connectivity test successful" || echo "❌ YouTube test failed - this is expected in CI environments"
           
-          echo "Testing basic YouTube accessibility..."
-          curl -I https://www.youtube.com || echo "Direct YouTube access failed - expected in some CI environments"
           
       - name: Start Server
         run: |
