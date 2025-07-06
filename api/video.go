@@ -8,6 +8,13 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
 func GetVideoDuration(c echo.Context) error {
 	url := c.QueryParam("youtubeUrl")
 	if url == "" {
@@ -78,6 +85,11 @@ func GetAvailableFormats(c echo.Context) error {
 	if youtubeCookies != "" {
 		// Prefer YouTube-specific cookies if available
 		cookies = youtubeCookies
+		c.Logger().Infof("Using YouTube-specific cookies: %s", youtubeCookies[:minInt(100, len(youtubeCookies))])
+	} else if cookies != "" {
+		c.Logger().Infof("Using regular cookies: %s", cookies[:minInt(100, len(cookies))])
+	} else {
+		c.Logger().Infof("No cookies received")
 	}
 
 	formats, err := videoprocessing.GetAvailableFormatsWithContext(url, userAgent, cookies)

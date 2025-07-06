@@ -232,12 +232,16 @@ func getUserAgent() string {
 
 // createTempCookieFile converts browser cookies to Netscape format and creates a temporary file
 func createTempCookieFile(cookies string) (string, error) {
+	glogger.Log.Infof("Creating temp cookie file with %d chars of cookies", len(cookies))
+
 	// Create temporary file
 	tempFile, err := os.CreateTemp("", "ytclipper-cookies-*.txt")
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp file: %w", err)
 	}
 	defer tempFile.Close()
+
+	glogger.Log.Infof("Created temp cookie file: %s", tempFile.Name())
 
 	// Write Netscape cookie file header
 	header := "# Netscape HTTP Cookie File\n# This is a generated file! Do not edit.\n\n"
