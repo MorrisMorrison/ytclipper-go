@@ -49,6 +49,16 @@ jobs:
       - name: Install Go Dependencies
         run: go mod tidy
         
+      - name: Setup Anti-Bot Configuration
+        run: |
+          # Create dummy cookies file for CI if no secret is provided
+          if [ -z "$YTCLIPPER_YT_DLP_COOKIES_FILE" ]; then
+            mkdir -p /tmp/ci-cookies
+            echo "# Dummy cookies for CI/CD - not for real authentication" > /tmp/ci-cookies/youtube_cookies.txt
+            echo "# This file prevents cookie-related errors in tests" >> /tmp/ci-cookies/youtube_cookies.txt
+            echo "YTCLIPPER_YT_DLP_COOKIES_FILE=/tmp/ci-cookies/youtube_cookies.txt" >> $GITHUB_ENV
+          fi
+          
       - name: Verify Dependencies
         run: |
           yt-dlp --version --print-python-info
@@ -56,17 +66,33 @@ jobs:
           ffmpeg -version
           
       - name: Test YouTube Connectivity  
+        continue-on-error: true
         run: |
           echo "Testing yt-dlp with anti-bot configuration..."
-          echo "Testing direct connection (no proxy in CI)..."
-          yt-dlp \
-            --user-agent "$YTCLIPPER_YT_DLP_USER_AGENT" \
-            --cookies "$YTCLIPPER_YT_DLP_COOKIES_FILE" \
-            --proxy "$YTCLIPPER_YT_DLP_PROXY" \
-            --extractor-retries 1 \
-            --sleep-requests 1 \
-            --simulate \
-            https://www.youtube.com/watch?v=dQw4w9WgXcQ && echo "✅ YouTube connectivity test successful" || echo "❌ YouTube test failed - this is expected in CI, continuing with build"
+          echo "Environment variables:"
+          echo "  PROXY: ${YTCLIPPER_YT_DLP_PROXY:+[SET]} ${YTCLIPPER_YT_DLP_PROXY:-[NOT SET]}"
+          echo "  COOKIES: ${YTCLIPPER_YT_DLP_COOKIES_FILE:+[SET]} ${YTCLIPPER_YT_DLP_COOKIES_FILE:-[NOT SET]}"
+          echo "  USER_AGENT: $YTCLIPPER_YT_DLP_USER_AGENT"
+          
+          # Build yt-dlp command conditionally
+          YTDLP_CMD="yt-dlp --user-agent '$YTCLIPPER_YT_DLP_USER_AGENT' --extractor-retries 1 --sleep-requests 1 --simulate --no-write-info-json --no-write-description --no-write-annotations"
+          
+          if [ -n "$YTCLIPPER_YT_DLP_PROXY" ]; then
+            YTDLP_CMD="$YTDLP_CMD --proxy '$YTCLIPPER_YT_DLP_PROXY'"
+            echo "Using proxy configuration"
+          fi
+          
+          if [ -n "$YTCLIPPER_YT_DLP_COOKIES_FILE" ] && [ -f "$YTCLIPPER_YT_DLP_COOKIES_FILE" ]; then
+            YTDLP_CMD="$YTDLP_CMD --cookies '$YTCLIPPER_YT_DLP_COOKIES_FILE'"
+            echo "Using cookies file: $YTCLIPPER_YT_DLP_COOKIES_FILE"
+          else
+            # Disable cookie saving to prevent file errors
+            YTDLP_CMD="$YTDLP_CMD --no-cookies"
+            echo "No cookies file - disabling cookie functionality"
+          fi
+          
+          echo "Running: $YTDLP_CMD https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+          eval "$YTDLP_CMD https://www.youtube.com/watch?v=dQw4w9WgXcQ" && echo "✅ YouTube connectivity test successful" || echo "❌ YouTube test failed - this is expected in CI environments"
           
           echo "Testing basic YouTube accessibility..."
           curl -I https://www.youtube.com || echo "Direct YouTube access failed - expected in some CI environments"
