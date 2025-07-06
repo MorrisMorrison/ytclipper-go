@@ -378,21 +378,133 @@ func applyAntiDetectionArgs(cmdArgs []string) []string {
 	return append(args, cmdArgs...)
 }
 
+func applyAggressiveAntiDetection(cmdArgs []string) []string {
+	var args []string
+
+	// Use rotating user agent
+	userAgent := getUserAgent()
+	glogger.Log.Infof("Using aggressive user agent: %s", userAgent)
+	args = append(args, "--user-agent", userAgent)
+
+	// Apply proxy if configured
+	if config.CONFIG.YtDlpConfig.Proxy != "" {
+		glogger.Log.Infof("Using proxy: %s", config.CONFIG.YtDlpConfig.Proxy)
+		args = append(args, "--proxy", config.CONFIG.YtDlpConfig.Proxy)
+	}
+
+	// Apply cookies file if configured
+	if config.CONFIG.YtDlpConfig.CookiesFile != "" {
+		glogger.Log.Infof("Using cookies file: %s", config.CONFIG.YtDlpConfig.CookiesFile)
+		args = append(args, "--cookies", config.CONFIG.YtDlpConfig.CookiesFile)
+	}
+
+	// Aggressive anti-detection arguments
+	args = append(args,
+		// Increase retries and timeouts
+		"--extractor-retries", "10",
+		"--sleep-requests", "5",
+		"--sleep-interval", "10", 
+		"--max-sleep-interval", "20",
+		"--socket-timeout", "60",
+		"--retries", "10",
+		"--fragment-retries", "10",
+		
+		// Bypass mechanisms
+		"--geo-bypass",
+		"--no-check-certificate", 
+		"--no-warnings",
+		"--ignore-errors",
+		
+		// Browser simulation headers
+		"--add-header", "Accept-Language:en-US,en;q=0.9,*;q=0.5",
+		"--add-header", "Accept:text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+		"--add-header", "Accept-Encoding:gzip, deflate, br",
+		"--add-header", "Cache-Control:no-cache",
+		"--add-header", "Pragma:no-cache",
+		"--add-header", "DNT:1",
+		"--add-header", "Connection:keep-alive",
+		"--add-header", "Upgrade-Insecure-Requests:1",
+		"--add-header", "Sec-Fetch-Dest:document",
+		"--add-header", "Sec-Fetch-Mode:navigate", 
+		"--add-header", "Sec-Fetch-Site:none",
+		"--add-header", "Sec-Fetch-User:?1",
+		"--add-header", "Sec-Ch-Ua:\"Not A(Brand\";v=\"99\", \"Google Chrome\";v=\"121\", \"Chromium\";v=\"121\"",
+		"--add-header", "Sec-Ch-Ua-Mobile:?0",
+		"--add-header", "Sec-Ch-Ua-Platform:\"Linux\"",
+	)
+
+	return append(args, cmdArgs...)
+}
+
+func applyAlternativeExtraction(cmdArgs []string) []string {
+	var args []string
+
+	// Use rotating user agent
+	userAgent := getUserAgent()
+	glogger.Log.Infof("Using alternative user agent: %s", userAgent)
+	args = append(args, "--user-agent", userAgent)
+
+	// Apply proxy if configured
+	if config.CONFIG.YtDlpConfig.Proxy != "" {
+		glogger.Log.Infof("Using proxy: %s", config.CONFIG.YtDlpConfig.Proxy)
+		args = append(args, "--proxy", config.CONFIG.YtDlpConfig.Proxy)
+	}
+
+	// Apply cookies file if configured
+	if config.CONFIG.YtDlpConfig.CookiesFile != "" {
+		glogger.Log.Infof("Using cookies file: %s", config.CONFIG.YtDlpConfig.CookiesFile)
+		args = append(args, "--cookies", config.CONFIG.YtDlpConfig.CookiesFile)
+	}
+
+	// Alternative extraction strategy with different timing and headers
+	args = append(args,
+		// Different timing strategy
+		"--extractor-retries", "8",
+		"--sleep-requests", "3",
+		"--sleep-interval", "5",
+		"--max-sleep-interval", "12",
+		
+		// Use different extraction methods
+		"--force-json",
+		"--no-warnings",
+		"--prefer-free-formats",
+		
+		// Alternative headers that mimic different browser behavior
+		"--add-header", "Accept-Language:en-US,en;q=0.8,fr;q=0.6",
+		"--add-header", "Accept:text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+		"--add-header", "Accept-Encoding:gzip, deflate",
+		"--add-header", "Connection:keep-alive",
+		"--add-header", "Keep-Alive:timeout=5, max=1000",
+		"--add-header", "Referer:https://www.google.com/",
+	)
+
+	return append(args, cmdArgs...)
+}
+
 func executeWithFallback(name string, baseArgs []string) ([]byte, error) {
 	timeout := time.Duration(config.CONFIG.YtDlpConfig.CommandTimeoutInSeconds) * time.Second
 
-	// Strategy 1: Enhanced anti-detection without cookies/proxy
-	args := applyAntiDetectionArgsNoCookiesProxy(baseArgs)
-	glogger.Log.Infof("Attempting yt-dlp with enhanced anti-detection (no cookies/proxy)")
-	output, err := executeWithTimeout(timeout, name, args...)
+	// Strategy 1: Try with aggressive anti-detection first
+	aggressiveArgs := applyAggressiveAntiDetection(baseArgs)
+	glogger.Log.Infof("Attempting yt-dlp with aggressive anti-detection")
+	output, err := executeWithTimeout(timeout, name, aggressiveArgs...)
 
 	if err != nil {
-		glogger.Log.Warningf("Enhanced anti-detection failed: %v", err)
+		glogger.Log.Warningf("Aggressive anti-detection failed: %v", err)
 
-		// Strategy 2: Try with legacy full configuration (includes cookies/proxy if available)
-		legacyArgs := applyAntiDetectionArgs(baseArgs)
-		glogger.Log.Infof("Attempting yt-dlp with legacy full anti-detection configuration")
-		output, err = executeWithTimeout(timeout, name, legacyArgs...)
+		// Strategy 2: Try with alternative extractor approach
+		altArgs := applyAlternativeExtraction(baseArgs)
+		glogger.Log.Infof("Attempting yt-dlp with alternative extraction method")
+		output, err = executeWithTimeout(timeout, name, altArgs...)
+
+		if err != nil {
+			glogger.Log.Warningf("Alternative extraction failed: %v", err)
+
+			// Strategy 3: Try with legacy full configuration (includes cookies/proxy if available)
+			legacyArgs := applyAntiDetectionArgs(baseArgs)
+			glogger.Log.Infof("Attempting yt-dlp with legacy full anti-detection configuration")
+			output, err = executeWithTimeout(timeout, name, legacyArgs...)
+		}
 	}
 
 	return output, err
@@ -446,7 +558,7 @@ func applyUserContext(cmdArgs []string, userAgent, cookies string) []string {
 	// Apply enhanced anti-detection strategies
 	args = append(args,
 		"--extractor-retries", "5",
-		"--sleep-requests", "2", 
+		"--sleep-requests", "2",
 		"--sleep-interval", "3",
 		"--max-sleep-interval", "8",
 		"--no-warnings",
