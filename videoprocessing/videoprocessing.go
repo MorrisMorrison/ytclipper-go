@@ -21,13 +21,21 @@ const throttledStatus = "THROTTLED"
 var execContext = exec.CommandContext // allows mocking in tests
 
 func DownloadAndCutVideo(outputPath string, selectedFormat string, fileSizeLimit int64, from string, to string, url string) ([]byte, error) {
+	// Build FFmpeg arguments with proxy support
+	ffmpegArgs := fmt.Sprintf("ffmpeg_i:-ss %s -to %s", from, to)
+	
+	// Add proxy to FFmpeg if configured
+	if config.CONFIG.YtDlpConfig.Proxy != "" {
+		ffmpegArgs = fmt.Sprintf("ffmpeg_i:-ss %s -to %s -http_proxy %s", from, to, config.CONFIG.YtDlpConfig.Proxy)
+	}
+
 	cmdArgs := []string{
 		"-o", outputPath,
 		"-f", selectedFormat,
 		"-v",
 		"--max-filesize", fmt.Sprintf("%d", fileSizeLimit),
 		"--downloader", "ffmpeg",
-		"--downloader-args", fmt.Sprintf("ffmpeg_i:-ss %s -to %s", from, to),
+		"--downloader-args", ffmpegArgs,
 		url,
 	}
 
