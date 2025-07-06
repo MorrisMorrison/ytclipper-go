@@ -209,7 +209,6 @@ func getUserAgent() string {
 		}
 	}
 
-	// Modern browser user agents (2024)
 	userAgents := []string{
 		"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
 		"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
@@ -225,20 +224,21 @@ func getUserAgent() string {
 func applyAntiDetectionArgs(cmdArgs []string) []string {
 	var args []string
 
-	// Apply proxy if configured
 	if config.CONFIG.YtDlpConfig.Proxy != "" {
 		glogger.Log.Infof("Using proxy: %s", config.CONFIG.YtDlpConfig.Proxy)
 		args = append(args, "--proxy", config.CONFIG.YtDlpConfig.Proxy)
 	}
 
-	// Apply cookies (either from file or content)
 	cookieFile := getCookieFile()
 	if cookieFile != "" {
 		glogger.Log.Infof("Using cookies file: %s", cookieFile)
 		args = append(args, "--cookies", cookieFile)
+	} else {
+		glogger.Log.Warningf("No cookies available - CookiesFile: '%s', CookiesContent: '%s'",
+			config.CONFIG.YtDlpConfig.CookiesFile,
+			config.CONFIG.YtDlpConfig.CookiesContent)
 	}
 
-	// Apply user agent
 	if config.CONFIG.YtDlpConfig.UserAgent != "" {
 		args = append(args, "--user-agent", config.CONFIG.YtDlpConfig.UserAgent)
 	} else {
@@ -246,7 +246,6 @@ func applyAntiDetectionArgs(cmdArgs []string) []string {
 		args = append(args, "--user-agent", getUserAgent())
 	}
 
-	// Apply extractor retries
 	if config.CONFIG.YtDlpConfig.ExtractorRetries > 0 {
 		args = append(args, "--extractor-retries", fmt.Sprintf("%d", config.CONFIG.YtDlpConfig.ExtractorRetries))
 	}
@@ -282,7 +281,7 @@ func executeWithFallback(name string, baseArgs []string) ([]byte, error) {
 	output, err := executeWithTimeout(timeout, name, legacyArgs...)
 
 	if err != nil {
-		glogger.Log.Warningf("Anti-detection configuration failed: %v", err)
+		glogger.Log.Warningf("Legacy configuration failed: %v", err)
 
 		// Strategy 2: Simple fallback with basic user agent only
 		basicArgs := append([]string{"--user-agent", getUserAgent()}, baseArgs...)
@@ -293,56 +292,11 @@ func executeWithFallback(name string, baseArgs []string) ([]byte, error) {
 	return output, err
 }
 
-func applyAntiDetectionArgsNoProxy(cmdArgs []string) []string {
-	var args []string
-
-	// Apply cookies (either from file or content)
-	cookieFile := getCookieFile()
-	if cookieFile != "" {
-		glogger.Log.Infof("Using cookies for download")
-		args = append(args, "--cookies", cookieFile)
-	}
-
-	// Apply user agent
-	args = append(args, "--user-agent", getUserAgent())
-
-	// Apply extractor retries but keep them reasonable for downloads
-	if config.CONFIG.YtDlpConfig.ExtractorRetries > 0 {
-		retries := config.CONFIG.YtDlpConfig.ExtractorRetries
-		if retries > 3 {
-			retries = 3 // Limit retries for downloads to avoid long waits
-		}
-		args = append(args, "--extractor-retries", fmt.Sprintf("%d", retries))
-	}
-
-	// Add anti-bot detection arguments (but no proxy)
-	args = append(args,
-		"--sleep-requests", "1",
-		"--sleep-interval", "1",
-		"--max-sleep-interval", "3",
-		"--socket-timeout", "30",
-		"--retries", "3",
-	)
-
-	// Add some basic headers for authenticity
-	args = append(args,
-		"--add-header", "Accept-Language:en-US,en;q=0.9",
-		"--add-header", "Accept:text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-		"--add-header", "Accept-Encoding:gzip, deflate",
-		"--add-header", "Connection:keep-alive",
-		"--add-header", "DNT:1",
-	)
-
-	return append(args, cmdArgs...)
-}
-
 func getCookieFile() string {
-	// Priority 1: Use file path if provided
 	if config.CONFIG.YtDlpConfig.CookiesFile != "" {
 		return config.CONFIG.YtDlpConfig.CookiesFile
 	}
 
-	// Priority 2: Create temporary file from content if provided
 	if config.CONFIG.YtDlpConfig.CookiesContent != "" {
 		tempFile, err := createTempCookieFile(config.CONFIG.YtDlpConfig.CookiesContent)
 		if err != nil {
@@ -356,14 +310,12 @@ func getCookieFile() string {
 }
 
 func createTempCookieFile(content string) (string, error) {
-	// Create temporary file for cookies
 	tempFile, err := os.CreateTemp("", "ytclipper_cookies_*.txt")
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp file: %w", err)
 	}
 	defer tempFile.Close()
 
-	// Write cookie content to temporary file
 	_, err = tempFile.WriteString(content)
 	if err != nil {
 		os.Remove(tempFile.Name())
