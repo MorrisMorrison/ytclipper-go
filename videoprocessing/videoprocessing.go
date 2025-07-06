@@ -237,56 +237,16 @@ func applyAntiDetectionArgs(cmdArgs []string) []string {
 func executeWithFallback(name string, baseArgs []string) ([]byte, error) {
 	timeout := time.Duration(config.CONFIG.YtDlpConfig.CommandTimeoutInSeconds) * time.Second
 
-	// First attempt: with full anti-detection (including proxy)
 	args := applyAntiDetectionArgs(baseArgs)
 	glogger.Log.Infof("Attempting yt-dlp with full anti-detection configuration")
 	output, err := executeWithTimeout(timeout, name, args...)
 
-	// Check if proxy-related error
-	if err != nil && config.CONFIG.YtDlpConfig.Proxy != "" && (strings.Contains(string(output), "proxy") ||
-		strings.Contains(string(output), "Tunnel connection failed") ||
-		strings.Contains(string(output), "Unable to connect to proxy")) {
-
-		glogger.Log.Warningf("Proxy connection failed, attempting without proxy: %v", err)
-
-		// Second attempt: without proxy but with other anti-detection measures
-		args = applyAntiDetectionArgsWithoutProxy(baseArgs)
-		output, err = executeWithTimeout(timeout, name, args...)
-
-		if err != nil {
-			glogger.Log.Warningf("Anti-detection without proxy failed, attempting basic execution: %v", err)
-
-			// Third attempt: basic execution with minimal arguments
-			output, err = executeWithTimeout(timeout, name, baseArgs...)
-		}
+	if err != nil {
+		glogger.Log.Warningf("Attempting yt-dlp with full anti-detection configuration failed, attempting with base args: %v", err)
+		output, err = executeWithTimeout(timeout, name, baseArgs...)
 	}
 
 	return output, err
-}
-
-func applyAntiDetectionArgsWithoutProxy(cmdArgs []string) []string {
-	var args []string
-
-	if config.CONFIG.YtDlpConfig.CookiesFile != "" {
-		glogger.Log.Infof("Using cookies file: %s", config.CONFIG.YtDlpConfig.CookiesFile)
-		args = append(args, "--cookies", config.CONFIG.YtDlpConfig.CookiesFile)
-	}
-
-	if config.CONFIG.YtDlpConfig.UserAgent != "" {
-		args = append(args, "--user-agent", config.CONFIG.YtDlpConfig.UserAgent)
-	}
-
-	if config.CONFIG.YtDlpConfig.ExtractorRetries > 0 {
-		args = append(args, "--extractor-retries", fmt.Sprintf("%d", config.CONFIG.YtDlpConfig.ExtractorRetries))
-	}
-
-	args = append(args,
-		"--sleep-requests", "1",
-		"--sleep-interval", "1",
-		"--max-sleep-interval", "3",
-	)
-
-	return append(args, cmdArgs...)
 }
 
 func executeWithTimeout(timeout time.Duration, name string, args ...string) ([]byte, error) {
