@@ -31,7 +31,7 @@ func DownloadAndCutVideo(outputPath string, selectedFormat string, fileSizeLimit
 		url,
 	}
 
-	return executeWithFallback("yt-dlp", cmdArgs)
+	return executeWithFallbackNoProxy("yt-dlp", cmdArgs)
 }
 
 func ProcessClip(jobID string, url string, from string, to string, selectedFormat string) {
@@ -389,6 +389,70 @@ func executeWithFallback(name string, baseArgs []string) ([]byte, error) {
 	}
 
 	return output, err
+}
+
+func executeWithFallbackNoProxy(name string, baseArgs []string) ([]byte, error) {
+	timeout := time.Duration(config.CONFIG.YtDlpConfig.CommandTimeoutInSeconds) * time.Second
+
+	// Strategy 1: Try with user agent and headers only (no proxy for downloads)
+	noProxyArgs := applyAntiDetectionArgsNoProxy(baseArgs)
+	glogger.Log.Infof("Attempting yt-dlp download without proxy (enhanced anti-detection)")
+	output, err := executeWithTimeout(timeout, name, noProxyArgs...)
+
+	if err != nil {
+		glogger.Log.Warningf("No-proxy enhanced anti-detection failed: %v", err)
+
+		// Strategy 2: Try minimal arguments (basic yt-dlp)
+		basicArgs := append([]string{"--user-agent", getUserAgent()}, baseArgs...)
+		glogger.Log.Infof("Attempting yt-dlp download with basic configuration")
+		output, err = executeWithTimeout(timeout, name, basicArgs...)
+
+		if err != nil {
+			glogger.Log.Warningf("Basic configuration failed: %v", err)
+
+			// Strategy 3: Try completely vanilla yt-dlp
+			glogger.Log.Infof("Attempting yt-dlp download with vanilla configuration")
+			output, err = executeWithTimeout(timeout, name, baseArgs...)
+		}
+	}
+
+	return output, err
+}
+
+func applyAntiDetectionArgsNoProxy(cmdArgs []string) []string {
+	var args []string
+
+	// Apply user agent
+	args = append(args, "--user-agent", getUserAgent())
+
+	// Apply extractor retries but keep them reasonable for downloads
+	if config.CONFIG.YtDlpConfig.ExtractorRetries > 0 {
+		retries := config.CONFIG.YtDlpConfig.ExtractorRetries
+		if retries > 3 {
+			retries = 3 // Limit retries for downloads to avoid long waits
+		}
+		args = append(args, "--extractor-retries", fmt.Sprintf("%d", retries))
+	}
+
+	// Add anti-bot detection arguments (but no proxy)
+	args = append(args,
+		"--sleep-requests", "1",
+		"--sleep-interval", "1",
+		"--max-sleep-interval", "3",
+		"--socket-timeout", "30",
+		"--retries", "3",
+	)
+
+	// Add some basic headers for authenticity
+	args = append(args,
+		"--add-header", "Accept-Language:en-US,en;q=0.9",
+		"--add-header", "Accept:text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+		"--add-header", "Accept-Encoding:gzip, deflate",
+		"--add-header", "Connection:keep-alive",
+		"--add-header", "DNT:1",
+	)
+
+	return append(args, cmdArgs...)
 }
 
 func executeWithTimeout(timeout time.Duration, name string, args ...string) ([]byte, error) {
