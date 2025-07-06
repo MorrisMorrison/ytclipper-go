@@ -430,14 +430,30 @@ func applyUserContext(cmdArgs []string, userAgent, cookies string) []string {
 		args = append(args, "--user-agent", getUserAgent())
 	}
 
-	// Use provided cookies if available
+	// Try different cookie approaches
+	cookieApplied := false
+	
+	// First try: Use provided cookies if available
 	if cookies != "" {
 		glogger.Log.Infof("Using user's browser cookies")
 		// Create temporary cookies file in Netscape format
 		if cookieFile, err := createTempCookieFile(cookies); err == nil {
 			args = append(args, "--cookies", cookieFile)
+			cookieApplied = true
 		} else {
 			glogger.Log.Warningf("Failed to create cookie file: %v", err)
+		}
+	}
+	
+	// Second try: Use browser cookie extraction if no manual cookies provided
+	if !cookieApplied {
+		glogger.Log.Infof("Attempting to extract cookies from browser")
+		// Try common browsers in order of likelihood
+		browsers := []string{"chrome", "firefox", "safari", "edge"}
+		for _, browser := range browsers {
+			args = append(args, "--cookies-from-browser", browser)
+			glogger.Log.Infof("Added --cookies-from-browser %s", browser)
+			break // Only try the first one for now
 		}
 	}
 

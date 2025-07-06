@@ -89,7 +89,7 @@ func GetAvailableFormats(c echo.Context) error {
 	} else if cookies != "" {
 		c.Logger().Infof("Using regular cookies: %s", cookies[:minInt(100, len(cookies))])
 	} else {
-		c.Logger().Infof("No cookies received")
+		c.Logger().Infof("No cookies received - will try browser extraction")
 	}
 
 	formats, err := videoprocessing.GetAvailableFormatsWithContext(url, userAgent, cookies)

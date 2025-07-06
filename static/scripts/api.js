@@ -22,16 +22,10 @@ function setUserConsentPreference(consent) {
 // Function to get YouTube cookies for the current domain
 function getYouTubeCookies() {
     if (!allowYouTubeCookies) {
-        console.log('YouTube cookies not allowed by user consent');
         return '';
     }
     
     try {
-        console.log('All available cookies:', document.cookie);
-        
-        const allCookies = document.cookie.split(';');
-        console.log('Split cookies:', allCookies);
-        
         const targetCookies = [
             'VISITOR_INFO1_LIVE', 'YSC', 'PREF', 'LOGIN_INFO',
             '__Secure-3PAPISID', '__Secure-3PSID', '__Secure-1PAPISID', '__Secure-1PSID',
@@ -40,19 +34,15 @@ function getYouTubeCookies() {
             'SIDCC', '__Secure-YEC', 'SOCS', 'VISITOR_PRIVACY_METADATA', 'wide',
             '__Secure-ROLLOUT_TOKEN'
         ];
-        const foundCookies = [];
         
-        allCookies.forEach(cookie => {
-            const name = cookie.trim().split('=')[0];
-            if (targetCookies.includes(name)) {
-                foundCookies.push(cookie.trim());
-                console.log('Found target cookie:', cookie.trim());
-            }
-        });
-        
-        const cookieString = foundCookies.join('; ');
-        console.log('Final cookie string:', cookieString);
-        return cookieString;
+        const cookies = document.cookie
+            .split(';')
+            .filter(cookie => {
+                const name = cookie.trim().split('=')[0];
+                return targetCookies.includes(name);
+            })
+            .join('; ');
+        return cookies;
     } catch (e) {
         console.log('Could not access YouTube cookies:', e);
         return '';
