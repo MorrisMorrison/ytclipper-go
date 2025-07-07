@@ -128,8 +128,8 @@ func main() {
 			// Suppress known chromedp protocol errors that don't affect functionality
 			msg := fmt.Sprintf(s, i...)
 			if strings.Contains(msg, "PrivateNetworkRequestPolicy") ||
-			   strings.Contains(msg, "PermissionWarn") ||
-			   strings.Contains(msg, "could not unmarshal event") {
+				strings.Contains(msg, "PermissionWarn") ||
+				strings.Contains(msg, "could not unmarshal event") {
 				return // Suppress these specific errors
 			}
 			log.Printf("Chrome: %s", msg)
@@ -143,7 +143,7 @@ func main() {
 		startTime := time.Now()
 		err := test.Run(testCtx)
 		duration := time.Since(startTime)
-		
+
 		if err != nil {
 			log.Printf("Test '%s' failed after %v: %v", test.Name, duration, err)
 			if testCtx.Err() == context.DeadlineExceeded {
@@ -356,7 +356,7 @@ func testClipProcessingResultWithTimeout(ctx context.Context, timeoutSeconds int
 	// Wait for either success (download link) or error message with periodic checks
 	var downloadLink string
 	var errorText string
-	
+
 	ticker := time.NewTicker(checkInterval)
 	defer ticker.Stop()
 
@@ -368,7 +368,7 @@ func testClipProcessingResultWithTimeout(ctx context.Context, timeoutSeconds int
 				return nil // Pass the test even on timeout in CI
 			}
 			return fmt.Errorf("test timed out after %d seconds", timeoutSeconds)
-		
+
 		case <-ticker.C:
 			// Check for download link first
 			err := chromedp.Run(timeoutCtx,
@@ -447,7 +447,7 @@ func testTimeoutConfiguration(ctx context.Context) error {
 
 	// This test verifies that the system properly configures timeouts for yt-dlp
 	// We'll test this by making a quick API call that should either succeed fast or fail fast
-	
+
 	// Navigate to app
 	err := chromedp.Run(ctx,
 		chromedp.Navigate(baseURL),
@@ -459,7 +459,7 @@ func testTimeoutConfiguration(ctx context.Context) error {
 
 	// Test the GetVideoDuration endpoint which should be faster than full downloads
 	log.Println("Testing video duration fetch (should be fast)")
-	
+
 	err = chromedp.Run(ctx,
 		chromedp.SetValue(urlInputSelector, validYouTubeURL, chromedp.ByID),
 	)
@@ -473,7 +473,7 @@ func testTimeoutConfiguration(ctx context.Context) error {
 		chromedp.WaitEnabled(formatSelectSelector, chromedp.ByID),
 	)
 	duration := time.Since(start)
-	
+
 	if err != nil {
 		log.Printf("Format loading timed out after %v - this indicates backend processing issues", duration)
 		if isCIEnvironment() {
