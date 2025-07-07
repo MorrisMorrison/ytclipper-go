@@ -31,6 +31,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/chromedp/chromedp"
@@ -109,26 +110,48 @@ func main() {
 			chromedp.NoSandbox,
 			chromedp.Flag("disable-dev-shm-usage", true),
 			chromedp.Flag("ignore-certificate-errors", true),
-			chromedp.Flag("v", true), // Verbose logging
+			chromedp.Flag("disable-web-security", true),
+			chromedp.Flag("disable-features", "VizDisplayCompositor,PrivateNetworkAccessSendPreflights,PrivateNetworkAccessRespectPreflightResults"),
+			chromedp.Flag("disable-background-timer-throttling", true),
+			chromedp.Flag("disable-backgrounding-occluded-windows", true),
+			chromedp.Flag("disable-renderer-backgrounding", true),
+			chromedp.Flag("disable-field-trial-config", true),
+			chromedp.Flag("disable-ipc-flooding-protection", true),
 		)
 
 		log.Printf("Starting Chrome context with options for test: %s", test.Name)
 		allocCtx, cancelAlloc := chromedp.NewExecAllocator(context.Background(), opts...)
 		defer cancelAlloc()
 
-		ctx, cancel := chromedp.NewContext(allocCtx)
+		// Create context with error logging suppression for known chromedp issues
+		ctx, cancel := chromedp.NewContext(allocCtx, chromedp.WithLogf(func(s string, i ...any) {
+			// Suppress known chromedp protocol errors that don't affect functionality
+			msg := fmt.Sprintf(s, i...)
+			if strings.Contains(msg, "PrivateNetworkRequestPolicy") ||
+			   strings.Contains(msg, "PermissionWarn") ||
+			   strings.Contains(msg, "could not unmarshal event") {
+				return // Suppress these specific errors
+			}
+			log.Printf("Chrome: %s", msg)
+		}))
 		defer cancel()
 
 		testCtx, cancelTest := context.WithTimeout(ctx, 2*time.Minute)
 		defer cancelTest()
 
 		log.Printf("Running test: %s", test.Name)
+		startTime := time.Now()
 		err := test.Run(testCtx)
+		duration := time.Since(startTime)
+		
 		if err != nil {
-			log.Printf("Test '%s' failed: %v\nDetails: %v", test.Name, err, testCtx.Err())
+			log.Printf("Test '%s' failed after %v: %v", test.Name, duration, err)
+			if testCtx.Err() == context.DeadlineExceeded {
+				log.Printf("  → Test timed out (this may be expected in CI)")
+			}
 			failedTests++
 		} else {
-			log.Printf("Test '%s' passed", test.Name)
+			log.Printf("Test '%s' passed in %v", test.Name, duration)
 		}
 	}
 
@@ -146,7 +169,7 @@ func testBasicWorkflow(ctx context.Context) error {
 		chromedp.Navigate(baseURL),
 	)
 	if err != nil {
-		return fmt.Errorf("failed to navigate to app: %w", err)
+		return fmt.Errorf("failed to navigate to app: %w (ensure server is running on %s)", err, baseURL)
 	}
 	log.Println("Successfully navigated to the app")
 
