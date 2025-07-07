@@ -12,6 +12,12 @@ test:
 e2e:
 	go run test/e2e.go
 
+e2e-fast:
+	YTCLIPPER_YT_DLP_COMMAND_TIMEOUT_IN_SECONDS=15 E2E_DOWNLOAD_TIMEOUT=20 go run test/e2e.go
+
+e2e-realistic:
+	E2E_DOWNLOAD_TIMEOUT=60 E2E_EXPECT_FAILURE=false go run test/e2e.go
+
 build:
 	go build -o ./ytclipper main.go
 

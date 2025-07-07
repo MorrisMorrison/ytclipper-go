@@ -80,6 +80,8 @@ https://github.com/user-attachments/assets/8ab2d567-0ca7-44c6-9c76-07203b2fd986
 - **Run application**: `go run main.go` or `make run`
 - **Run tests**: `make test`
 - **Run end-to-end tests**: `make e2e`
+- **Run fast E2E tests (CI-friendly)**: `make e2e-fast`
+- **Run realistic E2E tests**: `make e2e-realistic`
 - **Build for production**: `make build-prod`
 - **Download static assets**: `make download-static`
 
