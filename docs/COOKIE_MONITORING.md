@@ -6,11 +6,15 @@ ytclipper-go now includes automatic cookie monitoring to track YouTube cookie ex
 
 ## Features
 
+- **Dual Validation System**: Combines time-based expiration checking with functional API validation
+- **API Validation**: Tests cookie functionality using actual YouTube API calls
 - **Automatic Cookie Parsing**: Extracts expiration dates from Netscape format cookies
+- **Smart Priority Notifications**: API validation failures suppress time-based warnings
 - **Configurable Monitoring**: Set custom warning and urgent notification thresholds
 - **Ntfy Integration**: Send notifications to your devices via ntfy.sh or self-hosted ntfy server
 - **Scheduler Integration**: Uses existing scheduler infrastructure for periodic checks
 - **Docker Compatible**: Works seamlessly in Docker containers
+- **Early Detection**: Catch invalid cookies before their expiration date
 
 ## Configuration
 
@@ -23,6 +27,10 @@ ytclipper-go now includes automatic cookie monitoring to track YouTube cookie ex
 | `YTCLIPPER_COOKIE_MONITOR_WARNING_THRESHOLD_DAYS` | `30` | Days before expiration to send warning |
 | `YTCLIPPER_COOKIE_MONITOR_URGENT_THRESHOLD_DAYS` | `7` | Days before expiration to send urgent alert |
 | `YTCLIPPER_COOKIE_MONITOR_NTFY_TOPIC` | `ytclipper-cookies` | Ntfy topic for notifications |
+| `YTCLIPPER_COOKIE_MONITOR_API_VALIDATION_ENABLED` | `true` | Enable API validation using actual YouTube calls |
+| `YTCLIPPER_COOKIE_MONITOR_API_VALIDATION_INTERVAL_HOURS` | `6` | How often to run API validation (hours) |
+| `YTCLIPPER_COOKIE_MONITOR_TEST_VIDEO_URL` | `https://www.youtube.com/watch?v=dQw4w9WgXcQ` | YouTube video URL for API validation testing |
+| `YTCLIPPER_COOKIE_MONITOR_API_VALIDATION_TIMEOUT_SECS` | `30` | Timeout for API validation calls (seconds) |
 | `YTCLIPPER_NTFY_ENABLED` | `false` | Enable ntfy notifications (global) |
 | `YTCLIPPER_NTFY_SERVER_URL` | `""` | Ntfy server URL (e.g., https://ntfy.sh) |
 
@@ -34,6 +42,12 @@ export YTCLIPPER_COOKIE_MONITOR_ENABLED=true
 export YTCLIPPER_COOKIE_MONITOR_INTERVAL_HOURS=12
 export YTCLIPPER_COOKIE_MONITOR_WARNING_THRESHOLD_DAYS=14
 export YTCLIPPER_COOKIE_MONITOR_URGENT_THRESHOLD_DAYS=3
+
+# Configure API validation (new feature)
+export YTCLIPPER_COOKIE_MONITOR_API_VALIDATION_ENABLED=true
+export YTCLIPPER_COOKIE_MONITOR_API_VALIDATION_INTERVAL_HOURS=6
+export YTCLIPPER_COOKIE_MONITOR_TEST_VIDEO_URL="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+export YTCLIPPER_COOKIE_MONITOR_API_VALIDATION_TIMEOUT_SECS=30
 
 # Configure ntfy notifications
 export YTCLIPPER_NTFY_ENABLED=true
@@ -61,6 +75,11 @@ export YTCLIPPER_YT_DLP_COOKIES_CONTENT=".youtube.com	TRUE	/	FALSE	1704067200	VI
 - **Priority**: Maximum
 - **Action**: Service using fallback strategy, update cookies
 
+### 🔴 API Validation Failed Notification
+- **Trigger**: Cookie fails functional validation with YouTube API
+- **Priority**: Critical
+- **Action**: Update cookies immediately - they may be invalid or rate-limited
+
 ### ✅ Test Notification
 - **Trigger**: Application startup (if ntfy enabled)
 - **Priority**: Low
@@ -83,6 +102,26 @@ Specifically monitors `VISITOR_INFO1_LIVE` cookie which:
 ### Fallback Behavior
 If `VISITOR_INFO1_LIVE` not found, estimates 6 months from current time.
 
+## API Validation System
+
+### How It Works
+- **Functional Testing**: Uses `GetVideoDuration` to test cookie functionality with actual YouTube API calls
+- **Test Video**: Configurable YouTube video URL for validation (default: Rick Astley - Never Gonna Give You Up)
+- **Timeout Protection**: Configurable timeout to prevent hanging (default: 30 seconds)
+- **Error Recovery**: Handles network failures, rate limiting, and other API errors gracefully
+
+### Validation Logic
+1. **Time-based Check**: Verifies cookie expiration date
+2. **API Validation**: Tests cookie functionality with YouTube API
+3. **Priority Handling**: API validation failures suppress time-based notifications
+4. **Smart Notifications**: Different alerts for time-based vs functional failures
+
+### Benefits
+- **Early Detection**: Catch invalid cookies before expiration date
+- **Rate Limiting Detection**: Identify when cookies are being throttled
+- **Real-world Validation**: Test actual functionality, not just dates
+- **Proactive Monitoring**: Prevent service disruption from invalid cookies
+
 ## Docker Configuration
 
 ### docker-compose.yml
@@ -97,6 +136,12 @@ services:
       - YTCLIPPER_COOKIE_MONITOR_INTERVAL_HOURS=24
       - YTCLIPPER_COOKIE_MONITOR_WARNING_THRESHOLD_DAYS=30
       - YTCLIPPER_COOKIE_MONITOR_URGENT_THRESHOLD_DAYS=7
+      
+      # API validation (new feature)
+      - YTCLIPPER_COOKIE_MONITOR_API_VALIDATION_ENABLED=true
+      - YTCLIPPER_COOKIE_MONITOR_API_VALIDATION_INTERVAL_HOURS=6
+      - YTCLIPPER_COOKIE_MONITOR_TEST_VIDEO_URL=https://www.youtube.com/watch?v=dQw4w9WgXcQ
+      - YTCLIPPER_COOKIE_MONITOR_API_VALIDATION_TIMEOUT_SECS=30
       
       # Ntfy notifications
       - YTCLIPPER_NTFY_ENABLED=true
@@ -152,9 +197,11 @@ YOUTUBE_COOKIES=".youtube.com	TRUE	/	FALSE	1704067200	VISITOR_INFO1_LIVE	xyz123"
 
 ### Ongoing Monitoring
 1. **Daily Health Checks**: Monitor runs every 24 hours (configurable)
-2. **Warning Phase**: 30 days before expiration
-3. **Urgent Phase**: 7 days before expiration  
-4. **Expired Phase**: Cookie has expired, fallback strategy active
+2. **API Validation**: Functional tests run every 6 hours (configurable)
+3. **Warning Phase**: 30 days before expiration (time-based)
+4. **Urgent Phase**: 7 days before expiration (time-based)
+5. **API Failure Phase**: Immediate notification if cookies fail functional tests
+6. **Expired Phase**: Cookie has expired, fallback strategy active
 
 ### Cookie Refresh Process
 1. **Receive notification** that cookies will expire soon
@@ -198,6 +245,10 @@ Starting cookie monitor: Interval 24.000000 hours
 Sending test notification...
 Successfully sent ntfy notification: 🧪 ytclipper-go Test
 Cookie VISITOR_INFO1_LIVE expires at 2024-12-01T00:00:00Z (in 8760h0m0s)
+Performing API validation for cookie health...
+Validating cookie with API using test video: https://www.youtube.com/watch?v=dQw4w9WgXcQ
+Cookie validation successful - retrieved duration: 212
+API validation successful - cookies are working properly
 Cookie is healthy (expires in 8760h)
 ```
 
@@ -214,4 +265,40 @@ Cookie VISITOR_INFO1_LIVE expires at 2024-12-01T00:00:00Z (in 120h0m0s)
 Successfully sent ntfy notification: 🔴 URGENT: YouTube Cookie Expiring
 ```
 
-This monitoring system ensures your ytclipper-go instance maintains optimal performance by proactively managing YouTube cookie lifecycle.
+### API Validation Failure
+```
+Cookie VISITOR_INFO1_LIVE expires at 2024-12-01T00:00:00Z (in 8760h0m0s)
+Performing API validation for cookie health...
+Validating cookie with API using test video: https://www.youtube.com/watch?v=dQw4w9WgXcQ
+API validation failed: failed to get video duration: HTTP 403: Forbidden
+Successfully sent ntfy notification: 🔴 Cookie API Validation Failed
+Skipping time-based notifications due to API validation failure
+```
+
+### API Validation Disabled
+```
+Cookie VISITOR_INFO1_LIVE expires at 2024-12-01T00:00:00Z (in 720h0m0s)
+API validation is disabled - skipping functional tests
+Successfully sent ntfy notification: 🟡 YouTube Cookie Warning
+```
+
+## Migration from Previous Versions
+
+### Automatic Migration
+- **Existing configurations**: All existing environment variables continue to work
+- **Default behavior**: API validation is enabled by default for enhanced monitoring
+- **Backward compatibility**: Time-based monitoring continues unchanged
+
+### New vs Old Behavior
+- **Old**: Only time-based expiration checking
+- **New**: Dual validation (time-based + API functional testing)
+- **Smart notifications**: API failures take priority over time-based warnings
+- **Enhanced detection**: Catch rate-limited or invalid cookies early
+
+### Opting Out of API Validation
+If you prefer the old behavior:
+```bash
+export YTCLIPPER_COOKIE_MONITOR_API_VALIDATION_ENABLED=false
+```
+
+This monitoring system ensures your ytclipper-go instance maintains optimal performance by proactively managing YouTube cookie lifecycle with both expiration tracking and functional validation.

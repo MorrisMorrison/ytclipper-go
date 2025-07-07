@@ -22,6 +22,8 @@ https://github.com/user-attachments/assets/8ab2d567-0ca7-44c6-9c76-07203b2fd986
 - **Rate Limiting**: Built-in rate limiting to prevent abuse and ensure fair usage
 - **Automatic Cleanup**: Scheduled cleanup of old clips and jobs to manage storage efficiently
 - **Health Monitoring**: Health check endpoint for monitoring and load balancing
+- **Cookie Monitoring**: Dual validation system with expiration tracking and API functional testing
+- **Smart Notifications**: Proactive alerts via ntfy when cookies need attention
 - **Simple Bot Detection Bypass**: Cookie-based authentication with automatic fallback
 - **Intelligent Fallback**: Dual-tier strategy with user agent rotation and anti-detection headers
 - **Responsive UI**: Clean, dark-themed web interface optimized for all devices
@@ -193,6 +195,12 @@ The application can be configured using environment variables:
 | `YTCLIPPER_COOKIE_MONITOR_WARNING_THRESHOLD_DAYS` | Warning threshold (days) | `30` |
 | `YTCLIPPER_COOKIE_MONITOR_URGENT_THRESHOLD_DAYS` | Urgent threshold (days) | `7` |
 | `YTCLIPPER_COOKIE_MONITOR_NTFY_TOPIC` | Ntfy topic for cookie alerts | `ytclipper-cookies` |
+| `YTCLIPPER_COOKIE_MONITOR_API_VALIDATION_ENABLED` | Enable API functional validation | `true` |
+| `YTCLIPPER_COOKIE_MONITOR_API_VALIDATION_INTERVAL_HOURS` | API validation interval (hours) | `6` |
+| `YTCLIPPER_COOKIE_MONITOR_TEST_VIDEO_URL` | YouTube URL for API testing | `https://www.youtube.com/watch?v=dQw4w9WgXcQ` |
+| `YTCLIPPER_COOKIE_MONITOR_API_VALIDATION_TIMEOUT_SECS` | API validation timeout (seconds) | `30` |
+
+> 📚 **Detailed Cookie Monitoring Guide**: See [docs/COOKIE_MONITORING.md](docs/COOKIE_MONITORING.md) for comprehensive setup instructions, notification examples, and troubleshooting.
 
 ### Ntfy Notifications (Global)
 | Variable | Description | Default |
