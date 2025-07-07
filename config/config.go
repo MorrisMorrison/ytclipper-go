@@ -39,6 +39,8 @@ const (
 
 	CONFIG_KEY_NTFY_ENABLED    = "YTCLIPPER_NTFY_ENABLED"
 	CONFIG_KEY_NTFY_SERVER_URL = "YTCLIPPER_NTFY_SERVER_URL"
+	CONFIG_KEY_NTFY_USERNAME   = "YTCLIPPER_NTFY_USERNAME"
+	CONFIG_KEY_NTFY_PASSWORD   = "YTCLIPPER_NTFY_PASSWORD"
 
 	CONFIG_KEY_AUTH_USERNAME = "YTCLIPPER_AUTH_USERNAME"
 	CONFIG_KEY_AUTH_PASSWORD = "YTCLIPPER_AUTH_PASSWORD"
@@ -96,6 +98,8 @@ type CookieMonitorConfig struct {
 type NtfyConfig struct {
 	Enabled   bool
 	ServerURL string
+	Username  string
+	Password  string
 }
 
 type BasicAuthConfig struct {
@@ -178,10 +182,14 @@ func NewCookieMonitorConfig() *CookieMonitorConfig {
 func NewNtfyConfig() *NtfyConfig {
 	enabled := GetEnv(CONFIG_KEY_NTFY_ENABLED, "false") == "true"
 	serverURL := GetEnv(CONFIG_KEY_NTFY_SERVER_URL, "")
+	username := GetEnv(CONFIG_KEY_NTFY_USERNAME, "")
+	password := GetEnv(CONFIG_KEY_NTFY_PASSWORD, "")
 
 	return &NtfyConfig{
 		Enabled:   enabled,
 		ServerURL: serverURL,
+		Username:  username,
+		Password:  password,
 	}
 }
 

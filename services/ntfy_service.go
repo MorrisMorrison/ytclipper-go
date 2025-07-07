@@ -12,6 +12,8 @@ import (
 
 type NtfyService struct {
 	serverURL string
+	username  string
+	password  string
 	enabled   bool
 }
 
@@ -35,6 +37,8 @@ func NewNtfyService() *NtfyService {
 	return &NtfyService{
 		serverURL: config.CONFIG.NtfyConfig.ServerURL,
 		enabled:   config.CONFIG.NtfyConfig.Enabled,
+		username:  config.CONFIG.NtfyConfig.Username,
+		password:  config.CONFIG.NtfyConfig.Password,
 	}
 }
 
@@ -61,6 +65,9 @@ func (ns *NtfyService) SendNotification(req NotificationRequest) error {
 
 	httpReq.Header.Set("Title", req.Title)
 	httpReq.Header.Set("User-Agent", "ytclipper-go/1.0")
+	if ns.username != "" && ns.password != "" {
+		httpReq.SetBasicAuth(ns.username, ns.password)
+	}
 
 	if req.Priority != "" {
 		httpReq.Header.Set("Priority", req.Priority)
