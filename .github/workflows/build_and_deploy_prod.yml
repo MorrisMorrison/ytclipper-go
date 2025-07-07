@@ -1,5 +1,10 @@
 name: Build and Test (Production)
 
+# Enhanced CI pipeline with:
+# - YouTube connectivity testing using production cookies
+# - Fast E2E tests optimized for CI performance  
+# - Early failure detection to prevent broken deployments
+
 on:
   push:
     branches: [main]
@@ -10,10 +15,15 @@ jobs:
     runs-on: ubuntu-latest
     
     env:
+      # YouTube Access Configuration
       YTCLIPPER_YT_DLP_PROXY: ${{ secrets.YTDLP_PROXY_URL }}
       YTCLIPPER_YT_DLP_COOKIES_CONTENT: ${{ secrets.YTDLP_COOKIE_CONTENT }}
+      
+      # CI-Optimized Configuration
       YTCLIPPER_CLIP_CLEANUP_SCHEDULER_ENABLED: "false"
       YTCLIPPER_YT_DLP_EXTRACTOR_RETRIES: "1"
+      
+      # Build Configuration
       GO_VERSION: "1.23" 
       
     steps:
@@ -61,18 +71,67 @@ jobs:
           echo "Testing basic YouTube accessibility..."
           curl -I https://www.youtube.com || echo "Direct YouTube access failed - expected in some CI environments"
           
-          echo "Testing yt-dlp with anti-bot configuration..."
+          echo "Testing yt-dlp with anti-bot configuration and authentication..."
           
-          # Build yt-dlp command conditionally
-          YTDLP_CMD="yt-dlp --verbose --extractor-retries 3 --retries 3 --socket-timeout 60 --sleep-requests 1 --simulate --no-write-info-json --no-write-description --no-write-annotations"
-          
-          if [ -n "$YTCLIPPER_YT_DLP_PROXY" ]; then
-            YTDLP_CMD="$YTDLP_CMD --proxy '$YTCLIPPER_YT_DLP_PROXY'"
-            echo "Using proxy configuration"
+          # Create temporary cookie file if cookies are available
+          COOKIE_FILE=""
+          if [ -n "$YTCLIPPER_YT_DLP_COOKIES_CONTENT" ]; then
+            COOKIE_FILE=$(mktemp /tmp/ytclipper_ci_cookies_XXXXXX.txt)
+            echo "$YTCLIPPER_YT_DLP_COOKIES_CONTENT" > "$COOKIE_FILE"
+            echo "✅ Using YouTube cookies for authenticated testing"
+            echo "Cookie file created: $COOKIE_FILE"
+          else
+            echo "⚠️  No cookies available - testing without authentication"
           fi
           
-          echo "Running: $YTDLP_CMD https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-          eval "$YTDLP_CMD https://www.youtube.com/watch?v=dQw4w9WgXcQ" && echo "✅ YouTube connectivity test successful" || echo "❌ YouTube test failed - this is expected in CI environments"
+          # Build yt-dlp command with comprehensive anti-bot configuration
+          YTDLP_CMD="yt-dlp --verbose --extractor-retries 3 --retries 3 --socket-timeout 30 --sleep-requests 1 --simulate --no-write-info-json --no-write-description --no-write-annotations"
+          
+          # Add proxy if available
+          if [ -n "$YTCLIPPER_YT_DLP_PROXY" ]; then
+            YTDLP_CMD="$YTDLP_CMD --proxy '$YTCLIPPER_YT_DLP_PROXY'"
+            echo "✅ Using proxy configuration"
+          fi
+          
+          # Add cookies if available
+          if [ -n "$COOKIE_FILE" ]; then
+            YTDLP_CMD="$YTDLP_CMD --cookies '$COOKIE_FILE'"
+          fi
+          
+          # Add anti-detection headers similar to production configuration
+          YTDLP_CMD="$YTDLP_CMD --user-agent 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'"
+          YTDLP_CMD="$YTDLP_CMD --add-header 'Accept-Language:en-US,en;q=0.9'"
+          YTDLP_CMD="$YTDLP_CMD --add-header 'Accept:text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'"
+          YTDLP_CMD="$YTDLP_CMD --add-header 'Referer:https://www.google.com/'"
+          
+          echo "Testing YouTube connectivity with production-like configuration..."
+          echo "Command: $YTDLP_CMD https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+          
+          # Run the test with timeout
+          if timeout 45s bash -c "eval \"$YTDLP_CMD https://www.youtube.com/watch?v=dQw4w9WgXcQ\""; then
+            echo "✅ YouTube connectivity test successful with current configuration"
+            if [ -n "$COOKIE_FILE" ]; then
+              echo "✅ Authenticated access working - cookies are valid"
+            fi
+          else
+            echo "❌ YouTube connectivity test failed"
+            if [ -n "$COOKIE_FILE" ]; then
+              echo "❌ This could indicate cookie expiration or rate limiting"
+              echo "💡 Consider updating YouTube cookies in repository secrets"
+            else
+              echo "❌ This is expected without authentication cookies"
+            fi
+            
+            # Don't fail the build, but provide diagnostic information
+            echo "🔍 Diagnostic: Testing basic yt-dlp functionality..."
+            timeout 30s yt-dlp --simulate --no-warnings "https://www.youtube.com/watch?v=dQw4w9WgXcQ" || echo "Basic yt-dlp test also failed"
+          fi
+          
+          # Cleanup
+          if [ -n "$COOKIE_FILE" ]; then
+            rm -f "$COOKIE_FILE"
+            echo "🧹 Cleaned up temporary cookie file"
+          fi
           
           
       - name: Start Server
@@ -97,7 +156,11 @@ jobs:
           
       - name: Run E2E Tests
         id: e2e_tests
-        timeout-minutes: 5
+        timeout-minutes: 3
+        env:
+          # Use fast E2E configuration for CI
+          YTCLIPPER_YT_DLP_COMMAND_TIMEOUT_IN_SECONDS: "15"
+          E2E_DOWNLOAD_TIMEOUT: "20"
         run: go run -v test/e2e.go
         
       - name: Output Server Logs
