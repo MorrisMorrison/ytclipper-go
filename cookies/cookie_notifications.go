@@ -21,7 +21,6 @@ func NewCookieNotificationService(ntfyService *services.NtfyService) *CookieNoti
 	}
 }
 
-// SendWarningNotification sends a warning that cookies will expire soon
 func (cns *CookieNotificationService) SendWarningNotification(cookieName string, timeUntilExpiry time.Duration, expiresAt time.Time) error {
 	if !cns.ntfyService.IsEnabled() {
 		glogger.Log.Info("Ntfy notifications disabled - skipping warning notification")
@@ -43,7 +42,6 @@ func (cns *CookieNotificationService) SendWarningNotification(cookieName string,
 	)
 }
 
-// SendUrgentNotification sends an urgent notification that cookies expire very soon
 func (cns *CookieNotificationService) SendUrgentNotification(cookieName string, timeUntilExpiry time.Duration, expiresAt time.Time) error {
 	if !cns.ntfyService.IsEnabled() {
 		glogger.Log.Info("Ntfy notifications disabled - skipping urgent notification")
@@ -65,7 +63,6 @@ func (cns *CookieNotificationService) SendUrgentNotification(cookieName string, 
 	)
 }
 
-// SendExpiredNotification sends notification that cookies have expired
 func (cns *CookieNotificationService) SendExpiredNotification(cookieName string, expiredAt time.Time) error {
 	if !cns.ntfyService.IsEnabled() {
 		glogger.Log.Info("Ntfy notifications disabled - skipping expired notification")
@@ -85,7 +82,6 @@ func (cns *CookieNotificationService) SendExpiredNotification(cookieName string,
 	)
 }
 
-// SendHealthyNotification sends periodic health status (optional)
 func (cns *CookieNotificationService) SendHealthyNotification(cookieName string, timeUntilExpiry time.Duration) error {
 	if !cns.ntfyService.IsEnabled() {
 		glogger.Log.Info("Ntfy notifications disabled - skipping healthy notification")
@@ -107,7 +103,24 @@ func (cns *CookieNotificationService) SendHealthyNotification(cookieName string,
 	})
 }
 
-// SendTestNotification sends a test notification to verify cookie monitoring configuration
+func (cns *CookieNotificationService) SendAPIValidationFailedNotification(validationError error) error {
+	if !cns.ntfyService.IsEnabled() {
+		glogger.Log.Info("Ntfy notifications disabled - skipping API validation failed notification")
+		return nil
+	}
+
+	title := "🔴 Cookie API Validation Failed"
+	message := fmt.Sprintf("⚠️ YouTube cookie API validation failed!\n\nError: %s\n\n🚨 This indicates cookies may be invalid or expired, even if they haven't reached their expiration date.\n\n🛠️ ACTION REQUIRED: Check and update your YouTube cookies immediately.",
+		validationError.Error())
+
+	return cns.ntfyService.SendCriticalNotification(
+		cns.topic,
+		title,
+		message,
+		[]string{"cookie", "youtube", "api-validation", "failed"},
+	)
+}
+
 func (cns *CookieNotificationService) SendTestNotification() error {
 	if !cns.ntfyService.IsEnabled() {
 		return fmt.Errorf("ntfy notifications are disabled")
@@ -115,7 +128,7 @@ func (cns *CookieNotificationService) SendTestNotification() error {
 
 	title := "🧪 Cookie Monitoring Test"
 	message := "Cookie monitoring is working correctly!\n\nThis is a test notification to verify your cookie monitoring configuration."
-	
+
 	return cns.ntfyService.SendNotification(services.NotificationRequest{
 		Topic:    cns.topic,
 		Title:    title,
