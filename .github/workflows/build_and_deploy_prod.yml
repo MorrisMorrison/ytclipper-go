@@ -178,10 +178,3 @@ jobs:
           
       - name: Build Production
         run: make build-prod
-        
-      - name: Deploy to CapRover
-        if: success() && github.ref == 'refs/heads/main' 
-        run: |
-          curl -X POST \
-            "https://captain.mormor.online/api/v2/user/apps/webhooks/triggerbuild?namespace=captain&token=${{ secrets.CAPROVER_WEBHOOK_TOKEN }}" \
-            -H "Content-Type: application/json"
