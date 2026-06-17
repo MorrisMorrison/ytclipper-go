@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"strings"
 	"time"
 	"ytclipper-go/config"
 	custommiddleware "ytclipper-go/middleware"
@@ -53,8 +54,14 @@ func setupEcho() {
 	})
 
 	e.Use(middleware.RateLimiterWithConfig(middleware.RateLimiterConfig{
-		Skipper: middleware.DefaultSkipper,
-		Store:   limiterStore,
+		// Only rate-limit the expensive endpoints, never static assets -- a single
+		// page load pulls ~15 static files, which would otherwise burn the per-IP
+		// budget and start 429ing the page's own JS/CSS (also breaks the e2e,
+		// where every test shares one IP).
+		Skipper: func(c echo.Context) bool {
+			return strings.HasPrefix(c.Request().URL.Path, "/static")
+		},
+		Store: limiterStore,
 	}))
 
 	e.Logger.Fatal(e.Start(":" + config.CONFIG.Port))
