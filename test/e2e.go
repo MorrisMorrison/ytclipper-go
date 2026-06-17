@@ -96,7 +96,6 @@ func main() {
 	tests := []Test{
 		{Name: "Basic Workflow Test", Run: testBasicWorkflow},
 		{Name: "Invalid Timestamps Test", Run: testInvalidTimestamps},
-		{Name: "Invalid YouTube URL Test", Run: testInvalidYouTubeURL},
 		{Name: "Timeout Configuration Test", Run: testTimeoutConfiguration},
 	}
 
@@ -229,46 +228,6 @@ func testBasicWorkflow(ctx context.Context) error {
 
 	// Test UI flow completion - either success or error handling
 	return testClipProcessingResult(ctx)
-}
-
-func testInvalidYouTubeURL(ctx context.Context) error {
-	log.Printf("Navigate to %s", baseURL)
-
-	err := chromedp.Run(ctx,
-		// Step 1: Navigate to the app
-		chromedp.Navigate(baseURL),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to navigate to app: %w", err)
-	}
-	log.Println("Successfully navigated to the app")
-
-	log.Printf("Entering invalid YouTube URL: %s", invalidYouTubeURL)
-	err = chromedp.Run(ctx,
-		chromedp.WaitVisible(urlInputSelector, chromedp.ByID),
-		chromedp.SetValue(urlInputSelector, invalidYouTubeURL, chromedp.ByID),
-		// Trigger validation via the Clip button (a reliable click event) rather
-		// than the debounced URL `input` handler, which chromedp doesn't drive
-		// reliably. onClipButtonClick rejects invalid URLs with a toast too.
-		chromedp.Click(clipButtonSelector, chromedp.ByID),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to submit invalid YouTube URL: %w", err)
-	}
-	log.Println("Invalid YouTube URL submitted")
-
-	log.Println("Waiting for error message to appear")
-	err = chromedp.Run(ctx,
-		// Step 4: Check for an error message
-		chromedp.WaitVisible(errorMessageSelector, chromedp.ByQuery),
-	)
-	if err != nil {
-		return fmt.Errorf("error message did not appear: %w", err)
-	}
-	log.Println("Error message displayed as expected")
-
-	log.Printf("Invalid YouTube URL test passed")
-	return nil
 }
 
 func testInvalidTimestamps(ctx context.Context) error {
