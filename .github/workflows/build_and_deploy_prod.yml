@@ -40,8 +40,7 @@ jobs:
         run: go mod tidy
 
       - name: Build and unit test
-        # Run before the yt-dlp stub is on PATH: the cookie-monitor unit tests
-        # expect yt-dlp to be unavailable, and the stub would change their result.
+        # Unit tests mock yt-dlp, so they run before the stub is put on PATH.
         run: make build-prod
 
       - name: Install yt-dlp stub
