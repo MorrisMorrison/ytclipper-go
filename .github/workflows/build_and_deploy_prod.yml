@@ -40,6 +40,11 @@ jobs:
       - name: Install Go Dependencies
         run: go mod tidy
 
+      - name: Build and unit test
+        # Run before the yt-dlp stub is on PATH: the cookie-monitor unit tests
+        # expect yt-dlp to be unavailable, and the stub would change their result.
+        run: make build-prod
+
       - name: Install yt-dlp stub
         run: |
           # CI exercises the download path against a deterministic stub instead of
@@ -96,6 +101,3 @@ jobs:
           if [ -f server.pid ]; then
             kill $(cat server.pid) || true
           fi
-
-      - name: Build Production
-        run: make build-prod
