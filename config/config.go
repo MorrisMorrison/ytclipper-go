@@ -14,10 +14,7 @@ const (
 	CONFIG_KEY_YT_DLP_COMMAND_TIMEOUT_IN_SECONDS = "YTCLIPPER_YT_DLP_COMMAND_TIMEOUT_IN_SECONDS"
 	CONFIG_KEY_YT_DLP_COOKIES_FILE               = "YTCLIPPER_YT_DLP_COOKIES_FILE"
 	CONFIG_KEY_YT_DLP_COOKIES_CONTENT            = "YTCLIPPER_YT_DLP_COOKIES_CONTENT"
-	CONFIG_KEY_YT_DLP_USER_AGENT                 = "YTCLIPPER_YT_DLP_USER_AGENT"
 	CONFIG_KEY_YT_DLP_EXTRACTOR_RETRIES          = "YTCLIPPER_YT_DLP_EXTRACTOR_RETRIES"
-	CONFIG_KEY_YT_DLP_SLEEP_INTERVAL             = "YTCLIPPER_YT_DLP_SLEEP_INTERVAL"
-	CONFIG_KEY_YT_DLP_ENABLE_USER_AGENT_ROTATION = "YTCLIPPER_YT_DLP_ENABLE_USER_AGENT_ROTATION"
 
 	CONFIG_KEY_RATE_LIMITER_RATE               = "YTCLIPPER_RATE_LIMITER_RATE"
 	CONFIG_KEY_RATE_LIMITER_BURST              = "YTCLIPPER_RATE_LIMITER_BURST"
@@ -71,10 +68,7 @@ type YtDlpConfig struct {
 	Proxy                   string
 	CookiesFile             string
 	CookiesContent          string
-	UserAgent               string
 	ExtractorRetries        int
-	SleepInterval           int
-	EnableUserAgentRotation bool
 }
 
 type ClipCleanUpSchedulerConfig struct {
@@ -125,10 +119,7 @@ func NewYtDlpConfig() *YtDlpConfig {
 	proxy := GetEnv(CONFIG_KEY_YT_DLP_PROXY, "")
 	cookiesFile := GetEnv(CONFIG_KEY_YT_DLP_COOKIES_FILE, "")
 	cookiesContent := GetEnv(CONFIG_KEY_YT_DLP_COOKIES_CONTENT, "")
-	userAgent := GetEnv(CONFIG_KEY_YT_DLP_USER_AGENT, "")
 	extractorRetries := GetEnvInt(CONFIG_KEY_YT_DLP_EXTRACTOR_RETRIES, 3)
-	sleepInterval := GetEnvInt(CONFIG_KEY_YT_DLP_SLEEP_INTERVAL, 2)
-	enableUserAgentRotation := GetEnv(CONFIG_KEY_YT_DLP_ENABLE_USER_AGENT_ROTATION, "true") == "true"
 
 	return &YtDlpConfig{
 		ClipSizeInMb:            clipSizeInMb,
@@ -136,10 +127,7 @@ func NewYtDlpConfig() *YtDlpConfig {
 		Proxy:                   proxy,
 		CookiesFile:             cookiesFile,
 		CookiesContent:          cookiesContent,
-		UserAgent:               userAgent,
 		ExtractorRetries:        extractorRetries,
-		SleepInterval:           sleepInterval,
-		EnableUserAgentRotation: enableUserAgentRotation,
 	}
 }
 

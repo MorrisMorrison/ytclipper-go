@@ -4,9 +4,27 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
-	"strings"
 	"testing"
+	"ytclipper-go/config"
 )
+
+func hasFlag(args []string, flag string) bool {
+	for _, a := range args {
+		if a == flag {
+			return true
+		}
+	}
+	return false
+}
+
+func flagValue(args []string, flag string) (string, bool) {
+	for i, a := range args {
+		if a == flag && i+1 < len(args) {
+			return args[i+1], true
+		}
+	}
+	return "", false
+}
 
 func TestExtractDuration(t *testing.T) {
 	output := "Duration: 00:01:30"
@@ -24,31 +42,11 @@ func TestExtractBitrate(t *testing.T) {
 		additional string
 		expected   string
 	}{
-		{
-			name:       "Valid bitrate in KiB",
-			additional: "128KiB",
-			expected:   "128KiB",
-		},
-		{
-			name:       "Valid bitrate in MiB",
-			additional: "1.2MiB",
-			expected:   "1.2MiB",
-		},
-		{
-			name:       "Valid bitrate with tilde (~)",
-			additional: "~192KiB",
-			expected:   "~192KiB",
-		},
-		{
-			name:       "No bitrate",
-			additional: "Some other text",
-			expected:   "N/A",
-		},
-		{
-			name:       "Empty string",
-			additional: "",
-			expected:   "N/A",
-		},
+		{name: "Valid bitrate in KiB", additional: "128KiB", expected: "128KiB"},
+		{name: "Valid bitrate in MiB", additional: "1.2MiB", expected: "1.2MiB"},
+		{name: "Valid bitrate with tilde (~)", additional: "~192KiB", expected: "~192KiB"},
+		{name: "No bitrate", additional: "Some other text", expected: "N/A"},
+		{name: "Empty string", additional: "", expected: "N/A"},
 	}
 
 	for _, test := range tests {
@@ -80,57 +78,20 @@ func TestDownloadAndCutVideo(t *testing.T) {
 
 	_, _ = DownloadAndCutVideo(outputPath, selectedFormat, fileSizeLimit, from, to, url)
 
-	// Verify that yt-dlp is called with basic arguments
-	if len(capturedArgs) < 5 {
-		t.Error("Expected more arguments but got too few")
-		return
+	if len(capturedArgs) == 0 || capturedArgs[0] != "yt-dlp" {
+		t.Fatalf("Expected first arg to be 'yt-dlp', got %v", capturedArgs)
 	}
 
-	if capturedArgs[0] != "yt-dlp" {
-		t.Errorf("Expected first arg to be 'yt-dlp', got '%s'", capturedArgs[0])
+	if v, ok := flagValue(capturedArgs, "-o"); !ok || v != outputPath {
+		t.Errorf("Expected -o %q, got %q (present=%v)", outputPath, v, ok)
+	}
+	if v, ok := flagValue(capturedArgs, "-f"); !ok || v != selectedFormat {
+		t.Errorf("Expected -f %q, got %q (present=%v)", selectedFormat, v, ok)
 	}
 
-	// Check for user agent presence (always required in simplified approach)
-	userAgentFound := false
-	for i, arg := range capturedArgs {
-		if arg == "--user-agent" && i+1 < len(capturedArgs) {
-			userAgentFound = true
-			break
-		}
-	}
-	if !userAgentFound {
-		t.Error("Expected --user-agent argument to be present")
-	}
-
-	// Check for download-sections argument
-	downloadSectionsFound := false
 	expectedSection := fmt.Sprintf("*%s-%s", from, to)
-	for i, arg := range capturedArgs {
-		if arg == "--download-sections" && i+1 < len(capturedArgs) && capturedArgs[i+1] == expectedSection {
-			downloadSectionsFound = true
-			break
-		}
-	}
-	if !downloadSectionsFound {
-		t.Errorf("Expected --download-sections argument with value '%s'", expectedSection)
-	}
-
-	// Verify that output path and format are included in the base arguments
-	outputPathFound := false
-	formatFound := false
-	for i, arg := range capturedArgs {
-		if arg == "-o" && i+1 < len(capturedArgs) && capturedArgs[i+1] == outputPath {
-			outputPathFound = true
-		}
-		if arg == "-f" && i+1 < len(capturedArgs) && capturedArgs[i+1] == selectedFormat {
-			formatFound = true
-		}
-	}
-	if !outputPathFound {
-		t.Error("Expected output path argument to be present")
-	}
-	if !formatFound {
-		t.Error("Expected format argument to be present")
+	if v, ok := flagValue(capturedArgs, "--download-sections"); !ok || v != expectedSection {
+		t.Errorf("Expected --download-sections %q, got %q (present=%v)", expectedSection, v, ok)
 	}
 }
 
@@ -144,172 +105,61 @@ func TestGetVideoDuration(t *testing.T) {
 		return exec.Command("echo", "00:03:45")
 	}
 
-	url := "https://www.youtube.com/watch?v=example"
+	// Output parsing is covered by TestExtractDuration; here we only assert the
+	// command is built correctly (avoids depending on `echo` being an executable,
+	// which it isn't on Windows).
+	_, _ = GetVideoDuration("https://www.youtube.com/watch?v=example")
 
-	duration, err := GetVideoDuration(url)
-	if err != nil {
-		t.Errorf("Expected no error, but got: %v", err)
+	if len(capturedArgs) == 0 || capturedArgs[0] != "yt-dlp" {
+		t.Fatalf("Expected first arg to be 'yt-dlp', got %v", capturedArgs)
 	}
-
-	expectedDuration := "00:03:45"
-	if duration != expectedDuration {
-		t.Errorf("Expected duration: %s, but got: %s", expectedDuration, duration)
-	}
-
-	// Verify that yt-dlp is called with basic anti-detection arguments
-	if len(capturedArgs) < 3 {
-		t.Error("Expected more arguments but got too few")
-		return
-	}
-
-	if capturedArgs[0] != "yt-dlp" {
-		t.Errorf("Expected first arg to be 'yt-dlp', got '%s'", capturedArgs[0])
-	}
-
-	// Check for user agent presence (always required in simplified approach)
-	userAgentFound := false
-	for i, arg := range capturedArgs {
-		if arg == "--user-agent" && i+1 < len(capturedArgs) {
-			userAgentFound = true
-			break
-		}
-	}
-	if !userAgentFound {
-		t.Error("Expected --user-agent argument to be present")
-	}
-
-	// Check that the original arguments are preserved
-	getDurationFound := false
-	noWarningsFound := false
-	for _, arg := range capturedArgs {
-		if arg == "--get-duration" {
-			getDurationFound = true
-		}
-		if arg == "--no-warnings" {
-			noWarningsFound = true
-		}
-	}
-	if !getDurationFound {
+	if !hasFlag(capturedArgs, "--get-duration") {
 		t.Error("Expected --get-duration argument to be present")
 	}
-	if !noWarningsFound {
+	if !hasFlag(capturedArgs, "--no-warnings") {
 		t.Error("Expected --no-warnings argument to be present")
 	}
 }
 
-func TestGetUserAgent(t *testing.T) {
-	// Test that getUserAgent returns a valid user agent string
-	userAgent := getUserAgent()
-	if userAgent == "" {
-		t.Error("Expected non-empty user agent")
-	}
+// TestCommonArgsHonorsProxyAndCookies verifies that the proxy and cookies are
+// applied when configured -- and that none of the old anti-detection flags leak
+// back in.
+func TestCommonArgsHonorsProxyAndCookies(t *testing.T) {
+	original := config.CONFIG.YtDlpConfig
+	defer func() { config.CONFIG.YtDlpConfig = original }()
 
-	// Should contain common browser identifiers
-	if !strings.Contains(userAgent, "Mozilla") {
-		t.Error("Expected user agent to contain Mozilla")
-	}
+	config.CONFIG.YtDlpConfig.Proxy = "socks5h://10.0.0.1:1080"
+	config.CONFIG.YtDlpConfig.CookiesFile = "/tmp/cookies.txt"
+	config.CONFIG.YtDlpConfig.CookiesContent = ""
+	config.CONFIG.YtDlpConfig.ExtractorRetries = 0
 
-	// Test multiple calls return different agents (when rotation is enabled)
-	userAgent1 := getUserAgent()
-	userAgent2 := getUserAgent()
-	// Note: We can't guarantee they're different due to randomization,
-	// but we can verify both are valid
-	if userAgent1 == "" || userAgent2 == "" {
-		t.Error("Expected valid user agents from multiple calls")
-	}
-}
+	args := commonArgs()
 
-func TestApplyAntiDetectionArgs(t *testing.T) {
-	baseArgs := []string{"-f", "22", "https://example.com"}
-
-	// Test with basic configuration
-	enhancedArgs := applyAntiDetectionArgs(baseArgs)
-
-	// Should contain user agent
-	userAgentFound := false
-	for i, arg := range enhancedArgs {
-		if arg == "--user-agent" && i+1 < len(enhancedArgs) {
-			userAgentFound = true
-			break
-		}
+	if v, ok := flagValue(args, "--proxy"); !ok || v != "socks5h://10.0.0.1:1080" {
+		t.Errorf("Expected --proxy to be applied, got %v", args)
 	}
-	if !userAgentFound {
-		t.Error("Expected --user-agent argument in enhanced args")
+	if v, ok := flagValue(args, "--cookies"); !ok || v != "/tmp/cookies.txt" {
+		t.Errorf("Expected --cookies to be applied, got %v", args)
 	}
-
-	// Should contain sleep arguments
-	sleepFound := false
-	for _, arg := range enhancedArgs {
-		if arg == "--sleep-requests" {
-			sleepFound = true
-			break
-		}
-	}
-	if !sleepFound {
-		t.Error("Expected --sleep-requests argument in enhanced args")
-	}
-
-	// Should preserve original arguments
-	for _, baseArg := range baseArgs {
-		found := false
-		for _, enhancedArg := range enhancedArgs {
-			if enhancedArg == baseArg {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("Expected original argument '%s' to be preserved", baseArg)
-		}
+	if hasFlag(args, "--user-agent") || hasFlag(args, "--sleep-requests") || hasFlag(args, "--add-header") {
+		t.Errorf("Did not expect anti-detection flags in common args, got %v", args)
 	}
 }
 
-func TestExecuteWithFallbackMock(t *testing.T) {
-	originalExecContext := execContext
-	defer func() { execContext = originalExecContext }()
+func TestCommonArgsWithoutProxyOrCookies(t *testing.T) {
+	original := config.CONFIG.YtDlpConfig
+	defer func() { config.CONFIG.YtDlpConfig = original }()
 
-	callCount := 0
-	var capturedArgs [][]string
+	config.CONFIG.YtDlpConfig.Proxy = ""
+	config.CONFIG.YtDlpConfig.CookiesFile = ""
+	config.CONFIG.YtDlpConfig.CookiesContent = ""
 
-	// Mock exec function that fails on first call, succeeds on second
-	execContext = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
-		capturedArgs = append(capturedArgs, append([]string{name}, arg...))
-		callCount++
+	args := commonArgs()
 
-		if callCount <= 1 {
-			// First call fails (legacy strategy)
-			return exec.Command("false") // Command that always fails
-		} else {
-			// Second call succeeds (enhanced fallback)
-			return exec.Command("echo", "success")
-		}
+	if hasFlag(args, "--proxy") {
+		t.Errorf("Did not expect --proxy when unset, got %v", args)
 	}
-
-	baseArgs := []string{"-f", "22", "https://example.com"}
-	output, err := executeWithFallback("yt-dlp", baseArgs)
-
-	if err != nil {
-		t.Errorf("Expected executeWithFallback to succeed with fallback, but got error: %v", err)
-	}
-
-	if strings.TrimSpace(string(output)) != "success" {
-		t.Errorf("Expected output 'success', but got: %s", string(output))
-	}
-
-	// Should have made exactly 2 calls (legacy + enhanced)
-	if callCount != 2 {
-		t.Errorf("Expected 2 calls (legacy + enhanced fallback), but got %d", callCount)
-	}
-
-	// Verify all calls were made
-	if len(capturedArgs) != 2 {
-		t.Errorf("Expected 2 captured argument sets, but got %d", len(capturedArgs))
-	}
-
-	// Verify both calls had the yt-dlp command
-	for i, args := range capturedArgs {
-		if len(args) == 0 || args[0] != "yt-dlp" {
-			t.Errorf("Expected call %d to have 'yt-dlp' as first argument", i+1)
-		}
+	if hasFlag(args, "--cookies") {
+		t.Errorf("Did not expect --cookies when unset, got %v", args)
 	}
 }

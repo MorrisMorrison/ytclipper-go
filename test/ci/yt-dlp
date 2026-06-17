@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+#
+# CI stub for yt-dlp.
+#
+# The e2e suite drives the real app, which shells out to `yt-dlp`. Hitting real
+# YouTube from CI is pointless and flaky (datacenter IPs get bot-blocked), so in
+# CI we put this deterministic, offline stub first on PATH. It implements just
+# enough of the yt-dlp surface the app uses:
+#
+#   yt-dlp -F <url>             -> a fixed format table (incl. format 136 / mp4)
+#   yt-dlp --get-duration <url> -> a fixed duration
+#   yt-dlp -o <path> ...        -> writes a small dummy file at <path>
+#
+# All other flags the app passes (--proxy, --cookies, --download-sections, ...)
+# are accepted and ignored.
+set -euo pipefail
+
+mode="download"
+out=""
+prev=""
+for a in "$@"; do
+  case "$a" in
+    --version|-U|--update) echo "ytclipper-ci-stub 0.0.0"; exit 0 ;;
+    -F|--list-formats) mode="formats" ;;
+    --get-duration) mode="duration" ;;
+  esac
+  if [ "$prev" = "-o" ]; then out="$a"; fi
+  prev="$a"
+done
+
+case "$mode" in
+  formats)
+    cat <<'EOF'
+[info] Available formats:
+ID   EXT  RESOLUTION  CODEC        FILESIZE   | MORE INFO
+140  m4a  audio only  mp4a.40.2    1.20MiB    | 128KiB audio
+18   mp4  640x360     avc1.42001E  5.00MiB    | 360p
+136  mp4  1280x720    avc1.4d401f  1.50MiB    | 720p
+EOF
+    ;;
+  duration)
+    echo "0:30"
+    ;;
+  download)
+    if [ -n "$out" ]; then
+      mkdir -p "$(dirname "$out")"
+      # A small dummy payload is enough for the app to produce a download link.
+      head -c 65536 /dev/urandom > "$out"
+    fi
+    ;;
+esac
+exit 0

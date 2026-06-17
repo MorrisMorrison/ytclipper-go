@@ -57,9 +57,9 @@ const (
 	validFormatValue     = "136"
 
 	// Test configuration - realistic timeouts with fast failure detection
-	defaultDownloadTimeoutSeconds = 25   // Shorter timeout for CI but realistic
-	ciQuickFailTimeoutSeconds     = 15   // Very fast timeout for known failure tests
-	defaultExpectDownloadFailure  = true // Expect failures in CI environment
+	defaultDownloadTimeoutSeconds = 25    // Shorter timeout for CI but realistic
+	ciQuickFailTimeoutSeconds     = 15    // Very fast timeout for known failure tests
+	defaultExpectDownloadFailure  = false // CI uses a yt-dlp stub, so downloads should succeed
 )
 
 // getDownloadTimeoutSeconds returns the timeout from environment or default
@@ -363,11 +363,14 @@ func testClipProcessingResultWithTimeout(ctx context.Context, timeoutSeconds int
 	for {
 		select {
 		case <-timeoutCtx.Done():
-			if isCIEnvironment() || expectDownloadFailure() {
-				log.Printf("Test timed out after %d seconds - this is expected in CI environment due to YouTube bot detection", timeoutSeconds)
-				return nil // Pass the test even on timeout in CI
+			if expectDownloadFailure() {
+				// Opt-in path for manual runs against real YouTube, where a
+				// timeout/block is expected. CI uses the yt-dlp stub and does not
+				// set this, so a timeout here is a real failure.
+				log.Printf("Test timed out after %d seconds - download failure was expected (E2E_EXPECT_FAILURE)", timeoutSeconds)
+				return nil
 			}
-			return fmt.Errorf("test timed out after %d seconds", timeoutSeconds)
+			return fmt.Errorf("test timed out after %d seconds (no download link or error shown)", timeoutSeconds)
 
 		case <-ticker.C:
 			// Check for download link first
@@ -476,10 +479,6 @@ func testTimeoutConfiguration(ctx context.Context) error {
 
 	if err != nil {
 		log.Printf("Format loading timed out after %v - this indicates backend processing issues", duration)
-		if isCIEnvironment() {
-			log.Printf("Accepting timeout in CI environment")
-			return nil
-		}
 		return fmt.Errorf("format dropdown not enabled within reasonable time: %w", err)
 	}
 
