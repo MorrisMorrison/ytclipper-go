@@ -247,9 +247,12 @@ func testInvalidYouTubeURL(ctx context.Context) error {
 
 	log.Printf("Entering invalid YouTube URL: %s", invalidYouTubeURL)
 	err = chromedp.Run(ctx,
-		// Step 2: Enter an invalid YouTube URL
+		// Step 2: Enter an invalid YouTube URL. SetValue sets the value but does
+		// not reliably fire the `input` event the (debounced, module-loaded)
+		// handler listens for, so dispatch it explicitly.
 		chromedp.WaitVisible(urlInputSelector, chromedp.ByID),
 		chromedp.SetValue(urlInputSelector, invalidYouTubeURL, chromedp.ByID),
+		chromedp.Evaluate(`document.getElementById('url').dispatchEvent(new Event('input', { bubbles: true }))`, nil),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to enter invalid YouTube URL: %w", err)
