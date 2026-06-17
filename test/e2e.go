@@ -101,57 +101,11 @@ func main() {
 
 	var failedTests int
 	for _, test := range tests {
-		opts := append(chromedp.DefaultExecAllocatorOptions[:],
-			chromedp.Headless, // Disable for debugging
-			// The first Chrome launch in CI is a cold start and can exceed the
-			// default 20s websocket timeout; give it generous headroom.
-			chromedp.WSURLReadTimeout(45*time.Second),
-			chromedp.DisableGPU,
-			chromedp.NoSandbox,
-			chromedp.Flag("disable-dev-shm-usage", true),
-			chromedp.Flag("ignore-certificate-errors", true),
-			chromedp.Flag("disable-web-security", true),
-			chromedp.Flag("disable-features", "VizDisplayCompositor,PrivateNetworkAccessSendPreflights,PrivateNetworkAccessRespectPreflightResults"),
-			chromedp.Flag("disable-background-timer-throttling", true),
-			chromedp.Flag("disable-backgrounding-occluded-windows", true),
-			chromedp.Flag("disable-renderer-backgrounding", true),
-			chromedp.Flag("disable-field-trial-config", true),
-			chromedp.Flag("disable-ipc-flooding-protection", true),
-		)
-
-		log.Printf("Starting Chrome context with options for test: %s", test.Name)
-		allocCtx, cancelAlloc := chromedp.NewExecAllocator(context.Background(), opts...)
-		defer cancelAlloc()
-
-		// Create context with error logging suppression for known chromedp issues
-		ctx, cancel := chromedp.NewContext(allocCtx, chromedp.WithLogf(func(s string, i ...any) {
-			// Suppress known chromedp protocol errors that don't affect functionality
-			msg := fmt.Sprintf(s, i...)
-			if strings.Contains(msg, "PrivateNetworkRequestPolicy") ||
-				strings.Contains(msg, "PermissionWarn") ||
-				strings.Contains(msg, "could not unmarshal event") {
-				return // Suppress these specific errors
-			}
-			log.Printf("Chrome: %s", msg)
-		}))
-		defer cancel()
-
-		testCtx, cancelTest := context.WithTimeout(ctx, 2*time.Minute)
-		defer cancelTest()
-
-		log.Printf("Running test: %s", test.Name)
-		startTime := time.Now()
-		err := test.Run(testCtx)
-		duration := time.Since(startTime)
-
-		if err != nil {
-			log.Printf("Test '%s' failed after %v: %v", test.Name, duration, err)
-			if testCtx.Err() == context.DeadlineExceeded {
-				log.Printf("  → Test timed out (this may be expected in CI)")
-			}
+		// Each test runs in its own function so its Chrome allocator/context are
+		// torn down (via defer) BEFORE the next test starts. Running the loop body
+		// inline leaked a Chrome instance per iteration, starving later tests.
+		if err := runTest(test); err != nil {
 			failedTests++
-		} else {
-			log.Printf("Test '%s' passed in %v", test.Name, duration)
 		}
 	}
 
@@ -160,6 +114,62 @@ func main() {
 		os.Exit(1)
 	}
 	log.Println("All tests passed")
+}
+
+func runTest(test Test) error {
+	opts := append(chromedp.DefaultExecAllocatorOptions[:],
+		chromedp.Headless,
+		// The first Chrome launch in CI is a cold start and can exceed the default
+		// 20s websocket timeout; give it generous headroom.
+		chromedp.WSURLReadTimeout(45*time.Second),
+		chromedp.DisableGPU,
+		chromedp.NoSandbox,
+		chromedp.Flag("disable-dev-shm-usage", true),
+		chromedp.Flag("ignore-certificate-errors", true),
+		chromedp.Flag("disable-web-security", true),
+		chromedp.Flag("disable-features", "VizDisplayCompositor,PrivateNetworkAccessSendPreflights,PrivateNetworkAccessRespectPreflightResults"),
+		chromedp.Flag("disable-background-timer-throttling", true),
+		chromedp.Flag("disable-backgrounding-occluded-windows", true),
+		chromedp.Flag("disable-renderer-backgrounding", true),
+		chromedp.Flag("disable-field-trial-config", true),
+		chromedp.Flag("disable-ipc-flooding-protection", true),
+	)
+
+	log.Printf("Starting Chrome context with options for test: %s", test.Name)
+	allocCtx, cancelAlloc := chromedp.NewExecAllocator(context.Background(), opts...)
+	defer cancelAlloc()
+
+	// Create context with error logging suppression for known chromedp issues
+	ctx, cancel := chromedp.NewContext(allocCtx, chromedp.WithLogf(func(s string, i ...any) {
+		// Suppress known chromedp protocol errors that don't affect functionality
+		msg := fmt.Sprintf(s, i...)
+		if strings.Contains(msg, "PrivateNetworkRequestPolicy") ||
+			strings.Contains(msg, "PermissionWarn") ||
+			strings.Contains(msg, "could not unmarshal event") {
+			return // Suppress these specific errors
+		}
+		log.Printf("Chrome: %s", msg)
+	}))
+	defer cancel()
+
+	testCtx, cancelTest := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancelTest()
+
+	log.Printf("Running test: %s", test.Name)
+	startTime := time.Now()
+	err := test.Run(testCtx)
+	duration := time.Since(startTime)
+
+	if err != nil {
+		log.Printf("Test '%s' failed after %v: %v", test.Name, duration, err)
+		if testCtx.Err() == context.DeadlineExceeded {
+			log.Printf("  → Test timed out")
+		}
+		return err
+	}
+
+	log.Printf("Test '%s' passed in %v", test.Name, duration)
+	return nil
 }
 
 func testBasicWorkflow(ctx context.Context) error {
