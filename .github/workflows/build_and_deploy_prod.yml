@@ -19,7 +19,6 @@ jobs:
 
     env:
       YTCLIPPER_CLIP_CLEANUP_SCHEDULER_ENABLED: "false"
-      YTCLIPPER_COOKIE_MONITOR_ENABLED: "false"
       GO_VERSION: "1.23"
 
     steps:
