@@ -11,8 +11,8 @@
 #   yt-dlp --get-duration <url> -> a fixed duration
 #   yt-dlp -o <path> ...        -> writes a small dummy file at <path>
 #
-# All other flags the app passes (--proxy, --cookies, --download-sections, ...)
-# are accepted and ignored.
+# All other flags the app passes (--proxy, --download-sections, ...) are
+# accepted and ignored.
 set -euo pipefail
 
 mode="download"

@@ -71,6 +71,5 @@ func main() {
 	glogger.Log.Info("Start ytclipper")
 	checkDependencies()
 	scheduler.StartClipCleanUpScheduler()
-	scheduler.StartCookieMonitorScheduler()
 	setupEcho()
 }

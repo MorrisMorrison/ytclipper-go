@@ -12,8 +12,6 @@ const (
 	CONFIG_KEY_YT_DLP_CLIP_SIZE_LIMIT_IN_MB      = "YTCLIPPER_YT_DLP_CLIP_SIZE_LIMIT_IN_MB"
 	CONFIG_KEY_YT_DLP_PROXY                      = "YTCLIPPER_YT_DLP_PROXY"
 	CONFIG_KEY_YT_DLP_COMMAND_TIMEOUT_IN_SECONDS = "YTCLIPPER_YT_DLP_COMMAND_TIMEOUT_IN_SECONDS"
-	CONFIG_KEY_YT_DLP_COOKIES_FILE               = "YTCLIPPER_YT_DLP_COOKIES_FILE"
-	CONFIG_KEY_YT_DLP_COOKIES_CONTENT            = "YTCLIPPER_YT_DLP_COOKIES_CONTENT"
 	CONFIG_KEY_YT_DLP_EXTRACTOR_RETRIES          = "YTCLIPPER_YT_DLP_EXTRACTOR_RETRIES"
 
 	CONFIG_KEY_RATE_LIMITER_RATE               = "YTCLIPPER_RATE_LIMITER_RATE"
@@ -23,21 +21,6 @@ const (
 	CONFIG_KEY_CLIP_CLEANUP_SCHEDULER_INTERVAL_IN_MINUTES = "YTCLIPPER_CLIP_CLEANUP_SCHEDULER_INTERVAL_IN_MINUTES"
 	CONFIG_KEY_CLIP_CLEANUP_SCHEDULER_CLIP_DIRECTORY_PATH = "YTCLIPPER_CLIP_CLEANUP_SCHEDULER_CLIP_DIRECTORY_PATH"
 	CONFIG_KEY_CLIP_CLEANUP_SCHEDULER_ENABLED             = "YTCLIPPER_CLIP_CLEANUP_SCHEDULER_ENABLED"
-
-	CONFIG_KEY_COOKIE_MONITOR_ENABLED                       = "YTCLIPPER_COOKIE_MONITOR_ENABLED"
-	CONFIG_KEY_COOKIE_MONITOR_INTERVAL_HOURS                = "YTCLIPPER_COOKIE_MONITOR_INTERVAL_HOURS"
-	CONFIG_KEY_COOKIE_MONITOR_WARNING_THRESHOLD             = "YTCLIPPER_COOKIE_MONITOR_WARNING_THRESHOLD_DAYS"
-	CONFIG_KEY_COOKIE_MONITOR_URGENT_THRESHOLD              = "YTCLIPPER_COOKIE_MONITOR_URGENT_THRESHOLD_DAYS"
-	CONFIG_KEY_COOKIE_MONITOR_TOPIC                         = "YTCLIPPER_COOKIE_MONITOR_NTFY_TOPIC"
-	CONFIG_KEY_COOKIE_MONITOR_API_VALIDATION_ENABLED        = "YTCLIPPER_COOKIE_MONITOR_API_VALIDATION_ENABLED"
-	CONFIG_KEY_COOKIE_MONITOR_API_VALIDATION_INTERVAL_HOURS = "YTCLIPPER_COOKIE_MONITOR_API_VALIDATION_INTERVAL_HOURS"
-	CONFIG_KEY_COOKIE_MONITOR_TEST_VIDEO_URL                = "YTCLIPPER_COOKIE_MONITOR_TEST_VIDEO_URL"
-	CONFIG_KEY_COOKIE_MONITOR_API_VALIDATION_TIMEOUT_SECS   = "YTCLIPPER_COOKIE_MONITOR_API_VALIDATION_TIMEOUT_SECS"
-
-	CONFIG_KEY_NTFY_ENABLED    = "YTCLIPPER_NTFY_ENABLED"
-	CONFIG_KEY_NTFY_SERVER_URL = "YTCLIPPER_NTFY_SERVER_URL"
-	CONFIG_KEY_NTFY_USERNAME   = "YTCLIPPER_NTFY_USERNAME"
-	CONFIG_KEY_NTFY_PASSWORD   = "YTCLIPPER_NTFY_PASSWORD"
 
 	CONFIG_KEY_AUTH_USERNAME = "YTCLIPPER_AUTH_USERNAME"
 	CONFIG_KEY_AUTH_PASSWORD = "YTCLIPPER_AUTH_PASSWORD"
@@ -51,8 +34,6 @@ type Config struct {
 	RateLimiterConfig          RateLimiterConfig
 	YtDlpConfig                YtDlpConfig
 	ClipCleanUpSchedulerConfig ClipCleanUpSchedulerConfig
-	CookieMonitorConfig        CookieMonitorConfig
-	NtfyConfig                 NtfyConfig
 	BasicAuthConfig            BasicAuthConfig
 }
 
@@ -66,8 +47,6 @@ type YtDlpConfig struct {
 	ClipSizeInMb            int64
 	CommandTimeoutInSeconds int
 	Proxy                   string
-	CookiesFile             string
-	CookiesContent          string
 	ExtractorRetries        int
 }
 
@@ -75,25 +54,6 @@ type ClipCleanUpSchedulerConfig struct {
 	IntervalInMinutes int
 	ClipDirectoryPath string
 	IsEnabled         bool
-}
-
-type CookieMonitorConfig struct {
-	Enabled                    bool
-	IntervalHours              int
-	WarningThresholdDays       int
-	UrgentThresholdDays        int
-	NtfyTopic                  string
-	APIValidationEnabled       bool
-	APIValidationIntervalHours int
-	TestVideoURL               string
-	APIValidationTimeoutSecs   int
-}
-
-type NtfyConfig struct {
-	Enabled   bool
-	ServerURL string
-	Username  string
-	Password  string
 }
 
 type BasicAuthConfig struct {
@@ -117,16 +77,12 @@ func NewYtDlpConfig() *YtDlpConfig {
 	clipSizeInMb := utils.MbToBytes(GetEnvInt(CONFIG_KEY_YT_DLP_CLIP_SIZE_LIMIT_IN_MB, 300))
 	commandTimeoutInSeconds := GetEnvInt(CONFIG_KEY_YT_DLP_COMMAND_TIMEOUT_IN_SECONDS, 60)
 	proxy := GetEnv(CONFIG_KEY_YT_DLP_PROXY, "")
-	cookiesFile := GetEnv(CONFIG_KEY_YT_DLP_COOKIES_FILE, "")
-	cookiesContent := GetEnv(CONFIG_KEY_YT_DLP_COOKIES_CONTENT, "")
 	extractorRetries := GetEnvInt(CONFIG_KEY_YT_DLP_EXTRACTOR_RETRIES, 3)
 
 	return &YtDlpConfig{
 		ClipSizeInMb:            clipSizeInMb,
 		CommandTimeoutInSeconds: commandTimeoutInSeconds,
 		Proxy:                   proxy,
-		CookiesFile:             cookiesFile,
-		CookiesContent:          cookiesContent,
 		ExtractorRetries:        extractorRetries,
 	}
 }
@@ -140,44 +96,6 @@ func NewRateLimiterConfig() *RateLimiterConfig {
 		Rate:             float64(rate),
 		Burst:            burst,
 		ExpiresInMinutes: expiresInMinutes,
-	}
-}
-
-func NewCookieMonitorConfig() *CookieMonitorConfig {
-	enabled := GetEnv(CONFIG_KEY_COOKIE_MONITOR_ENABLED, "true") == "true"
-	intervalHours := GetEnvInt(CONFIG_KEY_COOKIE_MONITOR_INTERVAL_HOURS, 24)
-	warningThresholdDays := GetEnvInt(CONFIG_KEY_COOKIE_MONITOR_WARNING_THRESHOLD, 30)
-	urgentThresholdDays := GetEnvInt(CONFIG_KEY_COOKIE_MONITOR_URGENT_THRESHOLD, 7)
-	ntfyTopic := GetEnv(CONFIG_KEY_COOKIE_MONITOR_TOPIC, "ytclipper-cookies")
-	apiValidationEnabled := GetEnv(CONFIG_KEY_COOKIE_MONITOR_API_VALIDATION_ENABLED, "true") == "true"
-	apiValidationIntervalHours := GetEnvInt(CONFIG_KEY_COOKIE_MONITOR_API_VALIDATION_INTERVAL_HOURS, 6)
-	testVideoURL := GetEnv(CONFIG_KEY_COOKIE_MONITOR_TEST_VIDEO_URL, "https://www.youtube.com/watch?v=dQw4w9WgXcQ")
-	apiValidationTimeoutSecs := GetEnvInt(CONFIG_KEY_COOKIE_MONITOR_API_VALIDATION_TIMEOUT_SECS, 30)
-
-	return &CookieMonitorConfig{
-		Enabled:                    enabled,
-		IntervalHours:              intervalHours,
-		WarningThresholdDays:       warningThresholdDays,
-		UrgentThresholdDays:        urgentThresholdDays,
-		NtfyTopic:                  ntfyTopic,
-		APIValidationEnabled:       apiValidationEnabled,
-		APIValidationIntervalHours: apiValidationIntervalHours,
-		TestVideoURL:               testVideoURL,
-		APIValidationTimeoutSecs:   apiValidationTimeoutSecs,
-	}
-}
-
-func NewNtfyConfig() *NtfyConfig {
-	enabled := GetEnv(CONFIG_KEY_NTFY_ENABLED, "false") == "true"
-	serverURL := GetEnv(CONFIG_KEY_NTFY_SERVER_URL, "")
-	username := GetEnv(CONFIG_KEY_NTFY_USERNAME, "")
-	password := GetEnv(CONFIG_KEY_NTFY_PASSWORD, "")
-
-	return &NtfyConfig{
-		Enabled:   enabled,
-		ServerURL: serverURL,
-		Username:  username,
-		Password:  password,
 	}
 }
 
@@ -201,8 +119,6 @@ func NewConfig() *Config {
 		RateLimiterConfig:          *NewRateLimiterConfig(),
 		YtDlpConfig:                *NewYtDlpConfig(),
 		ClipCleanUpSchedulerConfig: *NewClipCleanUpSchedulerConfig(),
-		CookieMonitorConfig:        *NewCookieMonitorConfig(),
-		NtfyConfig:                 *NewNtfyConfig(),
 		BasicAuthConfig:            *NewBasicAuthConfig(),
 	}
 }
