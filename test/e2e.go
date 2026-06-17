@@ -177,7 +177,10 @@ func testBasicWorkflow(ctx context.Context) error {
 	err = chromedp.Run(ctx,
 		// Step 2: Fill the YouTube URL
 		chromedp.WaitVisible(urlInputSelector, chromedp.ByID),
-		chromedp.SetValue(urlInputSelector, validYouTubeURL, chromedp.ByID),
+		// Use SendKeys (real keystrokes) rather than SetValue: the URL field has a
+		// debounced `input` listener that loads formats, and SetValue does not
+		// reliably fire that event under chromedp.
+		chromedp.SendKeys(urlInputSelector, validYouTubeURL, chromedp.ByID),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to fill YouTube URL: %w", err)
@@ -244,7 +247,10 @@ func testInvalidTimestamps(ctx context.Context) error {
 	log.Printf("Entering valid YouTube URL: %s", validYouTubeURL)
 	err = chromedp.Run(ctx,
 		// Step 2: Enter a valid YouTube URL
-		chromedp.SetValue(urlInputSelector, validYouTubeURL, chromedp.ByID),
+		// Use SendKeys (real keystrokes) rather than SetValue: the URL field has a
+		// debounced `input` listener that loads formats, and SetValue does not
+		// reliably fire that event under chromedp.
+		chromedp.SendKeys(urlInputSelector, validYouTubeURL, chromedp.ByID),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to enter YouTube URL: %w", err)
@@ -387,7 +393,10 @@ func testTimeoutConfiguration(ctx context.Context) error {
 	log.Println("Testing video duration fetch (should be fast)")
 
 	err = chromedp.Run(ctx,
-		chromedp.SetValue(urlInputSelector, validYouTubeURL, chromedp.ByID),
+		// Use SendKeys (real keystrokes) rather than SetValue: the URL field has a
+		// debounced `input` listener that loads formats, and SetValue does not
+		// reliably fire that event under chromedp.
+		chromedp.SendKeys(urlInputSelector, validYouTubeURL, chromedp.ByID),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to enter URL: %w", err)
