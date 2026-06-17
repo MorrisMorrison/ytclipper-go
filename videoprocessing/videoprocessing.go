@@ -3,11 +3,11 @@ package videoprocessing
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 	"ytclipper-go/config"
@@ -31,7 +31,7 @@ func DownloadAndCutVideo(outputPath string, selectedFormat string, fileSizeLimit
 		url,
 	}
 
-	return executeWithFallback("yt-dlp", cmdArgs)
+	return execute("yt-dlp", cmdArgs)
 }
 
 func ProcessClip(jobID string, url string, from string, to string, selectedFormat string) {
@@ -67,9 +67,7 @@ func ProcessClip(jobID string, url string, from string, to string, selectedForma
 func GetAvailableFormats(url string) ([]map[string]string, error) {
 	glogger.Log.Infof("Get Available Formats: Fetching available formats for URL %s", url)
 
-	cmdArgs := []string{"-F", url}
-
-	output, err := executeWithFallback("yt-dlp", cmdArgs)
+	output, err := execute("yt-dlp", []string{"-F", url})
 	if err != nil {
 		glogger.Log.Errorf(err, "Get Available Formats: Error executing yt-dlp. Output\n%s", string(output))
 		return nil, fmt.Errorf("yt-dlp failed: %w", err)
@@ -91,13 +89,7 @@ func GetAvailableFormats(url string) ([]map[string]string, error) {
 func GetVideoDuration(url string) (string, error) {
 	glogger.Log.Infof("Get Video Duration: Fetch duration for URL %s", url)
 
-	cmdArgs := []string{
-		"--get-duration",
-		"--no-warnings",
-		url,
-	}
-
-	output, err := executeWithFallback("yt-dlp", cmdArgs)
+	output, err := execute("yt-dlp", []string{"--get-duration", url})
 	if err != nil {
 		glogger.Log.Errorf(err, "Get Video Duration: Error executing yt-dlp. Output\n%s", string(output))
 		return "", err
@@ -201,26 +193,11 @@ func getFileExtensionFromFormatID(formatID string, formats []map[string]string) 
 	return "", fmt.Errorf("format ID not found")
 }
 
-func getUserAgent() string {
-	if !config.CONFIG.YtDlpConfig.EnableUserAgentRotation {
-		if config.CONFIG.YtDlpConfig.UserAgent != "" {
-			return config.CONFIG.YtDlpConfig.UserAgent
-		}
-	}
-
-	userAgents := []string{
-		"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-		"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-		"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-		"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:122.0) Gecko/20100101 Firefox/122.0",
-		"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2.1 Safari/605.1.15",
-		"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36 Edg/121.0.0.0",
-	}
-
-	return userAgents[rand.Intn(len(userAgents))]
-}
-
-func applyAntiDetectionArgs(cmdArgs []string) []string {
+// commonArgs returns the flags applied to every yt-dlp invocation. The download
+// is expected to run from a residential network path (e.g. a SOCKS proxy over
+// WireGuard), so there is no anti-bot trickery here -- just the proxy and,
+// optionally, cookies.
+func commonArgs() []string {
 	var args []string
 
 	if config.CONFIG.YtDlpConfig.Proxy != "" {
@@ -228,81 +205,24 @@ func applyAntiDetectionArgs(cmdArgs []string) []string {
 		args = append(args, "--proxy", config.CONFIG.YtDlpConfig.Proxy)
 	}
 
-	cookieFile := getCookieFile()
-	if cookieFile != "" {
+	if cookieFile := getCookieFile(); cookieFile != "" {
 		glogger.Log.Infof("Using cookies file: %s", cookieFile)
 		args = append(args, "--cookies", cookieFile)
-	} else {
-		glogger.Log.Warningf("No cookies available - CookiesFile: '%s', CookiesContent: '%s'",
-			config.CONFIG.YtDlpConfig.CookiesFile,
-			config.CONFIG.YtDlpConfig.CookiesContent)
-	}
-
-	if config.CONFIG.YtDlpConfig.UserAgent != "" {
-		args = append(args, "--user-agent", config.CONFIG.YtDlpConfig.UserAgent)
-	} else {
-		// Fallback to rotating user agent
-		args = append(args, "--user-agent", getUserAgent())
 	}
 
 	if config.CONFIG.YtDlpConfig.ExtractorRetries > 0 {
-		args = append(args, "--extractor-retries", fmt.Sprintf("%d", config.CONFIG.YtDlpConfig.ExtractorRetries))
+		args = append(args, "--extractor-retries", strconv.Itoa(config.CONFIG.YtDlpConfig.ExtractorRetries))
 	}
 
-	// Add anti-bot detection arguments (restored from working legacy config)
-	args = append(args,
-		"--sleep-requests", "3",
-		"--sleep-interval", "5",
-		"--max-sleep-interval", "12",
-		"--no-warnings",
-		"--prefer-free-formats",
-	)
+	args = append(args, "--no-warnings")
 
-	// Add enhanced headers for better authentication
-	args = append(args,
-		"--add-header", "Accept-Language:en-US,en;q=0.8,fr;q=0.6",
-		"--add-header", "Accept:text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-		"--add-header", "Accept-Encoding:gzip, deflate",
-		"--add-header", "Connection:keep-alive",
-		"--add-header", "Keep-Alive:timeout=5, max=1000",
-		"--add-header", "Referer:https://www.google.com/",
-	)
-
-	return append(args, cmdArgs...)
+	return args
 }
 
-func executeWithFallback(name string, baseArgs []string) ([]byte, error) {
+func execute(name string, baseArgs []string) ([]byte, error) {
 	timeout := time.Duration(config.CONFIG.YtDlpConfig.CommandTimeoutInSeconds) * time.Second
-
-	// Strategy 1: Try with legacy configuration (includes cookies/proxy if available)
-	legacyArgs := applyAntiDetectionArgs(baseArgs)
-	glogger.Log.Infof("Attempting yt-dlp with legacy configuration (cookies/proxy)")
-	output, err := executeWithTimeout(timeout, name, legacyArgs...)
-
-	if err != nil {
-		glogger.Log.Warningf("Legacy configuration failed: %v", err)
-
-		// Strategy 2: Enhanced fallback without cookies (for expired cookie scenarios)
-		enhancedArgs := []string{
-			"--user-agent", getUserAgent(),
-			"--sleep-requests", "2",
-			"--sleep-interval", "3",
-			"--max-sleep-interval", "8",
-			"--extractor-retries", "5",
-			"--retries", "3",
-			"--socket-timeout", "30",
-			"--add-header", "Accept-Language:en-US,en;q=0.9",
-			"--add-header", "Accept:text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-			"--add-header", "Accept-Encoding:gzip, deflate",
-			"--add-header", "Connection:keep-alive",
-			"--add-header", "Referer:https://www.google.com/",
-		}
-		enhancedArgs = append(enhancedArgs, baseArgs...)
-		glogger.Log.Infof("Attempting yt-dlp with enhanced fallback (no cookies)")
-		output, err = executeWithTimeout(timeout, name, enhancedArgs...)
-	}
-
-	return output, err
+	args := append(commonArgs(), baseArgs...)
+	return executeWithTimeout(timeout, name, args...)
 }
 
 func getCookieFile() string {

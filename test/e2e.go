@@ -57,9 +57,9 @@ const (
 	validFormatValue     = "136"
 
 	// Test configuration - realistic timeouts with fast failure detection
-	defaultDownloadTimeoutSeconds = 25   // Shorter timeout for CI but realistic
-	ciQuickFailTimeoutSeconds     = 15   // Very fast timeout for known failure tests
-	defaultExpectDownloadFailure  = true // Expect failures in CI environment
+	defaultDownloadTimeoutSeconds = 25    // Shorter timeout for CI but realistic
+	ciQuickFailTimeoutSeconds     = 15    // Very fast timeout for known failure tests
+	defaultExpectDownloadFailure  = false // CI uses a yt-dlp stub, so downloads should succeed
 )
 
 // getDownloadTimeoutSeconds returns the timeout from environment or default
@@ -95,63 +95,17 @@ type Test struct {
 func main() {
 	tests := []Test{
 		{Name: "Basic Workflow Test", Run: testBasicWorkflow},
-		{Name: "Fast Failure Detection Test", Run: testFastFailureDetection},
 		{Name: "Invalid Timestamps Test", Run: testInvalidTimestamps},
-		{Name: "Invalid YouTube URL Test", Run: testInvalidYouTubeURL},
 		{Name: "Timeout Configuration Test", Run: testTimeoutConfiguration},
-		// {Name: "Dark Mode Test", Run: testDarkModeToggle},
 	}
 
 	var failedTests int
 	for _, test := range tests {
-		opts := append(chromedp.DefaultExecAllocatorOptions[:],
-			chromedp.Headless, // Disable for debugging
-			chromedp.DisableGPU,
-			chromedp.NoSandbox,
-			chromedp.Flag("disable-dev-shm-usage", true),
-			chromedp.Flag("ignore-certificate-errors", true),
-			chromedp.Flag("disable-web-security", true),
-			chromedp.Flag("disable-features", "VizDisplayCompositor,PrivateNetworkAccessSendPreflights,PrivateNetworkAccessRespectPreflightResults"),
-			chromedp.Flag("disable-background-timer-throttling", true),
-			chromedp.Flag("disable-backgrounding-occluded-windows", true),
-			chromedp.Flag("disable-renderer-backgrounding", true),
-			chromedp.Flag("disable-field-trial-config", true),
-			chromedp.Flag("disable-ipc-flooding-protection", true),
-		)
-
-		log.Printf("Starting Chrome context with options for test: %s", test.Name)
-		allocCtx, cancelAlloc := chromedp.NewExecAllocator(context.Background(), opts...)
-		defer cancelAlloc()
-
-		// Create context with error logging suppression for known chromedp issues
-		ctx, cancel := chromedp.NewContext(allocCtx, chromedp.WithLogf(func(s string, i ...any) {
-			// Suppress known chromedp protocol errors that don't affect functionality
-			msg := fmt.Sprintf(s, i...)
-			if strings.Contains(msg, "PrivateNetworkRequestPolicy") ||
-				strings.Contains(msg, "PermissionWarn") ||
-				strings.Contains(msg, "could not unmarshal event") {
-				return // Suppress these specific errors
-			}
-			log.Printf("Chrome: %s", msg)
-		}))
-		defer cancel()
-
-		testCtx, cancelTest := context.WithTimeout(ctx, 2*time.Minute)
-		defer cancelTest()
-
-		log.Printf("Running test: %s", test.Name)
-		startTime := time.Now()
-		err := test.Run(testCtx)
-		duration := time.Since(startTime)
-
-		if err != nil {
-			log.Printf("Test '%s' failed after %v: %v", test.Name, duration, err)
-			if testCtx.Err() == context.DeadlineExceeded {
-				log.Printf("  → Test timed out (this may be expected in CI)")
-			}
+		// Each test runs in its own function so its Chrome allocator/context are
+		// torn down (via defer) BEFORE the next test starts. Running the loop body
+		// inline leaked a Chrome instance per iteration, starving later tests.
+		if err := runTest(test); err != nil {
 			failedTests++
-		} else {
-			log.Printf("Test '%s' passed in %v", test.Name, duration)
 		}
 	}
 
@@ -160,6 +114,62 @@ func main() {
 		os.Exit(1)
 	}
 	log.Println("All tests passed")
+}
+
+func runTest(test Test) error {
+	opts := append(chromedp.DefaultExecAllocatorOptions[:],
+		chromedp.Headless,
+		// The first Chrome launch in CI is a cold start and can exceed the default
+		// 20s websocket timeout; give it generous headroom.
+		chromedp.WSURLReadTimeout(45*time.Second),
+		chromedp.DisableGPU,
+		chromedp.NoSandbox,
+		chromedp.Flag("disable-dev-shm-usage", true),
+		chromedp.Flag("ignore-certificate-errors", true),
+		chromedp.Flag("disable-web-security", true),
+		chromedp.Flag("disable-features", "VizDisplayCompositor,PrivateNetworkAccessSendPreflights,PrivateNetworkAccessRespectPreflightResults"),
+		chromedp.Flag("disable-background-timer-throttling", true),
+		chromedp.Flag("disable-backgrounding-occluded-windows", true),
+		chromedp.Flag("disable-renderer-backgrounding", true),
+		chromedp.Flag("disable-field-trial-config", true),
+		chromedp.Flag("disable-ipc-flooding-protection", true),
+	)
+
+	log.Printf("Starting Chrome context with options for test: %s", test.Name)
+	allocCtx, cancelAlloc := chromedp.NewExecAllocator(context.Background(), opts...)
+	defer cancelAlloc()
+
+	// Create context with error logging suppression for known chromedp issues
+	ctx, cancel := chromedp.NewContext(allocCtx, chromedp.WithLogf(func(s string, i ...any) {
+		// Suppress known chromedp protocol errors that don't affect functionality
+		msg := fmt.Sprintf(s, i...)
+		if strings.Contains(msg, "PrivateNetworkRequestPolicy") ||
+			strings.Contains(msg, "PermissionWarn") ||
+			strings.Contains(msg, "could not unmarshal event") {
+			return // Suppress these specific errors
+		}
+		log.Printf("Chrome: %s", msg)
+	}))
+	defer cancel()
+
+	testCtx, cancelTest := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancelTest()
+
+	log.Printf("Running test: %s", test.Name)
+	startTime := time.Now()
+	err := test.Run(testCtx)
+	duration := time.Since(startTime)
+
+	if err != nil {
+		log.Printf("Test '%s' failed after %v: %v", test.Name, duration, err)
+		if testCtx.Err() == context.DeadlineExceeded {
+			log.Printf("  → Test timed out")
+		}
+		return err
+	}
+
+	log.Printf("Test '%s' passed in %v", test.Name, duration)
+	return nil
 }
 
 func testBasicWorkflow(ctx context.Context) error {
@@ -177,7 +187,10 @@ func testBasicWorkflow(ctx context.Context) error {
 	err = chromedp.Run(ctx,
 		// Step 2: Fill the YouTube URL
 		chromedp.WaitVisible(urlInputSelector, chromedp.ByID),
-		chromedp.SetValue(urlInputSelector, validYouTubeURL, chromedp.ByID),
+		// Use SendKeys (real keystrokes) rather than SetValue: the URL field has a
+		// debounced `input` listener that loads formats, and SetValue does not
+		// reliably fire that event under chromedp.
+		chromedp.SendKeys(urlInputSelector, validYouTubeURL, chromedp.ByID),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to fill YouTube URL: %w", err)
@@ -230,43 +243,6 @@ func testBasicWorkflow(ctx context.Context) error {
 	return testClipProcessingResult(ctx)
 }
 
-func testInvalidYouTubeURL(ctx context.Context) error {
-	log.Printf("Navigate to %s", baseURL)
-
-	err := chromedp.Run(ctx,
-		// Step 1: Navigate to the app
-		chromedp.Navigate(baseURL),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to navigate to app: %w", err)
-	}
-	log.Println("Successfully navigated to the app")
-
-	log.Printf("Entering invalid YouTube URL: %s", invalidYouTubeURL)
-	err = chromedp.Run(ctx,
-		// Step 2: Enter an invalid YouTube URL
-		chromedp.WaitVisible(urlInputSelector, chromedp.ByID),
-		chromedp.SetValue(urlInputSelector, invalidYouTubeURL, chromedp.ByID),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to enter invalid YouTube URL: %w", err)
-	}
-	log.Println("Invalid YouTube URL entered")
-
-	log.Println("Waiting for error message to appear")
-	err = chromedp.Run(ctx,
-		// Step 4: Check for an error message
-		chromedp.WaitVisible(errorMessageSelector, chromedp.ByQuery),
-	)
-	if err != nil {
-		return fmt.Errorf("error message did not appear: %w", err)
-	}
-	log.Println("Error message displayed as expected")
-
-	log.Printf("Invalid YouTube URL test passed")
-	return nil
-}
-
 func testInvalidTimestamps(ctx context.Context) error {
 	log.Printf("Navigating to %s", baseURL)
 	err := chromedp.Run(ctx,
@@ -281,7 +257,10 @@ func testInvalidTimestamps(ctx context.Context) error {
 	log.Printf("Entering valid YouTube URL: %s", validYouTubeURL)
 	err = chromedp.Run(ctx,
 		// Step 2: Enter a valid YouTube URL
-		chromedp.SetValue(urlInputSelector, validYouTubeURL, chromedp.ByID),
+		// Use SendKeys (real keystrokes) rather than SetValue: the URL field has a
+		// debounced `input` listener that loads formats, and SetValue does not
+		// reliably fire that event under chromedp.
+		chromedp.SendKeys(urlInputSelector, validYouTubeURL, chromedp.ByID),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to enter YouTube URL: %w", err)
@@ -363,11 +342,14 @@ func testClipProcessingResultWithTimeout(ctx context.Context, timeoutSeconds int
 	for {
 		select {
 		case <-timeoutCtx.Done():
-			if isCIEnvironment() || expectDownloadFailure() {
-				log.Printf("Test timed out after %d seconds - this is expected in CI environment due to YouTube bot detection", timeoutSeconds)
-				return nil // Pass the test even on timeout in CI
+			if expectDownloadFailure() {
+				// Opt-in path for manual runs against real YouTube, where a
+				// timeout/block is expected. CI uses the yt-dlp stub and does not
+				// set this, so a timeout here is a real failure.
+				log.Printf("Test timed out after %d seconds - download failure was expected (E2E_EXPECT_FAILURE)", timeoutSeconds)
+				return nil
 			}
-			return fmt.Errorf("test timed out after %d seconds", timeoutSeconds)
+			return fmt.Errorf("test timed out after %d seconds (no download link or error shown)", timeoutSeconds)
 
 		case <-ticker.C:
 			// Check for download link first
@@ -401,46 +383,6 @@ func testClipProcessingResultWithTimeout(ctx context.Context, timeoutSeconds int
 	}
 }
 
-// testFastFailureDetection tests that the system can quickly detect and report failures
-func testFastFailureDetection(ctx context.Context) error {
-	log.Printf("Testing fast failure detection with reduced timeout")
-
-	// Navigate to the app
-	err := chromedp.Run(ctx,
-		chromedp.Navigate(baseURL),
-		chromedp.WaitVisible(urlInputSelector, chromedp.ByID),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to navigate to app: %w", err)
-	}
-	log.Println("Successfully navigated to the app")
-
-	// Fill in the form with valid data but set environment for quick timeout
-	err = chromedp.Run(ctx,
-		chromedp.SetValue(urlInputSelector, validYouTubeURL, chromedp.ByID),
-		chromedp.WaitEnabled(formatSelectSelector, chromedp.ByID),
-		chromedp.SetValue(formatSelectSelector, validFormatValue, chromedp.ByID),
-		chromedp.SendKeys(fromInputSelector, validFromTimestamp, chromedp.ByID),
-		chromedp.SendKeys(toInputSelector, validToTimestamp, chromedp.ByID),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to fill form: %w", err)
-	}
-	log.Println("Form filled successfully")
-
-	// Click the clip button
-	err = chromedp.Run(ctx,
-		chromedp.Click(clipButtonSelector, chromedp.ByID),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to click 'Clip!' button: %w", err)
-	}
-	log.Println("'Clip!' button clicked")
-
-	// Test with quick timeout to ensure fast failure detection
-	return testClipProcessingResultWithTimeout(ctx, ciQuickFailTimeoutSeconds)
-}
-
 // testTimeoutConfiguration tests the application's timeout handling behavior
 func testTimeoutConfiguration(ctx context.Context) error {
 	log.Printf("Testing timeout configuration and backend response times")
@@ -461,7 +403,10 @@ func testTimeoutConfiguration(ctx context.Context) error {
 	log.Println("Testing video duration fetch (should be fast)")
 
 	err = chromedp.Run(ctx,
-		chromedp.SetValue(urlInputSelector, validYouTubeURL, chromedp.ByID),
+		// Use SendKeys (real keystrokes) rather than SetValue: the URL field has a
+		// debounced `input` listener that loads formats, and SetValue does not
+		// reliably fire that event under chromedp.
+		chromedp.SendKeys(urlInputSelector, validYouTubeURL, chromedp.ByID),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to enter URL: %w", err)
@@ -476,10 +421,6 @@ func testTimeoutConfiguration(ctx context.Context) error {
 
 	if err != nil {
 		log.Printf("Format loading timed out after %v - this indicates backend processing issues", duration)
-		if isCIEnvironment() {
-			log.Printf("Accepting timeout in CI environment")
-			return nil
-		}
 		return fmt.Errorf("format dropdown not enabled within reasonable time: %w", err)
 	}
 

@@ -1,0 +1,4 @@
+# Shell scripts and the CI yt-dlp stub must keep LF endings so they execute on
+# the Linux CI runners regardless of the committer's core.autocrlf setting.
+*.sh text eol=lf
+test/ci/yt-dlp text eol=lf
