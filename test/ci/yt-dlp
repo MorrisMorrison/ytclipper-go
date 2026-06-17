@@ -28,6 +28,15 @@ for a in "$@"; do
   prev="$a"
 done
 
+# Reject anything that isn't a YouTube URL, mirroring yt-dlp's "Unsupported URL"
+# so the app's invalid-URL handling is actually exercised. The URL is always the
+# last argument the app passes.
+url="${@: -1}"
+case "$url" in
+  *youtube.com/watch*|*youtu.be/*|*youtube.com/shorts*) ;;
+  *) echo "ERROR: [generic] Unsupported URL: $url" >&2; exit 1 ;;
+esac
+
 case "$mode" in
   formats)
     cat <<'EOF'

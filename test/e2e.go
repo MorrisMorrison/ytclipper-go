@@ -106,6 +106,9 @@ func main() {
 	for _, test := range tests {
 		opts := append(chromedp.DefaultExecAllocatorOptions[:],
 			chromedp.Headless, // Disable for debugging
+			// The first Chrome launch in CI is a cold start and can exceed the
+			// default 20s websocket timeout; give it generous headroom.
+			chromedp.WSURLReadTimeout(45*time.Second),
 			chromedp.DisableGPU,
 			chromedp.NoSandbox,
 			chromedp.Flag("disable-dev-shm-usage", true),
