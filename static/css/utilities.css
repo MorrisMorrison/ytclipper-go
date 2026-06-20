@@ -95,20 +95,15 @@
 
 /* Colors */
 .text-gray {
-    color: var(--text-secondary-light);
-}
-
-body.dark .text-gray {
-    color: var(--text-secondary);
+    color: var(--text-muted);
 }
 
 .text-blue {
-    color: var(--secondary);
+    color: var(--accent-text);
     text-decoration: none;
     transition: color var(--transition-fast);
 }
 
 .text-blue:hover {
     text-decoration: underline;
-    color: var(--primary);
 }
