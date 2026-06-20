@@ -4,11 +4,19 @@ WORKDIR /app
 
 # Update and install system dependencies
 RUN apt-get update && \
-    apt-get install -y make python3 python3-pip python3-requests python3-urllib3 curl ffmpeg && \
+    apt-get install -y make python3 python3-pip python3-requests python3-urllib3 curl unzip ffmpeg && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install yt-dlp separately, as it may not have a Debian package
 RUN python3 -m pip install --no-warn-script-location --upgrade yt-dlp --break-system-packages
+
+# Install deno as a JavaScript runtime for yt-dlp.
+# yt-dlp shells out to `deno` to solve YouTube's JS challenges; without a JS
+# runtime on PATH, YouTube extraction is deprecated and some formats go missing.
+# DENO_INSTALL=/usr/local lands the binary at /usr/local/bin/deno (already on PATH).
+# Pinned to a specific version for reproducible builds.
+RUN curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh -s v2.8.3 && \
+    deno --version
 
 # Create videos directory
 RUN mkdir -p /app/videos && chmod 777 /app/videos
