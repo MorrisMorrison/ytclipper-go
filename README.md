@@ -22,10 +22,6 @@ https://github.com/user-attachments/assets/8ab2d567-0ca7-44c6-9c76-07203b2fd986
 - **Rate Limiting**: Built-in rate limiting to prevent abuse and ensure fair usage
 - **Automatic Cleanup**: Scheduled cleanup of old clips and jobs to manage storage efficiently
 - **Health Monitoring**: Health check endpoint for monitoring and load balancing
-- **Cookie Monitoring**: Dual validation system with expiration tracking and API functional testing
-- **Smart Notifications**: Proactive alerts via ntfy when cookies need attention
-- **Simple Bot Detection Bypass**: Cookie-based authentication with automatic fallback
-- **Intelligent Fallback**: Dual-tier strategy with user agent rotation and anti-detection headers
 - **Responsive UI**: Clean, dark-themed web interface optimized for all devices
 
 ### Usage
@@ -65,7 +61,7 @@ https://github.com/user-attachments/assets/8ab2d567-0ca7-44c6-9c76-07203b2fd986
 
 3. **Install Python dependencies**:
    ```bash
-   pip install yt-dlp certifi requests urllib3
+   pip install yt-dlp
    ```
 
 4. **Run the application**:
@@ -168,19 +164,10 @@ The application can be configured using environment variables:
 ### Video Processing
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `YTCLIPPER_PORT_CLIP_SIZE_LIMIT_IN_MB` | Maximum clip size (MB) | `300` |
+| `YTCLIPPER_YT_DLP_CLIP_SIZE_LIMIT_IN_MB` | Maximum clip size (MB) | `300` |
 | `YTCLIPPER_YT_DLP_COMMAND_TIMEOUT_IN_SECONDS` | yt-dlp timeout (seconds) | `60` |
 | `YTCLIPPER_YT_DLP_EXTRACTOR_RETRIES` | Number of retry attempts | `3` |
-| `YTCLIPPER_YT_DLP_SLEEP_INTERVAL` | Base sleep interval (seconds) | `2` |
-| `YTCLIPPER_YT_DLP_ENABLE_USER_AGENT_ROTATION` | Enable rotating user agents | `true` |
-
-### Anti-Bot Detection
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `YTCLIPPER_YT_DLP_USER_AGENT` | Custom user agent (overrides rotation) | `` |
-| `YTCLIPPER_YT_DLP_COOKIES_FILE` | Path to cookies file (optional) | `` |
-| `YTCLIPPER_YT_DLP_COOKIES_CONTENT` | Cookie content as string (optional) | `` |
-| `YTCLIPPER_YT_DLP_PROXY` | Proxy server (optional) | `` |
+| `YTCLIPPER_YT_DLP_PROXY` | Proxy for yt-dlp egress, e.g. `socks5h://host:1080` (optional) | `` |
 
 ### Cleanup Scheduler
 | Variable | Description | Default |
@@ -188,27 +175,6 @@ The application can be configured using environment variables:
 | `YTCLIPPER_CLIP_CLEANUP_SCHEDULER_ENABLED` | Enable automatic cleanup | `true` |
 | `YTCLIPPER_CLIP_CLEANUP_SCHEDULER_INTERVAL_IN_MINUTES` | Cleanup interval (minutes) | `5` |
 | `YTCLIPPER_CLIP_CLEANUP_SCHEDULER_CLIP_DIRECTORY_PATH` | Directory to clean | `./videos` |
-
-### Cookie Monitoring
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `YTCLIPPER_COOKIE_MONITOR_ENABLED` | Enable cookie expiration monitoring | `true` |
-| `YTCLIPPER_COOKIE_MONITOR_INTERVAL_HOURS` | Check interval (hours) | `24` |
-| `YTCLIPPER_COOKIE_MONITOR_WARNING_THRESHOLD_DAYS` | Warning threshold (days) | `30` |
-| `YTCLIPPER_COOKIE_MONITOR_URGENT_THRESHOLD_DAYS` | Urgent threshold (days) | `7` |
-| `YTCLIPPER_COOKIE_MONITOR_NTFY_TOPIC` | Ntfy topic for cookie alerts | `ytclipper-cookies` |
-| `YTCLIPPER_COOKIE_MONITOR_API_VALIDATION_ENABLED` | Enable API functional validation | `true` |
-| `YTCLIPPER_COOKIE_MONITOR_API_VALIDATION_INTERVAL_HOURS` | API validation interval (hours) | `6` |
-| `YTCLIPPER_COOKIE_MONITOR_TEST_VIDEO_URL` | YouTube URL for API testing | `https://www.youtube.com/watch?v=dQw4w9WgXcQ` |
-| `YTCLIPPER_COOKIE_MONITOR_API_VALIDATION_TIMEOUT_SECS` | API validation timeout (seconds) | `30` |
-
-> 📚 **Detailed Cookie Monitoring Guide**: See [docs/COOKIE_MONITORING.md](docs/COOKIE_MONITORING.md) for comprehensive setup instructions, notification examples, and troubleshooting.
-
-### Ntfy Notifications (Global)
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `YTCLIPPER_NTFY_ENABLED` | Enable ntfy notifications | `false` |
-| `YTCLIPPER_NTFY_SERVER_URL` | Ntfy server URL | `` |
 
 ### Auth 
 | Variable | Description | Default |
@@ -240,62 +206,21 @@ The application can be configured using environment variables:
 - **Input Validation**: Sanitizes all user inputs and URL parameters
 - **File Management**: Automatic cleanup prevents disk space exhaustion
 - **Error Handling**: Graceful error handling without exposing internal details
-- **Minimal Configuration**: Optional cookie/proxy support with no credentials stored by default
+- **Minimal Configuration**: Optional proxy support with no credentials stored by default
 - **Basic Auth**: Optional Basic Auth support when configuration is set
 
-## YouTube Bot Detection Bypass
+## YouTube Access
 
-The application uses a **simplified cookie-based authentication approach** with automatic fallback to maximize compatibility:
-
-### **Primary Strategy: Cookie Authentication**
-**Cookie Content**: Use `YTCLIPPER_YT_DLP_COOKIES_CONTENT` environment variable to provide cookie data directly  
-**Cookie File**: Use `YTCLIPPER_YT_DLP_COOKIES_FILE` for cookie file path (alternative to content)  
-**Proxy Support**: Use `YTCLIPPER_YT_DLP_PROXY` for proxy server when needed  
-**High Success Rate**: Provides authentication for restricted content when configured  
-
-### **Fallback Strategy: Anti-Detection Headers**
-**No Authentication Required**: Works without cookies when authentication is not available  
-**User Agent Rotation**: 6 modern browser user agents automatically rotated  
-**Enhanced Headers**: Browser-like HTTP headers for authenticity  
-**Automatic Retry**: Retry with different user agent on failure  
-
-### Quick Setup (Default Configuration)
-```bash
-# Default configuration (no setup required)
-export YTCLIPPER_YT_DLP_ENABLE_USER_AGENT_ROTATION=true
-export YTCLIPPER_YT_DLP_SLEEP_INTERVAL=2
-export YTCLIPPER_YT_DLP_EXTRACTOR_RETRIES=3
-
-# Option 1: Use cookie content directly (recommended)
-export YTCLIPPER_YT_DLP_COOKIES_CONTENT=".youtube.com	TRUE	/	FALSE	1704067200	VISITOR_INFO1_LIVE	xyz123"
-
-# Option 2: Use cookie file path
-export YTCLIPPER_YT_DLP_COOKIES_FILE=/path/to/cookies.txt
-
-# Optional: Add proxy for geographic restrictions
-export YTCLIPPER_YT_DLP_PROXY=http://proxy-server:port
-```
-
-### **Cookie Expiration Monitoring**
-**Automatic Monitoring**: Tracks cookie expiration dates and sends notifications  
-**Configurable Thresholds**: Warning (30 days) and urgent (7 days) alerts  
-**Ntfy Integration**: Push notifications to your devices via ntfy.sh or self-hosted server  
-**Proactive Management**: Prevents service disruption by alerting before expiration  
+YouTube blocks downloads from datacenter IPs (e.g. a cloud VPS). To get a reliable
+residential exit, point yt-dlp at a SOCKS5 proxy that egresses from a residential
+network:
 
 ```bash
-# Enable cookie monitoring with notifications
-export YTCLIPPER_COOKIE_MONITOR_ENABLED=true
-export YTCLIPPER_NTFY_ENABLED=true
-export YTCLIPPER_NTFY_SERVER_URL="https://ntfy.sh"
-export YTCLIPPER_COOKIE_MONITOR_NTFY_TOPIC="ytclipper-alerts"
+export YTCLIPPER_YT_DLP_PROXY=socks5h://proxy-host:1080
 ```
 
-### How It Works
-1. **Primary Strategy**: Uses cookie authentication if cookies are configured via environment variables
-2. **Automatic Fallback**: Falls back to anti-detection headers if cookie authentication fails
-3. **Cookie Monitoring**: Automatically tracks cookie health and sends expiration alerts
-4. **No User Interaction**: Runs completely automatically with environment variables
-5. **Simple Configuration**: Two-tier approach with straightforward setup
+`socks5h://` resolves DNS through the proxy too. With a residential exit, no cookies
+or anti-detection tricks are needed.
 
 ## Monitoring
 
