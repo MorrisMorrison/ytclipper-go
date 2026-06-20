@@ -3,7 +3,6 @@ package videoprocessing
 import (
 	"context"
 	"fmt"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -193,21 +192,15 @@ func getFileExtensionFromFormatID(formatID string, formats []map[string]string) 
 	return "", fmt.Errorf("format ID not found")
 }
 
-// commonArgs returns the flags applied to every yt-dlp invocation. The download
-// is expected to run from a residential network path (e.g. a SOCKS proxy over
-// WireGuard), so there is no anti-bot trickery here -- just the proxy and,
-// optionally, cookies.
+// commonArgs returns the flags applied to every yt-dlp invocation. Downloads run
+// from a residential network path (a SOCKS proxy over WireGuard), so there is no
+// anti-bot trickery here -- just the proxy and yt-dlp's own retry/quiet flags.
 func commonArgs() []string {
 	var args []string
 
 	if config.CONFIG.YtDlpConfig.Proxy != "" {
 		glogger.Log.Infof("Using proxy: %s", config.CONFIG.YtDlpConfig.Proxy)
 		args = append(args, "--proxy", config.CONFIG.YtDlpConfig.Proxy)
-	}
-
-	if cookieFile := getCookieFile(); cookieFile != "" {
-		glogger.Log.Infof("Using cookies file: %s", cookieFile)
-		args = append(args, "--cookies", cookieFile)
 	}
 
 	if config.CONFIG.YtDlpConfig.ExtractorRetries > 0 {
@@ -223,40 +216,6 @@ func execute(name string, baseArgs []string) ([]byte, error) {
 	timeout := time.Duration(config.CONFIG.YtDlpConfig.CommandTimeoutInSeconds) * time.Second
 	args := append(commonArgs(), baseArgs...)
 	return executeWithTimeout(timeout, name, args...)
-}
-
-func getCookieFile() string {
-	if config.CONFIG.YtDlpConfig.CookiesFile != "" {
-		return config.CONFIG.YtDlpConfig.CookiesFile
-	}
-
-	if config.CONFIG.YtDlpConfig.CookiesContent != "" {
-		tempFile, err := createTempCookieFile(config.CONFIG.YtDlpConfig.CookiesContent)
-		if err != nil {
-			glogger.Log.Errorf(err, "Failed to create temporary cookie file")
-			return ""
-		}
-		return tempFile
-	}
-
-	return ""
-}
-
-func createTempCookieFile(content string) (string, error) {
-	tempFile, err := os.CreateTemp("", "ytclipper_cookies_*.txt")
-	if err != nil {
-		return "", fmt.Errorf("failed to create temp file: %w", err)
-	}
-	defer tempFile.Close()
-
-	_, err = tempFile.WriteString(content)
-	if err != nil {
-		os.Remove(tempFile.Name())
-		return "", fmt.Errorf("failed to write cookie content: %w", err)
-	}
-
-	glogger.Log.Infof("Created temporary cookie file: %s", tempFile.Name())
-	return tempFile.Name(), nil
 }
 
 func executeWithTimeout(timeout time.Duration, name string, args ...string) ([]byte, error) {

@@ -121,16 +121,14 @@ func TestGetVideoDuration(t *testing.T) {
 	}
 }
 
-// TestCommonArgsHonorsProxyAndCookies verifies that the proxy and cookies are
-// applied when configured -- and that none of the old anti-detection flags leak
-// back in.
-func TestCommonArgsHonorsProxyAndCookies(t *testing.T) {
+// TestCommonArgsHonorsProxy verifies that the proxy is applied when configured --
+// and that neither cookies (support removed) nor the old anti-detection flags
+// leak back in.
+func TestCommonArgsHonorsProxy(t *testing.T) {
 	original := config.CONFIG.YtDlpConfig
 	defer func() { config.CONFIG.YtDlpConfig = original }()
 
 	config.CONFIG.YtDlpConfig.Proxy = "socks5h://10.0.0.1:1080"
-	config.CONFIG.YtDlpConfig.CookiesFile = "/tmp/cookies.txt"
-	config.CONFIG.YtDlpConfig.CookiesContent = ""
 	config.CONFIG.YtDlpConfig.ExtractorRetries = 0
 
 	args := commonArgs()
@@ -138,28 +136,23 @@ func TestCommonArgsHonorsProxyAndCookies(t *testing.T) {
 	if v, ok := flagValue(args, "--proxy"); !ok || v != "socks5h://10.0.0.1:1080" {
 		t.Errorf("Expected --proxy to be applied, got %v", args)
 	}
-	if v, ok := flagValue(args, "--cookies"); !ok || v != "/tmp/cookies.txt" {
-		t.Errorf("Expected --cookies to be applied, got %v", args)
+	if hasFlag(args, "--cookies") {
+		t.Errorf("Did not expect --cookies (cookie support removed), got %v", args)
 	}
 	if hasFlag(args, "--user-agent") || hasFlag(args, "--sleep-requests") || hasFlag(args, "--add-header") {
 		t.Errorf("Did not expect anti-detection flags in common args, got %v", args)
 	}
 }
 
-func TestCommonArgsWithoutProxyOrCookies(t *testing.T) {
+func TestCommonArgsWithoutProxy(t *testing.T) {
 	original := config.CONFIG.YtDlpConfig
 	defer func() { config.CONFIG.YtDlpConfig = original }()
 
 	config.CONFIG.YtDlpConfig.Proxy = ""
-	config.CONFIG.YtDlpConfig.CookiesFile = ""
-	config.CONFIG.YtDlpConfig.CookiesContent = ""
 
 	args := commonArgs()
 
 	if hasFlag(args, "--proxy") {
 		t.Errorf("Did not expect --proxy when unset, got %v", args)
-	}
-	if hasFlag(args, "--cookies") {
-		t.Errorf("Did not expect --cookies when unset, got %v", args)
 	}
 }
