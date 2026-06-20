@@ -60,6 +60,7 @@
     --input-border-hover: rgba(15, 23, 42, 0.28);
     --track: rgba(15, 23, 42, 0.08);
     --toast-bg: rgba(255, 255, 255, 0.95);
+    --menu-bg: #ffffff;
 
     --text: #0f172a;
     --text-secondary: #475569;
@@ -82,6 +83,7 @@ body.dark {
     --input-border-hover: rgba(255, 255, 255, 0.22);
     --track: rgba(255, 255, 255, 0.10);
     --toast-bg: rgba(30, 41, 59, 0.94);
+    --menu-bg: #161e2e;
 
     --text: #f1f5f9;
     --text-secondary: #94a3b8;
@@ -235,6 +237,21 @@ select.input {
     background-repeat: no-repeat;
     background-position: right 13px center;
     background-size: 16px;
+}
+
+/* Native dropdown list — options can't inherit the card's translucent
+   surface, so give them an opaque, readable background. */
+select.input option {
+    background-color: var(--menu-bg);
+    color: var(--text);
+    padding: var(--spacing-sm);
+}
+
+select.input optgroup {
+    background-color: var(--menu-bg);
+    color: var(--text-muted);
+    font-weight: 600;
+    font-style: normal;
 }
 
 .input-row {
