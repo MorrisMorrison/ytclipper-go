@@ -23,7 +23,7 @@ A high-performance web application for creating and downloading video clips from
 - **Rate Limiting**: Built-in rate limiting to prevent abuse and ensure fair usage
 - **Automatic Cleanup**: Scheduled cleanup of old clips and jobs to manage storage efficiently
 - **Health Monitoring**: Health check endpoint for monitoring and load balancing
-- **Responsive UI**: Clean, dark-themed web interface optimized for all devices
+- **Responsive UI**: Clean web interface with light and dark themes, optimized for all devices
 
 ### Usage
 1. Enter a YouTube URL
