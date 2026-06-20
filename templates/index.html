@@ -1,8 +1,13 @@
-<html class="dark">
+<!DOCTYPE html>
+<html lang="en">
 <head>
+    <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ytclipper</title>
+    <title>ytclipper — clip any YouTube video</title>
     <link rel="icon" href="/static/icons/favicon.ico" type="image/x-icon">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
     <link rel="stylesheet" href="/static/css/toastr.min.css" />
     <link rel="stylesheet" href="/static/css/video-js.min.css">
     <link rel="stylesheet" href="/static/css/styles.css">
@@ -16,54 +21,100 @@
 </head>
 
 <body class="dark">
+    <main class="page">
+        <div id="searchGroup" class="main-card">
+            <header class="brand">
+                <span class="brand-mark" aria-hidden="true">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                        <path d="M8 5v14l11-7z" fill="#06231b" />
+                        <circle cx="6.5" cy="6.5" r="2" stroke="#06231b" stroke-width="1.6" />
+                        <circle cx="6.5" cy="17.5" r="2" stroke="#06231b" stroke-width="1.6" />
+                    </svg>
+                </span>
+                <span class="brand-text">
+                    <h1 class="wordmark">yt<span class="wordmark-accent">clipper</span></h1>
+                    <span class="tagline">Clip any YouTube video</span>
+                </span>
+            </header>
 
-    <div class="flex flex-col items-center justify-center w-100 h-100">
-        <div id="searchGroup" class="flex flex-col items-center justify-center w-100 h-90">
-            <div class="main-card pb-14 flex flex-col w-auto">
-                <h1 class="title">ytclipper</h1>
-                <div class="flex flex-row items-center">
-                    <input autocomplete="off" class="input mr-3" type="text" id="url" placeholder="Paste your youtube url here." title="Only valid youtube links will work" />
-                    <button id="previewButton" class="button">
-                        <img class="white-icon" src="/static/icons/eye.svg" alt="Icon description" />
+            <div class="divider"></div>
+
+            <div class="field">
+                <label class="field-label" for="url">Video URL</label>
+                <div class="input-row">
+                    <input autocomplete="off" class="input" type="text" id="url" placeholder="Paste a YouTube link…" title="Only valid youtube links will work" />
+                    <button id="previewButton" class="icon-button" type="button" aria-label="Preview video" title="Preview video">
+                        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
+                            <circle cx="12" cy="12" r="3" />
+                        </svg>
                     </button>
                 </div>
-                <div id="videoPlayerWrapper" class="hidden pb-5 pt-5 w-full">
-                    <video id="videoPlayer" class="video-js vjs-default-skin" controls autoplay style="width: 100%; height: auto; max-width: 640px; aspect-ratio: 16/9;"></video>
-                </div>
+            </div>
 
-                <div id="format-wrapper" disabled class="pb-3 pt-3">
+            <div id="videoPlayerWrapper" class="hidden field">
+                <video id="videoPlayer" class="video-js vjs-default-skin" controls autoplay playsinline></video>
+            </div>
+
+            <div class="field">
+                <label class="field-label" for="formatSelect">Format &amp; quality</label>
+                <div id="format-wrapper">
                     <select id="formatSelect" class="input" disabled>
-                        <option value="">Select format...</option>
+                        <option value="">Select format…</option>
                     </select>
                 </div>
+            </div>
 
-                <div class="flex w-full pb-3 pt-1" style="gap: var(--spacing-md);">
-                    <input step="1" autocomplete="off" class="input" type="text" id="from" placeholder="from*" title="Provide timestamps as HH:MM:SS." />
-                    <input step="1" autocomplete="off" class="input" type="text" id="to" placeholder="to*" title="Provide timestamps as HH:MM:SS." />
-                </div>
-                <button id="clipButton" class="button">Clip!</button>
-                <p class="text-gray pt-1 pl-1">* Please provide timestamps as hh:mm:ss (e.g. 34, 1:28, 1:01:24)</p>
-                <div id="progressBarWrapper" class="hidden pt-3">
-                    <div id="progress" class="progress">
-                        <div id="progressBar" class="progress-bar-custom"></div>
-                    </div>
-                </div>
-                <div id="downloadLinkWrapper" class="hidden pt-3 pl-1 flex flex-col">
-                    <span class="text-gray">
-                        If the download didn't pop up automatically, you can download the file
-                        <a class="text-blue" id="downloadLink">here</a>.
+            <div class="field">
+                <label class="field-label" for="from">Time range</label>
+                <div class="time-range">
+                    <input step="1" autocomplete="off" class="input time-input" type="text" id="from" placeholder="from*" title="Provide timestamps as HH:MM:SS." />
+                    <span class="time-arrow" aria-hidden="true">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M5 12h14M13 6l6 6-6 6" />
+                        </svg>
                     </span>
+                    <input step="1" autocomplete="off" class="input time-input" type="text" id="to" placeholder="to*" title="Provide timestamps as HH:MM:SS." />
                 </div>
             </div>
+
+            <button id="clipButton" class="button button-primary" type="button">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="6" cy="6" r="3" />
+                    <circle cx="6" cy="18" r="3" />
+                    <path d="M20 4L8.12 15.88M14.47 14.48L20 20M8.12 8.12L12 12" />
+                </svg>
+                Create clip
+            </button>
+
+            <p class="helper-text">Timestamps accept <code>34</code>, <code>1:28</code>, or <code>1:09:24</code>.</p>
+
+            <div id="progressBarWrapper" class="hidden field">
+                <div id="progress" class="progress" role="progressbar" aria-label="Creating clip">
+                    <div id="progressBar" class="progress-bar-custom"></div>
+                </div>
+            </div>
+
+            <div id="downloadLinkWrapper" class="hidden field">
+                <p class="helper-text">
+                    If the download didn't start automatically, you can
+                    <a class="text-link" id="downloadLink">download it here</a>.
+                </p>
+            </div>
         </div>
-        <div class="footer flex items-end justify-end pb-3 pr-3 h-5">
-            <label class="text-gray pr-3 pt-1">DarkMode</label>
-            <label class="switch">
-                <input type="checkbox" name="enableDarkMode" checked id="themeSlider"/>
-                <span class="slider round"></span>
-            </label>
-        </div>
-    </div>
+    </main>
+
+    <footer class="footer">
+        <button id="themeSlider" class="theme-toggle" type="button" aria-label="Toggle dark mode" title="Toggle theme">
+            <svg class="theme-icon theme-icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="4" />
+                <path d="M12 3v2M12 19v2M5 12H3M21 12h-2M18.36 5.64l-1.41 1.41M7.05 16.95l-1.41 1.41M18.36 18.36l-1.41-1.41M7.05 7.05L5.64 5.64" />
+            </svg>
+            <svg class="theme-icon theme-icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+            </svg>
+        </button>
+    </footer>
 
     <script src="/static/scripts/video.min.js"></script>
     <script src="/static/scripts/Youtube.min.js"></script>
