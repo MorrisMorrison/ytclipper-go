@@ -2,8 +2,12 @@ package videoprocessing
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"testing"
 	"ytclipper-go/config"
 )
@@ -69,7 +73,7 @@ func TestDownloadAndCutVideo(t *testing.T) {
 		return exec.Command("echo", "mock")
 	}
 
-	outputPath := "./videos/test_clip.mp4"
+	outputPath := "./videos/test_clip.%(ext)s"
 	selectedFormat := "22"
 	fileSizeLimit := int64(500000000)
 	from := "00:00:30"
@@ -154,5 +158,35 @@ func TestCommonArgsWithoutProxy(t *testing.T) {
 
 	if hasFlag(args, "--proxy") {
 		t.Errorf("Did not expect --proxy when unset, got %v", args)
+	}
+}
+
+func TestSummarizeError(t *testing.T) {
+	output := []byte("[youtube] abc: Downloading webpage\nERROR: [youtube] abc: Video unavailable\n")
+	if got := summarizeError(output, errors.New("exit 1")); got != "[youtube] abc: Video unavailable" {
+		t.Errorf("unexpected summary %q", got)
+	}
+	if got := summarizeError(nil, fmt.Errorf("%w after 1s", errTimeout)); got != "Timed out while downloading the clip" {
+		t.Errorf("unexpected timeout summary %q", got)
+	}
+	if got := summarizeError([]byte("--proxy socks5h://secret:1080"), errors.New("exit 1")); strings.Contains(got, "secret") {
+		t.Errorf("summary leaked command output: %q", got)
+	}
+}
+
+func TestFindOutputFile(t *testing.T) {
+	dir := t.TempDir()
+	if _, err := findOutputFile(dir, "job1"); err == nil {
+		t.Error("expected an error when nothing was written")
+	}
+
+	for _, name := range []string{"job1.mp4.part", "job1.mp4", "job2.webm"} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := findOutputFile(dir, "job1")
+	if err != nil || filepath.Base(got) != "job1.mp4" {
+		t.Errorf("findOutputFile = %q, %v; want job1.mp4", got, err)
 	}
 }

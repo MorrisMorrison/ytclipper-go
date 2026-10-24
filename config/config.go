@@ -18,9 +18,12 @@ const (
 	CONFIG_KEY_RATE_LIMITER_BURST              = "YTCLIPPER_RATE_LIMITER_BURST"
 	CONFIG_KEY_RATE_LIMITER_EXPIRES_IN_MINUTES = "YTCLIPPER_RATE_LIMITER_EXPIRES_IN_MINUTES"
 
-	CONFIG_KEY_CLIP_CLEANUP_SCHEDULER_INTERVAL_IN_MINUTES = "YTCLIPPER_CLIP_CLEANUP_SCHEDULER_INTERVAL_IN_MINUTES"
-	CONFIG_KEY_CLIP_CLEANUP_SCHEDULER_CLIP_DIRECTORY_PATH = "YTCLIPPER_CLIP_CLEANUP_SCHEDULER_CLIP_DIRECTORY_PATH"
-	CONFIG_KEY_CLIP_CLEANUP_SCHEDULER_ENABLED             = "YTCLIPPER_CLIP_CLEANUP_SCHEDULER_ENABLED"
+	CONFIG_KEY_CLIP_CLEANUP_SCHEDULER_INTERVAL_IN_MINUTES  = "YTCLIPPER_CLIP_CLEANUP_SCHEDULER_INTERVAL_IN_MINUTES"
+	CONFIG_KEY_CLIP_CLEANUP_SCHEDULER_CLIP_DIRECTORY_PATH  = "YTCLIPPER_CLIP_CLEANUP_SCHEDULER_CLIP_DIRECTORY_PATH"
+	CONFIG_KEY_CLIP_CLEANUP_SCHEDULER_ENABLED              = "YTCLIPPER_CLIP_CLEANUP_SCHEDULER_ENABLED"
+	CONFIG_KEY_CLIP_CLEANUP_SCHEDULER_RETENTION_IN_MINUTES = "YTCLIPPER_CLIP_CLEANUP_SCHEDULER_RETENTION_IN_MINUTES"
+
+	CONFIG_KEY_MAX_CONCURRENT_JOBS = "YTCLIPPER_MAX_CONCURRENT_JOBS"
 
 	CONFIG_KEY_AUTH_USERNAME = "YTCLIPPER_AUTH_USERNAME"
 	CONFIG_KEY_AUTH_PASSWORD = "YTCLIPPER_AUTH_PASSWORD"
@@ -31,6 +34,7 @@ var CONFIG *Config = NewConfig()
 type Config struct {
 	Port                       string
 	Debug                      bool
+	MaxConcurrentJobs          int
 	RateLimiterConfig          RateLimiterConfig
 	YtDlpConfig                YtDlpConfig
 	ClipCleanUpSchedulerConfig ClipCleanUpSchedulerConfig
@@ -51,9 +55,10 @@ type YtDlpConfig struct {
 }
 
 type ClipCleanUpSchedulerConfig struct {
-	IntervalInMinutes int
-	ClipDirectoryPath string
-	IsEnabled         bool
+	IntervalInMinutes  int
+	RetentionInMinutes int
+	ClipDirectoryPath  string
+	IsEnabled          bool
 }
 
 type BasicAuthConfig struct {
@@ -63,13 +68,15 @@ type BasicAuthConfig struct {
 
 func NewClipCleanUpSchedulerConfig() *ClipCleanUpSchedulerConfig {
 	intervalInMinutes := GetEnvInt(CONFIG_KEY_CLIP_CLEANUP_SCHEDULER_INTERVAL_IN_MINUTES, 5)
+	retentionInMinutes := GetEnvInt(CONFIG_KEY_CLIP_CLEANUP_SCHEDULER_RETENTION_IN_MINUTES, 30)
 	clipDirectoryPath := GetEnv(CONFIG_KEY_CLIP_CLEANUP_SCHEDULER_CLIP_DIRECTORY_PATH, "./videos/")
 	clipSchedulerEnabled := GetEnv(CONFIG_KEY_CLIP_CLEANUP_SCHEDULER_ENABLED, "true") == "true"
 
 	return &ClipCleanUpSchedulerConfig{
-		IntervalInMinutes: intervalInMinutes,
-		ClipDirectoryPath: clipDirectoryPath,
-		IsEnabled:         clipSchedulerEnabled,
+		IntervalInMinutes:  intervalInMinutes,
+		RetentionInMinutes: retentionInMinutes,
+		ClipDirectoryPath:  clipDirectoryPath,
+		IsEnabled:          clipSchedulerEnabled,
 	}
 }
 
@@ -111,11 +118,12 @@ func NewBasicAuthConfig() *BasicAuthConfig {
 
 func NewConfig() *Config {
 	port := GetEnv(CONFIG_KEY_PORT, "8080")
-	debug := GetEnv(CONFIG_KEY_DEBUG, "true") == "true"
+	debug := GetEnv(CONFIG_KEY_DEBUG, "false") == "true"
 
 	return &Config{
 		Port:                       port,
 		Debug:                      debug,
+		MaxConcurrentJobs:          max(1, GetEnvInt(CONFIG_KEY_MAX_CONCURRENT_JOBS, 3)),
 		RateLimiterConfig:          *NewRateLimiterConfig(),
 		YtDlpConfig:                *NewYtDlpConfig(),
 		ClipCleanUpSchedulerConfig: *NewClipCleanUpSchedulerConfig(),

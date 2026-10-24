@@ -1,39 +1,41 @@
-FROM golang:1.23
+# --- Build -------------------------------------------------------------------
+FROM golang:1.26-bookworm AS build
 
-WORKDIR /app
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
 
-# Update and install system dependencies
+COPY . .
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/ytclipper-go .
+
+# --- Runtime -----------------------------------------------------------------
+FROM debian:bookworm-slim
+
 RUN apt-get update && \
-    apt-get install -y make python3 python3-pip python3-requests python3-urllib3 curl unzip ffmpeg && \
+    apt-get install -y --no-install-recommends ca-certificates curl unzip ffmpeg python3 python3-pip && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install yt-dlp separately, as it may not have a Debian package
-RUN python3 -m pip install --no-warn-script-location --upgrade yt-dlp --break-system-packages
+# yt-dlp from PyPI: Debian's package lags behind YouTube changes. The latest
+# release is installed at build time, so rebuilding the image picks up fixes.
+RUN python3 -m pip install --no-cache-dir --break-system-packages --upgrade "yt-dlp[default]"
 
-# Install deno as a JavaScript runtime for yt-dlp.
-# yt-dlp shells out to `deno` to solve YouTube's JS challenges; without a JS
-# runtime on PATH, YouTube extraction is deprecated and some formats go missing.
-# DENO_INSTALL=/usr/local lands the binary at /usr/local/bin/deno (already on PATH).
-# Pinned to a specific version for reproducible builds.
+# deno is the JavaScript runtime yt-dlp uses to solve YouTube's JS challenges;
+# without it some formats go missing. Pinned for reproducible builds.
 RUN curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh -s v2.8.3 && \
     deno --version
 
-# Create videos directory
-RUN mkdir -p /app/videos && chmod 777 /app/videos
+RUN useradd --system --uid 10001 --home-dir /app ytclipper
+WORKDIR /app
 
-# Copy Go module files and download dependencies
-COPY go.mod go.sum ./
-RUN go mod tidy 
+COPY --from=build /out/ytclipper-go ./ytclipper-go
+COPY templates ./templates
+COPY static ./static
+RUN mkdir -p /app/videos && chown ytclipper:ytclipper /app/videos
 
-# Copy the application source code
-COPY . .
-
-# Build the Go application
-RUN go build -o ytclipper-go .
-
-# Expose the application's port
+USER ytclipper
 EXPOSE 8080
 
-# Command to run the application
-CMD ["./ytclipper-go"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
+    CMD curl -fsS http://localhost:${YTCLIPPER_PORT:-8080}/health || exit 1
 
+CMD ["./ytclipper-go"]
