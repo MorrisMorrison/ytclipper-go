@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"html/template"
 	"io/fs"
+	"log/slog"
 
 	"github.com/MorrisMorrison/ytclipper-go/web"
 
-	"github.com/MorrisMorrison/gutils/glogger"
 	"github.com/labstack/echo/v4"
 )
 
@@ -26,7 +26,7 @@ func registerWeb(e *echo.Echo, devDir string) error {
 	var homePage func() (*template.Template, error)
 	if devDir != "" {
 		// Parsed on every request, so template edits show up immediately.
-		glogger.Log.Infof("Serving web assets from %s", devDir)
+		slog.Info("Serving web assets from disk", "dir", devDir)
 		homePage = func() (*template.Template, error) {
 			return template.ParseFS(assets, indexTemplate)
 		}

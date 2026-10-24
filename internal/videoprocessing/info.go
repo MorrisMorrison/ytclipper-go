@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math"
 	"regexp"
 	"sort"
@@ -13,8 +14,6 @@ import (
 	"time"
 
 	"github.com/MorrisMorrison/ytclipper-go/internal/config"
-
-	"github.com/MorrisMorrison/gutils/glogger"
 )
 
 const (
@@ -86,24 +85,22 @@ func GetVideoInfo(videoID string) (*VideoInfo, error) {
 }
 
 func fetchVideoInfo(videoID string) (*VideoInfo, error) {
-	glogger.Log.Infof("Get Video Info: Fetching info for video %s", videoID)
+	slog.Info("Fetching video info", "video", videoID)
 
 	timeout := time.Duration(config.CONFIG.YtDlpConfig.CommandTimeoutInSeconds) * time.Second
 	out, err := execute(timeout, "yt-dlp", []string{"-J", "--no-playlist", WatchURL(videoID)})
 	if err != nil {
 		output := out.combined()
-		glogger.Log.Errorf(err, "Get Video Info: Error executing yt-dlp. Output\n%s", string(output))
+		slog.Error("yt-dlp -J failed", "video", videoID, "err", err, "output", string(output))
 		return nil, errors.New(summarize(output, err, "Timed out while fetching video information", "Could not fetch video information"))
 	}
 
-	if config.CONFIG.Debug {
-		glogger.Log.Infof("Get Video Info: yt-dlp command succeeded. Stderr:\n%s", out.Stderr)
-	}
+	slog.Debug("yt-dlp -J succeeded", "video", videoID, "stderr", string(out.Stderr))
 
 	// The JSON is on stdout; log lines go to stderr.
 	info, err := parseVideoInfo(out.Stdout)
 	if err != nil {
-		glogger.Log.Errorf(err, "Get Video Info: Could not parse yt-dlp output")
+		slog.Error("Could not parse yt-dlp -J output", "video", videoID, "err", err)
 		return nil, errors.New("Could not read video information")
 	}
 	info.ID = videoID

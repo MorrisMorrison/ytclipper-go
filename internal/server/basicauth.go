@@ -2,10 +2,10 @@ package server
 
 import (
 	"crypto/subtle"
+	"log/slog"
 
 	"github.com/MorrisMorrison/ytclipper-go/internal/config"
 
-	"github.com/MorrisMorrison/gutils/glogger"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
@@ -25,7 +25,7 @@ func basicAuth() echo.MiddlewareFunc {
 
 	// If no credentials configured, return a no-op middleware
 	if username == "" || password == "" {
-		glogger.Log.Info("Basic authentication disabled - no credentials configured")
+		slog.Info("Basic authentication disabled: no credentials configured")
 		return func(next echo.HandlerFunc) echo.HandlerFunc {
 			return func(c echo.Context) error {
 				return next(c)
@@ -33,7 +33,7 @@ func basicAuth() echo.MiddlewareFunc {
 		}
 	}
 
-	glogger.Log.Info("Basic authentication enabled")
+	slog.Info("Basic authentication enabled")
 
 	// Create the actual auth middleware
 	return middleware.BasicAuthWithConfig(middleware.BasicAuthConfig{
