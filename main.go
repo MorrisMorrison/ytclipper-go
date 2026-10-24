@@ -47,6 +47,12 @@ func redactProxy(proxy string) string {
 	return u.String()
 }
 
+// isSocksProxy reports whether yt-dlp's proxy is a SOCKS proxy. yt-dlp can use
+// it, but ffmpeg (which downloads --download-sections) cannot.
+func isSocksProxy(proxy string) bool {
+	return strings.HasPrefix(strings.ToLower(strings.TrimSpace(proxy)), "socks")
+}
+
 // newIPExtractor decides where the client IP (used by the rate limiter and
 // the logs) comes from. Without trusted proxies it is the connection's remote
 // address, so a client cannot pick its own rate limit bucket by sending
@@ -142,6 +148,10 @@ func main() {
 
 	if proxy := config.CONFIG.YtDlpConfig.Proxy; proxy != "" {
 		glogger.Log.Infof("yt-dlp proxy: %s", redactProxy(proxy))
+		if isSocksProxy(proxy) {
+			glogger.Log.Warning("yt-dlp proxy is SOCKS: clips are downloaded by ffmpeg, which can't use SOCKS, " +
+				"so YouTube will usually answer 403. Use an HTTP proxy (http://host:port) instead.")
+		}
 	}
 
 	scheduler.StartClipCleanUpScheduler()
