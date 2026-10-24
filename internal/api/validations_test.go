@@ -2,7 +2,8 @@ package api
 
 import (
 	"testing"
-	"ytclipper-go/config"
+
+	"github.com/MorrisMorrison/ytclipper-go/internal/config"
 )
 
 func TestExtractVideoID(t *testing.T) {

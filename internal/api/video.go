@@ -2,7 +2,8 @@ package api
 
 import (
 	"net/http"
-	"ytclipper-go/videoprocessing"
+
+	"github.com/MorrisMorrison/ytclipper-go/internal/videoprocessing"
 
 	"github.com/labstack/echo/v4"
 )

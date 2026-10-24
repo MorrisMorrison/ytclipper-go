@@ -4,7 +4,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"ytclipper-go/utils"
 )
 
 const (
@@ -32,6 +31,8 @@ const (
 
 	CONFIG_KEY_AUTH_USERNAME = "YTCLIPPER_AUTH_USERNAME"
 	CONFIG_KEY_AUTH_PASSWORD = "YTCLIPPER_AUTH_PASSWORD"
+
+	CONFIG_KEY_DEV_ASSETS_DIR = "YTCLIPPER_DEV_ASSETS_DIR"
 )
 
 var CONFIG *Config = NewConfig()
@@ -53,6 +54,10 @@ type Config struct {
 	YtDlpConfig                YtDlpConfig
 	ClipCleanUpSchedulerConfig ClipCleanUpSchedulerConfig
 	BasicAuthConfig            BasicAuthConfig
+	// DevAssetsDir, when set, serves the page and static files from this
+	// directory on disk (the repo's web/) instead of the copy embedded in the
+	// binary, so edits show up without a rebuild. Empty: embedded.
+	DevAssetsDir string
 }
 
 type RateLimiterConfig struct {
@@ -96,7 +101,7 @@ func NewClipCleanUpSchedulerConfig() *ClipCleanUpSchedulerConfig {
 }
 
 func NewYtDlpConfig() *YtDlpConfig {
-	clipSizeInMb := utils.MbToBytes(GetEnvInt(CONFIG_KEY_YT_DLP_CLIP_SIZE_LIMIT_IN_MB, 300))
+	clipSizeInMb := mbToBytes(GetEnvInt(CONFIG_KEY_YT_DLP_CLIP_SIZE_LIMIT_IN_MB, 300))
 	commandTimeoutInSeconds := GetEnvInt(CONFIG_KEY_YT_DLP_COMMAND_TIMEOUT_IN_SECONDS, 60)
 	downloadTimeoutInSeconds := GetEnvInt(CONFIG_KEY_YT_DLP_DOWNLOAD_TIMEOUT_IN_SECONDS, 600)
 	proxy := GetEnv(CONFIG_KEY_YT_DLP_PROXY, "")
@@ -156,6 +161,7 @@ func NewConfig() *Config {
 		YtDlpConfig:                *NewYtDlpConfig(),
 		ClipCleanUpSchedulerConfig: *NewClipCleanUpSchedulerConfig(),
 		BasicAuthConfig:            *NewBasicAuthConfig(),
+		DevAssetsDir:               GetEnv(CONFIG_KEY_DEV_ASSETS_DIR, ""),
 	}
 }
 
@@ -189,4 +195,8 @@ func GetEnv(key, fallback string) string {
 		return fallback
 	}
 	return value
+}
+
+func mbToBytes(mb int) int64 {
+	return int64(mb) * 1024 * 1024
 }

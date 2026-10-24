@@ -6,7 +6,7 @@ description: Bump ytclipper's Go version, Go modules, GitHub Actions or the tool
 # Bumping dependencies
 
 ## Go and modules
-1. Keep the Go version in sync across `go.mod` (`go` directive), the Dockerfile builder image and `GO_VERSION` in the CI workflows.
+1. Keep the Go version in sync across `go.mod` (`go` directive), and the Dockerfile builder image (CI reads the version from `go.mod`).
 2. `go get -u ./... && go mod tidy`, then `go vet ./... && go test ./...`.
 3. Read the changelog of anything with a major or minor jump (Echo, chromedp) before trusting green tests: the e2e suite is the only coverage for chromedp.
 4. Close superseded Dependabot PRs with a comment pointing at your PR.

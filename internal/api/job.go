@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"ytclipper-go/jobs"
+
+	"github.com/MorrisMorrison/ytclipper-go/internal/jobs"
 
 	"github.com/labstack/echo/v4"
 )

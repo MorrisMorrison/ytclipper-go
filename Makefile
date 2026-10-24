@@ -1,10 +1,10 @@
-.PHONY: run build test fmt fmt-check lint check e2e coverage coverage-unit coverage-e2e screenshots docker-build docker-run docker-stop compose-up compose-down compose-logs
+.PHONY: run run-dev build test fmt fmt-check lint check e2e coverage coverage-unit coverage-e2e screenshots docker-build docker-run docker-stop compose-up compose-down compose-logs
 
 run:
-	go run .
+	go run ./cmd/ytclipper
 
 build:
-	go build -o ./ytclipper .
+	go build -o ./ytclipper ./cmd/ytclipper
 
 test:
 	go test ./...
@@ -21,6 +21,11 @@ lint:
 
 # Everything CI checks before the e2e suite.
 check: fmt-check lint test build
+
+# Like run, but serves web/ from disk, so page, CSS and JS edits show up on
+# reload without a rebuild.
+run-dev:
+	YTCLIPPER_DEV_ASSETS_DIR=web go run ./cmd/ytclipper
 
 # Browser e2e suite (needs Chrome). Builds the app and the fake yt-dlp and
 # ffmpeg (test/fakes), starts its own servers and stops them. To test a

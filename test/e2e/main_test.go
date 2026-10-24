@@ -39,7 +39,7 @@ import (
 )
 
 var (
-	repoRoot     string // the repository, where templates/ and static/ live
+	repoRoot     string // the repository: builds run here
 	binDir       string // the app and the fakes
 	artifactsDir string
 	coverDir     string // E2E_COVERDIR: build a -cover app and collect its coverage here
@@ -138,13 +138,13 @@ func goCommand() string {
 
 func buildBinaries(dir string) error {
 	builds := []struct{ out, pkg string }{
-		{exe("ytclipper"), "."},
+		{exe("ytclipper"), "./cmd/ytclipper"},
 		{exe("yt-dlp"), "./test/fakes/yt-dlp"},
 		{exe("ffmpeg"), "./test/fakes/ffmpeg"},
 	}
 	for _, b := range builds {
 		args := []string{"build", "-o", filepath.Join(dir, b.out)}
-		if coverDir != "" && b.pkg == "." {
+		if coverDir != "" && b.pkg == "./cmd/ytclipper" {
 			// Coverage-instrumented app: it writes coverage data to
 			// GOCOVERDIR when it exits normally (see server.stop).
 			args = append(args, "-cover", "-coverpkg=./...")
@@ -221,8 +221,9 @@ func startServer(name string, extra map[string]string) (*server, error) {
 		return nil, err
 	}
 
+	// The page and static files are embedded, so the server runs in the
+	// test's directory, not the repository root.
 	cmd := exec.Command(filepath.Join(binDir, exe("ytclipper")))
-	cmd.Dir = repoRoot
 	cmd.Env = cmdEnv
 	cmd.Stdout = logFile
 	cmd.Stderr = logFile

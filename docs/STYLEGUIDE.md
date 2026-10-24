@@ -1,6 +1,6 @@
 # Style guide
 
-The page is one HTML template (`templates/index.html`), one stylesheet (`static/css/styles.css`) and a few vanilla ES modules (`static/scripts/`). No framework, no bundler, no vendored libraries.
+The page is one HTML template (`web/templates/index.html`), one stylesheet (`web/static/css/styles.css`) and a few vanilla ES modules (`web/static/scripts/`). No framework, no bundler, no vendored libraries.
 
 ## Identity
 - **Accent:** emerald, the same in both themes: `--accent` `#10b981`, `--accent-bright` `#34d399`, `--accent-deep` `#0d9488`. Text on the accent uses `--accent-contrast` `#06231b`. Primary buttons and the brand mark use the bright → accent → deep gradient.
@@ -23,10 +23,10 @@ The page is one HTML template (`templates/index.html`), one stylesheet (`static/
 | `.chip-button` | Small inline action next to an input ("Now") |
 | `.segmented` + `.segment` | Radio cards (Video/Audio preset, streams) |
 | `.format-list` + `.fmt` | Advanced format radio list |
-| `.trimmer` | Two-handle range slider (`static/scripts/trimmer.js`) |
+| `.trimmer` | Two-handle range slider (`web/static/scripts/trimmer.js`) |
 | `.field-error` | Inline validation message under a field (`role="alert"`) |
 | `.job` | Job status panel; `data-state` = `queued`, `processing`, `completed`, `error` |
-| `.toast` | Transient notice (`static/scripts/toast.js`); prefer inline errors for things the user can fix |
+| `.toast` | Transient notice (`web/static/scripts/toast.js`); prefer inline errors for things the user can fix |
 
 ## Accessibility
 - Every control has a label; the trimmer handles are `role="slider"` with `aria-valuenow`/`aria-valuetext` and keyboard support.

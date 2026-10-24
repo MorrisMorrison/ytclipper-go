@@ -4,9 +4,10 @@ import (
 	"net/http"
 	"path/filepath"
 	"strings"
-	"ytclipper-go/config"
-	"ytclipper-go/jobs"
-	"ytclipper-go/videoprocessing"
+
+	"github.com/MorrisMorrison/ytclipper-go/internal/config"
+	"github.com/MorrisMorrison/ytclipper-go/internal/jobs"
+	"github.com/MorrisMorrison/ytclipper-go/internal/videoprocessing"
 
 	"github.com/labstack/echo/v4"
 )

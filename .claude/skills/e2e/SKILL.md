@@ -14,7 +14,7 @@ go test -tags e2e -count=1 -run 'TestTrimmer|TestJobError' ./test/e2e/    # a su
 ```
 Needs Go and Chrome (or Chromium/Edge: `E2E_CHROME=<path>` if chromedp doesn't find it). No ffmpeg, yt-dlp or bash needed; it works on Windows too. A full run takes about 20 s.
 
-What `TestMain` does: builds the app and `test/fakes/yt-dlp` + `test/fakes/ffmpeg` into a temp dir (`.exe` on Windows). Servers start on first use, from the repo root, on a free port, with that dir first on `PATH`, cleanup off, short timeouts and a high rate limit; the harness waits for `/health` and kills them at the end (process group on Unix). Tests that need a different configuration start their own server with `ownServer` (e.g. `TestQueueFull` with a one-job queue).
+What `TestMain` does: builds the app (`./cmd/ytclipper`) and `test/fakes/yt-dlp` + `test/fakes/ffmpeg` into a temp dir (`.exe` on Windows). Servers start on first use, in the test directory (the page is embedded, so the working directory does not matter), on a free port, with that dir first on `PATH`, cleanup off, short timeouts and a high rate limit; the harness waits for `/health` and kills them at the end (process group on Unix). Tests that need a different configuration start their own server with `ownServer` (e.g. `TestQueueFull` with a one-job queue).
 
 `E2E_BASE_URL=http://host:port` targets a server you started yourself instead. It must have the fake yt-dlp first on `PATH` (build it with `go build -o <dir>/yt-dlp ./test/fakes/yt-dlp`); tests that need their own server are skipped. The assertions expect the fake's answers, so this is not a way to test real YouTube.
 
