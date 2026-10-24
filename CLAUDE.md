@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Guidance for Claude Code (and anyone else) working in this repository. Keep it short and correct: when behaviour, commands or layout change, update this file and the README in the same PR.
+Guidance for Claude Code (and anyone else) working in this repository. Keep it short and correct: when behaviour, commands or layout change, update this file and the docs (`README.md` stays short; reference docs live in `docs/configuration.md`, `docs/api.md`, `docs/development.md`) in the same PR.
 
 ## What this is
 ytclipper-go is a small self-hostable web app that cuts a clip out of a YouTube video and returns it as a file. A Go (Echo) server renders one page, exposes a small JSON API, and runs clip jobs in the background by shelling out to **yt-dlp** (which uses **ffmpeg** for cutting and merging). There is no database: jobs live in memory and clips on disk, both cleaned up by a scheduler.
@@ -39,7 +39,7 @@ Running the server locally needs `yt-dlp`, `ffmpeg` and (for current YouTube) `d
 
 ## Conventions
 - **Go:** standard library style, `gofmt`. Handlers validate input and return JSON errors as `{"error": "..."}`. Log through `log/slog` (`slog.Info("message", "job", id, "err", err)`): a constant message plus key/value attributes, never values formatted into the message. The handler is set up in `cmd/ytclipper`. Wrap errors with `%w`. No new global state beyond the existing `config.CONFIG` and job store.
-- **Config:** every setting is a `YTCLIPPER_*` env var with a sensible default in `internal/config/config.go`, listed in `.env.example` and the README table.
+- **Config:** every setting is a `YTCLIPPER_*` env var with a sensible default in `internal/config/config.go`, listed in `.env.example` and the table in `docs/configuration.md`.
 - **yt-dlp:** build arguments in `internal/videoprocessing`, always through `execute` (timeout + common args such as the optional proxy). Never interpolate user input into a shell; pass args as a slice. `-J` uses the command timeout, clip downloads the (longer) download timeout. On Unix each command runs in its own process group and a timeout kills the whole group (yt-dlp starts ffmpeg for `--download-sections`); see `internal/videoprocessing/proc_unix.go`. stdout and stderr are kept apart: parse stdout, summarize errors from both.
 - **Size and length limits:** yt-dlp always downloads sections with ffmpeg, which ignores `--max-filesize`, so the size limit is passed to ffmpeg (`--downloader-args "ffmpeg:-fs N"`) and a clip that reaches it is deleted and the job failed. Clip length is capped in validation (`YTCLIPPER_MAX_CLIP_LENGTH_IN_MINUTES`) and the job checks `to` against the video's duration.
 - **Video metadata** comes only from `GetVideoInfo` (`yt-dlp -J`, cached per video ID for 10 min, concurrent callers share one call). Don't add another yt-dlp call for metadata; read it from the info. Every clip job calls it at start (title, duration, format kinds). The old `-F`/`--get-duration` text parsing and the `/video/formats` and `/video/duration` endpoints are gone.
