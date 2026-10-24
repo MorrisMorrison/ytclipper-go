@@ -4,6 +4,7 @@ package server
 
 import (
 	"fmt"
+	"log/slog"
 	"net"
 	"os"
 	"strings"
@@ -12,7 +13,6 @@ import (
 	"github.com/MorrisMorrison/ytclipper-go/internal/api"
 	"github.com/MorrisMorrison/ytclipper-go/internal/config"
 
-	"github.com/MorrisMorrison/gutils/glogger"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"golang.org/x/time/rate"
@@ -22,8 +22,9 @@ import (
 func New() (*echo.Echo, error) {
 	e := echo.New()
 	e.HideBanner = true
+	e.HidePort = true // main logs the port
 
-	glogger.Log.Infof("Debug enabled: %t", config.CONFIG.Debug)
+	slog.Info("Echo debug mode", "enabled", config.CONFIG.Debug)
 	e.Debug = config.CONFIG.Debug
 	e.Logger.SetOutput(os.Stdout)
 
@@ -33,7 +34,7 @@ func New() (*echo.Echo, error) {
 	}
 	e.IPExtractor = ipExtractor
 	if len(config.CONFIG.TrustedProxies) > 0 {
-		glogger.Log.Infof("Trusted proxies: %s", strings.Join(config.CONFIG.TrustedProxies, ", "))
+		slog.Info("Trusted proxies", "proxies", strings.Join(config.CONFIG.TrustedProxies, ", "))
 	}
 
 	e.Use(middleware.Logger())

@@ -1,5 +1,3 @@
-github.com/MorrisMorrison/gutils v0.0.3 h1:EDJOxoyMaFjUe+nZrtFJmLnmtMmyDvq+ohllB4q8dHU=
-github.com/MorrisMorrison/gutils v0.0.3/go.mod h1:9S1n0hEWOi+AcsU4cHAwqPt5zCzaShuIo2VhdQ7Bejs=
 github.com/chromedp/cdproto v0.158.4 h1:5t2VGQGp2OuaGPnKIpBikPplESrGMjQMQ4d+7e+eilk=
 github.com/chromedp/cdproto v0.158.4/go.mod h1:h68JaIuFr9o3yiayxEYhBdvaxgYO3shDrPSYhNlyfu0=
 github.com/chromedp/chromedp v0.21.0 h1:nVHgS2LHyhZJ1l3BWRbG2eFIFYiJMnvkJbELbd8WBoQ=

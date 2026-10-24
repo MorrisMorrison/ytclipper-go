@@ -33,6 +33,7 @@ const (
 	CONFIG_KEY_AUTH_PASSWORD = "YTCLIPPER_AUTH_PASSWORD"
 
 	CONFIG_KEY_DEV_ASSETS_DIR = "YTCLIPPER_DEV_ASSETS_DIR"
+	CONFIG_KEY_LOG_FORMAT     = "YTCLIPPER_LOG_FORMAT"
 )
 
 var CONFIG *Config = NewConfig()
@@ -58,6 +59,8 @@ type Config struct {
 	// directory on disk (the repo's web/) instead of the copy embedded in the
 	// binary, so edits show up without a rebuild. Empty: embedded.
 	DevAssetsDir string
+	// LogFormat is "text" (default) or "json". Debug lowers the level to debug.
+	LogFormat string
 }
 
 type RateLimiterConfig struct {
@@ -162,6 +165,7 @@ func NewConfig() *Config {
 		ClipCleanUpSchedulerConfig: *NewClipCleanUpSchedulerConfig(),
 		BasicAuthConfig:            *NewBasicAuthConfig(),
 		DevAssetsDir:               GetEnv(CONFIG_KEY_DEV_ASSETS_DIR, ""),
+		LogFormat:                  GetEnv(CONFIG_KEY_LOG_FORMAT, "text"),
 	}
 }
 

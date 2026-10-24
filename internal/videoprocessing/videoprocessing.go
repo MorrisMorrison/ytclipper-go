@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,8 +16,6 @@ import (
 
 	"github.com/MorrisMorrison/ytclipper-go/internal/config"
 	"github.com/MorrisMorrison/ytclipper-go/internal/jobs"
-
-	"github.com/MorrisMorrison/gutils/glogger"
 )
 
 var execContext = exec.CommandContext // allows mocking in tests
@@ -107,16 +106,16 @@ func ProcessClip(jobID string, req ClipRequest) {
 	defer func() { <-slots }()
 
 	if !jobs.StartJob(jobID) {
-		glogger.Log.Infof("Process Clip: Job %s is no longer queued, skipping it", jobID)
+		slog.Info("Job is no longer queued, skipping it", "job", jobID)
 		return
 	}
-	glogger.Log.Infof("Process Clip: Start Job %s", jobID)
+	slog.Info("Starting job", "job", jobID)
 
 	// Cached (or shared with a concurrent lookup) in the common case: the page
 	// loaded the info before asking for the clip.
 	info, err := GetVideoInfo(req.VideoID)
 	if err != nil {
-		glogger.Log.Errorf(err, "Process Clip: Could not load info for %s, continuing without it", req.VideoID)
+		slog.Warn("Could not load video info, continuing without it", "job", jobID, "video", req.VideoID, "err", err)
 		info = nil
 	}
 	if msg := checkAgainstDuration(req, info); msg != "" {
@@ -126,7 +125,7 @@ func ProcessClip(jobID string, req ClipRequest) {
 
 	clipDir := config.CONFIG.ClipCleanUpSchedulerConfig.ClipDirectoryPath
 	if err := os.MkdirAll(clipDir, 0o755); err != nil {
-		glogger.Log.Errorf(err, "Process Clip: Could not create clip directory %s", clipDir)
+		slog.Error("Could not create clip directory", "job", jobID, "dir", clipDir, "err", err)
 		jobs.FailJob(jobID, "Could not store the clip")
 		return
 	}
@@ -136,22 +135,22 @@ func ProcessClip(jobID string, req ClipRequest) {
 	outputTemplate := filepath.Join(clipDir, jobID+".%(ext)s")
 	output, err := DownloadAndCutVideo(outputTemplate, formatArgs(req, info), sizeLimit, req.From, req.To, WatchURL(req.VideoID))
 	if err != nil {
-		glogger.Log.Errorf(err, "Process Clip: Failed to download video. Output:\n%s", string(output))
+		slog.Error("Clip download failed", "job", jobID, "err", err, "output", string(output))
 		jobs.FailJob(jobID, summarizeError(output, err))
 		return
 	}
 
 	outputPath, err := findOutputFile(clipDir, jobID)
 	if err != nil {
-		glogger.Log.Errorf(err, "Process Clip: yt-dlp finished but no clip was written. Output:\n%s", string(output))
+		slog.Error("yt-dlp finished but no clip was written", "job", jobID, "err", err, "output", string(output))
 		jobs.FailJob(jobID, "The clip could not be created")
 		return
 	}
 
 	if st, err := os.Stat(outputPath); err == nil && sizeLimit > 0 && st.Size() >= sizeLimit {
-		glogger.Log.Infof("Process Clip: Job %s reached the size limit (%d bytes), discarding it", jobID, st.Size())
+		slog.Info("Clip reached the size limit, discarding it", "job", jobID, "bytes", st.Size())
 		if err := os.Remove(outputPath); err != nil {
-			glogger.Log.Errorf(err, "Process Clip: Could not remove %s", outputPath)
+			slog.Error("Could not remove clip", "job", jobID, "path", outputPath, "err", err)
 		}
 		jobs.FailJob(jobID, sizeLimitMessage(sizeLimit))
 		return
@@ -163,7 +162,7 @@ func ProcessClip(jobID string, req ClipRequest) {
 	}
 	fileName := DownloadName(title, req.VideoID, req.From, req.To, filepath.Ext(outputPath))
 
-	glogger.Log.Infof("Process Clip: Complete Job %s", jobID)
+	slog.Info("Job completed", "job", jobID)
 	jobs.CompleteJob(jobID, outputPath, fileName)
 }
 

@@ -54,7 +54,8 @@ All settings are environment variables; `.env.example` lists them.
 | Variable | Default | Description |
 |---|---|---|
 | `YTCLIPPER_PORT` | `8080` | HTTP port |
-| `YTCLIPPER_DEBUG` | `false` | Echo debug mode and verbose yt-dlp logging |
+| `YTCLIPPER_DEBUG` | `false` | Echo debug mode and debug-level logs (incl. yt-dlp output) |
+| `YTCLIPPER_LOG_FORMAT` | `text` | Log format: `text` or `json` (structured, for log collectors) |
 | `YTCLIPPER_AUTH_USERNAME` | _(empty)_ | Basic auth user; auth is on only when user and password are both set |
 | `YTCLIPPER_AUTH_PASSWORD` | _(empty)_ | Basic auth password |
 | `YTCLIPPER_RATE_LIMITER_RATE` | `5` | Requests per second per IP (static files and `/health` are not limited); applies before basic auth |
