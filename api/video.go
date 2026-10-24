@@ -1,70 +1,102 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
-	"ytclipper-go/utils"
 	"ytclipper-go/videoprocessing"
 
 	"github.com/labstack/echo/v4"
 )
 
-func GetVideoDuration(c echo.Context) error {
-	url := c.QueryParam("youtubeUrl")
-	if url == "" {
-		c.Logger().Errorf("Url is required")
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "URL is required"})
+// videoInfo loads the (cached) info for the video in the youtubeUrl query
+// parameter. When that fails it writes the error response and returns
+// ok=false along with the result of writing it.
+func videoInfo(c echo.Context, errorStatus int) (info *videoprocessing.VideoInfo, ok bool, err error) {
+	if c.QueryParam("youtubeUrl") == "" {
+		return nil, false, c.JSON(http.StatusBadRequest, map[string]string{"error": "URL is required"})
 	}
 
-	url, ok := canonicalYoutubeURL(url)
+	videoID, ok := extractVideoID(c.QueryParam("youtubeUrl"))
 	if !ok {
 		c.Logger().Errorf("Invalid Youtube URL: %s", c.QueryParam("youtubeUrl"))
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid YouTube URL"})
+		return nil, false, c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid YouTube URL"})
 	}
 
-	duration, err := videoprocessing.GetVideoDuration(url)
+	info, err = videoprocessing.GetVideoInfo(videoID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "Failed to get video duration",
-		})
+		return nil, false, c.JSON(errorStatus, map[string]string{"error": err.Error()})
 	}
-
-	if duration == "" {
-		c.Logger().Error("Could not extract duration from yt-dlp output")
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "Could not extract duration from yt-dlp output",
-		})
-	}
-
-	totalSeconds, err := utils.ToSeconds(duration)
-	if err != nil {
-		c.Logger().Error("Could not calculate total seconds")
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "Could not calculate total seconds",
-		})
-	}
-
-	return c.JSON(http.StatusOK, totalSeconds)
+	return info, true, nil
 }
 
-func GetAvailableFormats(c echo.Context) error {
-	url := c.QueryParam("youtubeUrl")
-	if url == "" {
-		c.Logger().Errorf("Url is required")
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "URL is required"})
-	}
-
-	url, ok := canonicalYoutubeURL(url)
+// GetVideoInfo returns title, duration, thumbnail and formats of a video.
+func GetVideoInfo(c echo.Context) error {
+	info, ok, err := videoInfo(c, http.StatusBadGateway)
 	if !ok {
-		c.Logger().Errorf("Invalid Youtube URL: %s", c.QueryParam("youtubeUrl"))
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid YouTube URL"})
+		return err
+	}
+	return c.JSON(http.StatusOK, info)
+}
+
+// GetVideoDuration returns the video length in seconds (used by the old page).
+func GetVideoDuration(c echo.Context) error {
+	info, ok, err := videoInfo(c, http.StatusInternalServerError)
+	if !ok {
+		return err
+	}
+	return c.JSON(http.StatusOK, info.Duration)
+}
+
+// legacyFormat is the format shape the old page's dropdown expects.
+type legacyFormat struct {
+	ID         string `json:"id"`
+	Extension  string `json:"extension"`
+	Label      string `json:"label"`
+	Codec      string `json:"codec"`
+	Bitrate    string `json:"bitrate"`
+	FormatType string `json:"formatType"`
+	Additional string `json:"additional"`
+}
+
+func toLegacyFormat(f videoprocessing.Format) legacyFormat {
+	lf := legacyFormat{
+		ID:         f.ID,
+		Extension:  f.Ext,
+		Codec:      f.VCodec,
+		Bitrate:    "N/A",
+		Additional: f.Note,
 	}
 
-	formats, err := videoprocessing.GetAvailableFormats(url)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "Failed to fetch formats",
-		})
+	switch f.Kind {
+	case videoprocessing.FormatKindAudio:
+		lf.FormatType, lf.Label, lf.Codec = "audio only", "audio only", f.ACodec
+	case videoprocessing.FormatKindVideo:
+		lf.FormatType = "video only"
+	default:
+		lf.FormatType = "audio and video"
+	}
+	if lf.Label == "" {
+		lf.Label = f.Note
+		if f.Width > 0 && f.Height > 0 {
+			lf.Label = fmt.Sprintf("%dx%d", f.Width, f.Height)
+		}
+	}
+	if f.TBR > 0 {
+		lf.Bitrate = fmt.Sprintf("%.0fk", f.TBR)
+	}
+	return lf
+}
+
+// GetAvailableFormats returns the formats in the old page's shape.
+func GetAvailableFormats(c echo.Context) error {
+	info, ok, err := videoInfo(c, http.StatusInternalServerError)
+	if !ok {
+		return err
 	}
 
+	formats := make([]legacyFormat, 0, len(info.Formats))
+	for _, f := range info.Formats {
+		formats = append(formats, toLegacyFormat(f))
+	}
 	return c.JSON(http.StatusOK, formats)
 }

@@ -6,12 +6,13 @@ import (
 	"regexp"
 	"strings"
 	"ytclipper-go/utils"
+	"ytclipper-go/videoprocessing"
 )
 
 var (
 	videoIDPattern    = regexp.MustCompile(`^[A-Za-z0-9_-]{11}$`)
 	timeFormatPattern = regexp.MustCompile(`^\d{2,}:[0-5]\d:[0-5]\d$`)
-	formatPattern     = regexp.MustCompile(`^\d+$`)
+	formatPattern     = regexp.MustCompile(`^\d{1,6}(\+\d{1,6})?$`)
 )
 
 var youtubeHosts = map[string]bool{
@@ -57,7 +58,7 @@ func canonicalYoutubeURL(rawURL string) (string, bool) {
 	if !ok {
 		return "", false
 	}
-	return "https://www.youtube.com/watch?v=" + id, true
+	return videoprocessing.WatchURL(id), true
 }
 
 func isValidYoutubeUrl(rawURL string) bool {
@@ -73,28 +74,41 @@ func isValidFormat(format string) bool {
 	return formatPattern.MatchString(format)
 }
 
-// validateCreateClipDto checks the request and rewrites the URL to its
-// canonical form.
-func validateCreateClipDto(createClipDto *CreateClipDTO) error {
-	canonical, ok := canonicalYoutubeURL(createClipDto.Url)
+// validateCreateClipDto checks the request and turns it into a clip job
+// request for the video it names.
+func validateCreateClipDto(createClipDto *CreateClipDTO) (videoprocessing.ClipRequest, error) {
+	videoID, ok := extractVideoID(createClipDto.Url)
 	if !ok {
-		return errors.New("Invalid YouTube URL")
+		return videoprocessing.ClipRequest{}, errors.New("Invalid YouTube URL")
 	}
-	createClipDto.Url = canonical
 
 	if !isValidTimeFormat(createClipDto.From) || !isValidTimeFormat(createClipDto.To) {
-		return errors.New("Invalid time format. Use HH:MM:SS.")
+		return videoprocessing.ClipRequest{}, errors.New("Invalid time format. Use HH:MM:SS.")
 	}
 
 	from, _ := utils.ToSeconds(createClipDto.From)
 	to, _ := utils.ToSeconds(createClipDto.To)
 	if to <= from {
-		return errors.New("End time must be after start time.")
+		return videoprocessing.ClipRequest{}, errors.New("End time must be after start time.")
 	}
 
-	if !isValidFormat(createClipDto.Format) {
-		return errors.New("Invalid format. Must be a numeric value.")
+	preset, format := strings.TrimSpace(createClipDto.Preset), strings.TrimSpace(createClipDto.Format)
+	switch {
+	case preset != "" && format != "":
+		return videoprocessing.ClipRequest{}, errors.New("Specify either a preset or a format, not both.")
+	case preset == "" && format == "":
+		return videoprocessing.ClipRequest{}, errors.New("Specify a preset (video or audio) or a format.")
+	case preset != "" && preset != videoprocessing.PresetVideo && preset != videoprocessing.PresetAudio:
+		return videoprocessing.ClipRequest{}, errors.New(`Invalid preset. Use "video" or "audio".`)
+	case format != "" && !isValidFormat(format):
+		return videoprocessing.ClipRequest{}, errors.New("Invalid format. Use a format id like 137 or 137+140.")
 	}
 
-	return nil
+	return videoprocessing.ClipRequest{
+		VideoID: videoID,
+		From:    createClipDto.From,
+		To:      createClipDto.To,
+		Preset:  preset,
+		Format:  format,
+	}, nil
 }

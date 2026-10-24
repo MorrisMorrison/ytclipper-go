@@ -84,6 +84,12 @@ func TestIsValidFormat(t *testing.T) {
 		{"1a", false},
 		{"", false},
 		{"-123", false},
+		{"137+140", true},
+		{"137+", false},
+		{"+140", false},
+		{"1+2+3", false},
+		{"bestvideo", false},
+		{"137 140", false},
 	}
 
 	for _, tt := range tests {
@@ -110,25 +116,35 @@ func TestValidateCreateClipDto(t *testing.T) {
 		mutate      func(d *CreateClipDTO)
 		expectedMsg string
 	}{
-		{"Valid DTO", func(d *CreateClipDTO) {}, ""},
+		{"Valid format", func(d *CreateClipDTO) {}, ""},
+		{"Valid merged format", func(d *CreateClipDTO) { d.Format = "137+140" }, ""},
+		{"Valid video preset", func(d *CreateClipDTO) { d.Format, d.Preset = "", "video" }, ""},
+		{"Valid audio preset", func(d *CreateClipDTO) { d.Format, d.Preset = "", "audio" }, ""},
 		{"Invalid URL", func(d *CreateClipDTO) { d.Url = "https://invalidurl.com" }, "Invalid YouTube URL"},
 		{"Invalid Time", func(d *CreateClipDTO) { d.From = "invalid" }, "Invalid time format. Use HH:MM:SS."},
 		{"End before start", func(d *CreateClipDTO) { d.From, d.To = "00:02:30", "00:01:30" }, "End time must be after start time."},
 		{"End equals start", func(d *CreateClipDTO) { d.To = d.From }, "End time must be after start time."},
-		{"Invalid Format", func(d *CreateClipDTO) { d.Format = "invalid" }, "Invalid format. Must be a numeric value."},
+		{"Invalid Format", func(d *CreateClipDTO) { d.Format = "invalid" }, "Invalid format. Use a format id like 137 or 137+140."},
+		{"Format selector", func(d *CreateClipDTO) { d.Format = "bv*+ba" }, "Invalid format. Use a format id like 137 or 137+140."},
+		{"Preset and format", func(d *CreateClipDTO) { d.Preset = "video" }, "Specify either a preset or a format, not both."},
+		{"Neither", func(d *CreateClipDTO) { d.Format = "" }, "Specify a preset (video or audio) or a format."},
+		{"Unknown preset", func(d *CreateClipDTO) { d.Format, d.Preset = "", "4k" }, `Invalid preset. Use "video" or "audio".`},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dto := valid()
 			tt.mutate(dto)
-			err := validateCreateClipDto(dto)
+			req, err := validateCreateClipDto(dto)
 			if tt.expectedMsg == "" {
 				if err != nil {
 					t.Fatalf("unexpected error: %v", err)
 				}
-				if dto.Url != "https://www.youtube.com/watch?v=dQw4w9WgXcQ" {
-					t.Errorf("URL not canonicalised: %q", dto.Url)
+				if req.VideoID != "dQw4w9WgXcQ" || req.From != dto.From || req.To != dto.To {
+					t.Errorf("unexpected request %+v", req)
+				}
+				if req.Preset != dto.Preset || req.Format != dto.Format {
+					t.Errorf("preset/format not carried over: %+v", req)
 				}
 				return
 			}

@@ -11,7 +11,7 @@ ytclipper-go is a small self-hostable web app that cuts a clip out of a YouTube 
 | `main.go` | Dependency check, Echo setup, middleware (basic auth, logger, rate limiter), start |
 | `routes/` | Route table |
 | `api/` | HTTP handlers and input validation |
-| `videoprocessing/` | Everything that talks to yt-dlp: argument building, execution with timeout, output parsing |
+| `videoprocessing/` | Everything that talks to yt-dlp: argument building (presets), execution with timeout, `-J` parsing and the per-video info cache, download file names |
 | `jobs/` | In-memory job store; `GetJobById` returns copies, mutate only through its functions |
 | `scheduler/` | Periodic cleanup of old clips and jobs |
 | `config/` | `YTCLIPPER_*` environment variables → `config.CONFIG` |
@@ -38,6 +38,9 @@ Running the server locally needs `yt-dlp`, `ffmpeg` and (for current YouTube) `d
 - **Go:** standard library style, `gofmt`. Handlers validate input and return JSON errors as `{"error": "..."}`. Log through `glogger.Log`. Wrap errors with `%w`. No new global state beyond the existing `config.CONFIG` and job store.
 - **Config:** every setting is a `YTCLIPPER_*` env var with a sensible default in `config/config.go`, listed in `.env.example` and the README table.
 - **yt-dlp:** build arguments in `videoprocessing`, always through `execute` (timeout + common args such as the optional proxy). Never interpolate user input into a shell; pass args as a slice.
+- **Video metadata** comes only from `GetVideoInfo` (`yt-dlp -J`, cached per video ID for 10 min, concurrent callers share one call). Don't add another yt-dlp call for metadata; read it from the info. The old `-F`/`--get-duration` text parsing is gone: `/video/formats` and `/video/duration` are thin legacy views over the info.
+- **Clip format:** a request carries either a preset (`video`, `audio`) or a numeric format (`137`, `137+140`). Never pass user-supplied format selectors through to yt-dlp beyond that pattern.
+- **File names** shown to users go through `SanitizeFileName`; the clip on disk is always named by job ID.
 - **Front-end:** vanilla ES modules, no framework, no bundler. The main flow must never block on a slow yt-dlp call.
 - **Errors shown to users** come from `summarizeError` (last yt-dlp `ERROR:` line). Never return raw command output: it contains the full command line.
 - **Security:** treat the URL and timestamps as untrusted; validate server-side even if the UI validated too.

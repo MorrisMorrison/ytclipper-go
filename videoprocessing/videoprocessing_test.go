@@ -7,18 +7,15 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"ytclipper-go/config"
+	"ytclipper-go/jobs"
 )
 
 func hasFlag(args []string, flag string) bool {
-	for _, a := range args {
-		if a == flag {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(args, flag)
 }
 
 func flagValue(args []string, flag string) (string, bool) {
@@ -30,98 +27,201 @@ func flagValue(args []string, flag string) (string, bool) {
 	return "", false
 }
 
-func TestExtractDuration(t *testing.T) {
-	output := "Duration: 00:01:30"
-	expected := "00:01:30"
+// fakeYtDlp replaces execContext with a command that re-runs this test binary
+// as TestHelperProcess, which acts like yt-dlp: in "info" mode it prints
+// output, in "download" mode it writes a file to the -o template. Every call's
+// arguments are appended to calls. The original is restored on cleanup.
+func fakeYtDlp(t *testing.T, mode string, output string) *[][]string {
+	t.Helper()
+	original := execContext
+	t.Cleanup(func() { execContext = original })
 
-	duration := ExtractDuration(output)
-	if duration != expected {
-		t.Errorf("Expected %s, but got %s", expected, duration)
+	calls := &[][]string{}
+	execContext = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
+		*calls = append(*calls, append([]string{name}, arg...))
+		cmd := exec.CommandContext(ctx, os.Args[0], append([]string{"-test.run=^TestHelperProcess$", "--"}, arg...)...)
+		cmd.Env = append(os.Environ(),
+			"YTCLIPPER_TEST_HELPER=1",
+			"YTCLIPPER_TEST_HELPER_MODE="+mode,
+			"YTCLIPPER_TEST_HELPER_OUTPUT="+output,
+		)
+		return cmd
+	}
+	return calls
+}
+
+func TestHelperProcess(t *testing.T) {
+	if os.Getenv("YTCLIPPER_TEST_HELPER") != "1" {
+		return
+	}
+	args := os.Args
+	for i, a := range args {
+		if a == "--" {
+			args = args[i+1:]
+			break
+		}
+	}
+
+	switch os.Getenv("YTCLIPPER_TEST_HELPER_MODE") {
+	case "info":
+		fmt.Print(os.Getenv("YTCLIPPER_TEST_HELPER_OUTPUT"))
+		os.Exit(0)
+	case "download":
+		if out, ok := flagValue(args, "-o"); ok {
+			if err := os.WriteFile(strings.ReplaceAll(out, "%(ext)s", "mp4"), []byte("clip"), 0o644); err != nil {
+				os.Exit(2)
+			}
+		}
+		os.Exit(0)
+	default:
+		fmt.Println(os.Getenv("YTCLIPPER_TEST_HELPER_OUTPUT"))
+		os.Exit(1)
 	}
 }
 
-func TestExtractBitrate(t *testing.T) {
-	tests := []struct {
-		name       string
-		additional string
-		expected   string
-	}{
-		{name: "Valid bitrate in KiB", additional: "128KiB", expected: "128KiB"},
-		{name: "Valid bitrate in MiB", additional: "1.2MiB", expected: "1.2MiB"},
-		{name: "Valid bitrate with tilde (~)", additional: "~192KiB", expected: "~192KiB"},
-		{name: "No bitrate", additional: "Some other text", expected: "N/A"},
-		{name: "Empty string", additional: "", expected: "N/A"},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			result := extractBitrate(test.additional)
-			if result != test.expected {
-				t.Errorf("For input '%s', expected '%s', but got '%s'", test.additional, test.expected, result)
-			}
-		})
-	}
+// useFreshInfoCache gives the test an empty video info cache.
+func useFreshInfoCache(t *testing.T) {
+	t.Helper()
+	original := videoInfoCache
+	videoInfoCache = newInfoCache(infoCacheTTL, infoCacheMaxSize)
+	t.Cleanup(func() { videoInfoCache = original })
 }
 
 func TestDownloadAndCutVideo(t *testing.T) {
-	originalExecContext := execContext
-	defer func() { execContext = originalExecContext }()
+	calls := fakeYtDlp(t, "download", "")
 
-	var capturedArgs []string
-	execContext = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
-		capturedArgs = append([]string{name}, arg...)
-		return exec.Command("echo", "mock")
-	}
-
-	outputPath := "./videos/test_clip.%(ext)s"
-	selectedFormat := "22"
-	fileSizeLimit := int64(500000000)
+	outputPath := filepath.Join(t.TempDir(), "test_clip.%(ext)s")
 	from := "00:00:30"
 	to := "00:01:00"
 	url := "https://www.youtube.com/watch?v=example"
 
-	_, _ = DownloadAndCutVideo(outputPath, selectedFormat, fileSizeLimit, from, to, url)
-
-	if len(capturedArgs) == 0 || capturedArgs[0] != "yt-dlp" {
-		t.Fatalf("Expected first arg to be 'yt-dlp', got %v", capturedArgs)
+	if _, err := DownloadAndCutVideo(outputPath, []string{"-f", "22"}, 500000000, from, to, url); err != nil {
+		t.Fatalf("DownloadAndCutVideo: %v", err)
 	}
 
-	if v, ok := flagValue(capturedArgs, "-o"); !ok || v != outputPath {
+	args := (*calls)[0]
+	if args[0] != "yt-dlp" {
+		t.Fatalf("Expected first arg to be 'yt-dlp', got %v", args)
+	}
+	if v, ok := flagValue(args, "-o"); !ok || v != outputPath {
 		t.Errorf("Expected -o %q, got %q (present=%v)", outputPath, v, ok)
 	}
-	if v, ok := flagValue(capturedArgs, "-f"); !ok || v != selectedFormat {
-		t.Errorf("Expected -f %q, got %q (present=%v)", selectedFormat, v, ok)
+	if v, ok := flagValue(args, "-f"); !ok || v != "22" {
+		t.Errorf("Expected -f 22, got %q (present=%v)", v, ok)
 	}
-
-	expectedSection := fmt.Sprintf("*%s-%s", from, to)
-	if v, ok := flagValue(capturedArgs, "--download-sections"); !ok || v != expectedSection {
-		t.Errorf("Expected --download-sections %q, got %q (present=%v)", expectedSection, v, ok)
+	if v, ok := flagValue(args, "--download-sections"); !ok || v != "*00:00:30-00:01:00" {
+		t.Errorf("Expected --download-sections *00:00:30-00:01:00, got %q (present=%v)", v, ok)
+	}
+	if args[len(args)-1] != url {
+		t.Errorf("Expected the URL last, got %v", args)
 	}
 }
 
-func TestGetVideoDuration(t *testing.T) {
-	originalExecContext := execContext
-	defer func() { execContext = originalExecContext }()
+func TestFormatArgsPresets(t *testing.T) {
+	useFreshInfoCache(t)
+	calls := fakeYtDlp(t, "fail", "ERROR: should not be called")
 
-	var capturedArgs []string
-	execContext = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
-		capturedArgs = append([]string{name}, arg...)
-		return exec.Command("echo", "00:03:45")
+	video := formatArgs(ClipRequest{VideoID: "dQw4w9WgXcQ", Preset: PresetVideo})
+	wantVideo := []string{"-f", "bv*[vcodec^=avc1][height<=1080]+ba[acodec^=mp4a]/b[vcodec^=avc1][height<=1080]/bv*[height<=1080]+ba/b", "--merge-output-format", "mp4"}
+	if !slices.Equal(video, wantVideo) {
+		t.Errorf("video preset args = %v; want %v", video, wantVideo)
 	}
 
-	// Output parsing is covered by TestExtractDuration; here we only assert the
-	// command is built correctly (avoids depending on `echo` being an executable,
-	// which it isn't on Windows).
-	_, _ = GetVideoDuration("https://www.youtube.com/watch?v=example")
+	audio := formatArgs(ClipRequest{VideoID: "dQw4w9WgXcQ", Preset: PresetAudio})
+	wantAudio := []string{"-f", "ba", "-x", "--audio-format", "mp3", "--audio-quality", "192K"}
+	if !slices.Equal(audio, wantAudio) {
+		t.Errorf("audio preset args = %v; want %v", audio, wantAudio)
+	}
 
-	if len(capturedArgs) == 0 || capturedArgs[0] != "yt-dlp" {
-		t.Fatalf("Expected first arg to be 'yt-dlp', got %v", capturedArgs)
+	merged := formatArgs(ClipRequest{VideoID: "dQw4w9WgXcQ", Format: "137+140"})
+	if !slices.Equal(merged, []string{"-f", "137+140"}) {
+		t.Errorf("merged format args = %v", merged)
 	}
-	if !hasFlag(capturedArgs, "--get-duration") {
-		t.Error("Expected --get-duration argument to be present")
+
+	if len(*calls) != 0 {
+		t.Errorf("presets and merged formats must not call yt-dlp, got %v", *calls)
 	}
-	if !hasFlag(capturedArgs, "--no-warnings") {
-		t.Error("Expected --no-warnings argument to be present")
+}
+
+func TestFormatArgsAddsAudioToVideoOnlyFormat(t *testing.T) {
+	useFreshInfoCache(t)
+	calls := fakeYtDlp(t, "info", infoFixture)
+
+	tests := map[string]string{
+		"137": "137+bestaudio", // video only
+		"136": "136+bestaudio", // video only
+		"18":  "18",            // audio and video
+		"140": "140",           // audio only
+		"999": "999",           // unknown: yt-dlp reports it
+	}
+	for format, want := range tests {
+		got := formatArgs(ClipRequest{VideoID: "dQw4w9WgXcQ", Format: format})
+		if !slices.Equal(got, []string{"-f", want}) {
+			t.Errorf("formatArgs(%s) = %v; want -f %s", format, got, want)
+		}
+	}
+	if len(*calls) != 1 {
+		t.Errorf("expected one cached yt-dlp -J call, got %d", len(*calls))
+	}
+}
+
+func TestFormatArgsKeepsFormatWhenInfoFails(t *testing.T) {
+	useFreshInfoCache(t)
+	fakeYtDlp(t, "fail", "ERROR: [youtube] dQw4w9WgXcQ: Video unavailable")
+
+	got := formatArgs(ClipRequest{VideoID: "dQw4w9WgXcQ", Format: "137"})
+	if !slices.Equal(got, []string{"-f", "137"}) {
+		t.Errorf("formatArgs = %v; want -f 137", got)
+	}
+}
+
+func TestProcessClip(t *testing.T) {
+	useFreshInfoCache(t)
+	original := config.CONFIG.ClipCleanUpSchedulerConfig.ClipDirectoryPath
+	config.CONFIG.ClipCleanUpSchedulerConfig.ClipDirectoryPath = t.TempDir()
+	t.Cleanup(func() { config.CONFIG.ClipCleanUpSchedulerConfig.ClipDirectoryPath = original })
+
+	fakeYtDlp(t, "info", infoFixture)
+	if _, err := GetVideoInfo("dQw4w9WgXcQ"); err != nil {
+		t.Fatal(err)
+	}
+
+	calls := fakeYtDlp(t, "download", "")
+	job := jobs.NewJob()
+	ProcessClip(job.ID, ClipRequest{VideoID: "dQw4w9WgXcQ", From: "00:00:10", To: "01:02:03", Format: "137"})
+
+	got, _ := jobs.GetJobById(job.ID)
+	if got.Status != jobs.StatusCompleted {
+		t.Fatalf("job status = %s (%s); want completed", got.Status, got.Error)
+	}
+	if want := "Never Gonna Give You Up [0-00-10 - 1-02-03].mp4"; got.FileName != want {
+		t.Errorf("FileName = %q; want %q", got.FileName, want)
+	}
+	if filepath.Base(got.FilePath) != job.ID+".mp4" {
+		t.Errorf("FilePath = %q", got.FilePath)
+	}
+	args := (*calls)[0]
+	if v, _ := flagValue(args, "-f"); v != "137+bestaudio" {
+		t.Errorf("-f = %q; want 137+bestaudio", v)
+	}
+	if args[len(args)-1] != "https://www.youtube.com/watch?v=dQw4w9WgXcQ" {
+		t.Errorf("URL = %q", args[len(args)-1])
+	}
+}
+
+func TestProcessClipFailure(t *testing.T) {
+	useFreshInfoCache(t)
+	original := config.CONFIG.ClipCleanUpSchedulerConfig.ClipDirectoryPath
+	config.CONFIG.ClipCleanUpSchedulerConfig.ClipDirectoryPath = t.TempDir()
+	t.Cleanup(func() { config.CONFIG.ClipCleanUpSchedulerConfig.ClipDirectoryPath = original })
+
+	fakeYtDlp(t, "fail", "[youtube] x\nERROR: [youtube] dQw4w9WgXcQ: Sign in to confirm your age")
+	job := jobs.NewJob()
+	ProcessClip(job.ID, ClipRequest{VideoID: "dQw4w9WgXcQ", From: "00:00:10", To: "00:00:20", Preset: PresetAudio})
+
+	got, _ := jobs.GetJobById(job.ID)
+	if got.Status != jobs.StatusError || got.Error != "[youtube] dQw4w9WgXcQ: Sign in to confirm your age" {
+		t.Errorf("job = %s %q", got.Status, got.Error)
 	}
 }
 

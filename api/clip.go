@@ -9,10 +9,13 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+// CreateClipDTO is the clip request. Exactly one of Preset ("video" or
+// "audio") and Format (a yt-dlp format id such as "137" or "137+140") is set.
 type CreateClipDTO struct {
 	Url    string `json:"url" form:"url"`
 	From   string `json:"from" form:"from"`
 	To     string `json:"to" form:"to"`
+	Preset string `json:"preset" form:"preset"`
 	Format string `json:"format" form:"format"`
 }
 
@@ -23,13 +26,14 @@ func CreateClip(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid input"})
 	}
 
-	if err := validateCreateClipDto(createClipDto); err != nil {
+	req, err := validateCreateClipDto(createClipDto)
+	if err != nil {
 		c.Logger().Errorf("Invalid DTO: %s", err.Error())
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
 
 	job := jobs.NewJob()
-	go videoprocessing.ProcessClip(job.ID, createClipDto.Url, createClipDto.From, createClipDto.To, createClipDto.Format)
+	go videoprocessing.ProcessClip(job.ID, req)
 
 	return c.String(http.StatusCreated, job.ID)
 }
@@ -42,5 +46,9 @@ func GetClip(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, map[string]string{"error": "Job does not exist"})
 	}
 
-	return c.Attachment(job.FilePath, filepath.Base(job.FilePath))
+	name := job.FileName
+	if name == "" {
+		name = filepath.Base(job.FilePath)
+	}
+	return c.Attachment(job.FilePath, name)
 }

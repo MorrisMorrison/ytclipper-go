@@ -7,24 +7,31 @@
 # CI we put this deterministic, offline stub first on PATH. It implements just
 # enough of the yt-dlp surface the app uses:
 #
-#   yt-dlp -F <url>             -> a fixed format table (incl. format 136 / mp4)
-#   yt-dlp --get-duration <url> -> a fixed duration
-#   yt-dlp -o <template> ...    -> writes a small dummy file (%(ext)s -> mp4)
+#   yt-dlp -J <url>          -> fixed video info JSON ("Stub Video", 30 s,
+#                               formats 137/136 video only, 18 both, 140/251 audio)
+#   yt-dlp -o <template> ... -> writes a small dummy file; %(ext)s becomes mp3
+#                               with -x, else the --merge-output-format value,
+#                               else mp4
 #
-# All other flags the app passes (--proxy, --download-sections, ...) are
+# All other flags the app passes (--proxy, --download-sections, -f, ...) are
 # accepted and ignored.
 set -euo pipefail
 
 mode="download"
 out=""
+merge_ext=""
+extract_audio=false
 prev=""
 for a in "$@"; do
   case "$a" in
     --version|-U|--update) echo "ytclipper-ci-stub 0.0.0"; exit 0 ;;
-    -F|--list-formats) mode="formats" ;;
-    --get-duration) mode="duration" ;;
+    -J|--dump-single-json) mode="info" ;;
+    -x|--extract-audio) extract_audio=true ;;
   esac
-  if [ "$prev" = "-o" ]; then out="${a//%(ext)s/mp4}"; fi
+  case "$prev" in
+    -o) out="$a" ;;
+    --merge-output-format) merge_ext="$a" ;;
+  esac
   prev="$a"
 done
 
@@ -38,20 +45,29 @@ case "$url" in
 esac
 
 case "$mode" in
-  formats)
-    cat <<'EOF'
-[info] Available formats:
-ID   EXT  RESOLUTION  CODEC        FILESIZE   | MORE INFO
-140  m4a  audio only  mp4a.40.2    1.20MiB    | 128KiB audio
-18   mp4  640x360     avc1.42001E  5.00MiB    | 360p
-136  mp4  1280x720    avc1.4d401f  1.50MiB    | 720p
+  info)
+    id="${url##*v=}"
+    id="${id%%&*}"
+    cat <<EOF
+{"id": "$id", "title": "Stub Video", "uploader": "Stub Channel", "duration": 30.0, "thumbnail": "https://i.ytimg.com/vi/$id/hqdefault.jpg", "formats": [
+{"format_id": "sb0", "format_note": "storyboard", "ext": "mhtml", "acodec": "none", "vcodec": "none", "width": 160, "height": 90},
+{"format_id": "251", "format_note": "medium", "ext": "webm", "acodec": "opus", "vcodec": "none", "width": null, "height": null, "fps": null, "tbr": 135.6, "abr": 135.6, "filesize": 508000},
+{"format_id": "140", "format_note": "medium", "ext": "m4a", "acodec": "mp4a.40.2", "vcodec": "none", "width": null, "height": null, "fps": null, "tbr": 129.5, "abr": 129.5, "filesize": 485000},
+{"format_id": "18", "format_note": "360p", "ext": "mp4", "acodec": "mp4a.40.2", "vcodec": "avc1.42001E", "width": 640, "height": 360, "fps": 30, "tbr": 492.5, "filesize_approx": 1850000},
+{"format_id": "136", "format_note": "720p", "ext": "mp4", "acodec": "none", "vcodec": "avc1.4d401f", "width": 1280, "height": 720, "fps": 30, "tbr": 1150.2, "filesize": 4310000},
+{"format_id": "137", "format_note": "1080p", "ext": "mp4", "acodec": "none", "vcodec": "avc1.640028", "width": 1920, "height": 1080, "fps": 30, "tbr": 4400.5, "filesize": 16500000}
+]}
 EOF
-    ;;
-  duration)
-    echo "0:30"
     ;;
   download)
     if [ -n "$out" ]; then
+      ext="mp4"
+      if [ "$extract_audio" = true ]; then
+        ext="mp3"
+      elif [ -n "$merge_ext" ]; then
+        ext="$merge_ext"
+      fi
+      out="${out//%(ext)s/$ext}"
       mkdir -p "$(dirname "$out")"
       # A small dummy payload is enough for the app to produce a download link.
       head -c 65536 /dev/urandom > "$out"

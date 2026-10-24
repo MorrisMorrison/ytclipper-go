@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -18,16 +17,26 @@ import (
 	"github.com/MorrisMorrison/gutils/glogger"
 )
 
-const throttledStatus = "THROTTLED"
-
 var execContext = exec.CommandContext // allows mocking in tests
 
-var (
-	durationWithColonRegex = regexp.MustCompile(`\d+:\d{2}(?::\d{2})?`)
-	durationSecondsRegex   = regexp.MustCompile(`(?m)^\s*(\d+)\s*$`)
-	formatLineRegex        = regexp.MustCompile(`(?m)^\s*(\d+)\s+(\w+)\s+(audio only|video only|\d+x\d+|\d+p)\s+([a-zA-Z0-9\.\-\_]+)?\s*([\~\d\.]+(?:[kKM]i?B)?)?.*?\|\s+(.*?)$`)
-	bitrateRegex           = regexp.MustCompile(`([\~\d\.]+[kKM]i?B)`)
+const (
+	PresetVideo = "video"
+	PresetAudio = "audio"
+
+	// videoPresetFormat prefers H.264/AAC up to 1080p (plays everywhere) and
+	// falls back to whatever is best up to 1080p.
+	videoPresetFormat = "bv*[vcodec^=avc1][height<=1080]+ba[acodec^=mp4a]/b[vcodec^=avc1][height<=1080]/bv*[height<=1080]+ba/b"
 )
+
+// ClipRequest describes one clip job. Exactly one of Preset and Format is set;
+// the caller has validated all fields.
+type ClipRequest struct {
+	VideoID string
+	From    string // HH:MM:SS
+	To      string // HH:MM:SS
+	Preset  string // PresetVideo or PresetAudio
+	Format  string // yt-dlp format id, "137" or "137+140"
+}
 
 // jobSlots limits how many clips are processed at once; further jobs wait in
 // the queued state.
@@ -35,19 +44,47 @@ var jobSlots = sync.OnceValue(func() chan struct{} {
 	return make(chan struct{}, config.CONFIG.MaxConcurrentJobs)
 })
 
-func DownloadAndCutVideo(outputTemplate string, selectedFormat string, fileSizeLimit int64, from string, to string, url string) ([]byte, error) {
-	cmdArgs := []string{
-		"-o", outputTemplate,
-		"-f", selectedFormat,
+// formatArgs returns the yt-dlp arguments that select what to download.
+func formatArgs(req ClipRequest) []string {
+	switch req.Preset {
+	case PresetVideo:
+		return []string{"-f", videoPresetFormat, "--merge-output-format", "mp4"}
+	case PresetAudio:
+		return []string{"-f", "ba", "-x", "--audio-format", "mp3", "--audio-quality", "192K"}
+	}
+	return []string{"-f", resolveFormat(req.VideoID, req.Format)}
+}
+
+// resolveFormat merges best audio into a single video-only format, so a
+// format picked from the list never yields a silent clip.
+func resolveFormat(videoID string, format string) string {
+	if strings.Contains(format, "+") {
+		return format
+	}
+	info, err := GetVideoInfo(videoID)
+	if err != nil {
+		glogger.Log.Errorf(err, "Resolve Format: Could not load info for %s, using format %s as is", videoID, format)
+		return format
+	}
+	if f, ok := info.Format(format); ok && f.Kind == FormatKindVideo {
+		return format + "+bestaudio"
+	}
+	return format
+}
+
+func DownloadAndCutVideo(outputTemplate string, formatArgs []string, fileSizeLimit int64, from string, to string, url string) ([]byte, error) {
+	cmdArgs := []string{"-o", outputTemplate}
+	cmdArgs = append(cmdArgs, formatArgs...)
+	cmdArgs = append(cmdArgs,
 		"--max-filesize", fmt.Sprintf("%d", fileSizeLimit),
 		"--download-sections", fmt.Sprintf("*%s-%s", from, to),
 		url,
-	}
+	)
 
 	return execute("yt-dlp", cmdArgs)
 }
 
-func ProcessClip(jobID string, url string, from string, to string, selectedFormat string) {
+func ProcessClip(jobID string, req ClipRequest) {
 	slots := jobSlots()
 	slots <- struct{}{}
 	defer func() { <-slots }()
@@ -64,7 +101,7 @@ func ProcessClip(jobID string, url string, from string, to string, selectedForma
 
 	// yt-dlp picks the extension; the job ID keeps the name unique.
 	outputTemplate := filepath.Join(clipDir, jobID+".%(ext)s")
-	output, err := DownloadAndCutVideo(outputTemplate, selectedFormat, config.CONFIG.YtDlpConfig.ClipSizeInMb, from, to, url)
+	output, err := DownloadAndCutVideo(outputTemplate, formatArgs(req), config.CONFIG.YtDlpConfig.ClipSizeInMb, req.From, req.To, WatchURL(req.VideoID))
 	if err != nil {
 		glogger.Log.Errorf(err, "Process Clip: Failed to download video. Output:\n%s", string(output))
 		jobs.FailJob(jobID, summarizeError(output, err))
@@ -78,8 +115,14 @@ func ProcessClip(jobID string, url string, from string, to string, selectedForma
 		return
 	}
 
+	title := ""
+	if info, ok := CachedVideoInfo(req.VideoID); ok {
+		title = info.Title
+	}
+	fileName := DownloadName(title, req.VideoID, req.From, req.To, filepath.Ext(outputPath))
+
 	glogger.Log.Infof("Process Clip: Complete Job %s", jobID)
-	jobs.CompleteJob(jobID, outputPath)
+	jobs.CompleteJob(jobID, outputPath, fileName)
 }
 
 // findOutputFile returns the finished file yt-dlp wrote for a job, ignoring
@@ -97,9 +140,15 @@ func findOutputFile(dir string, jobID string) (string, error) {
 	return "", fmt.Errorf("no output file for job %s", jobID)
 }
 
-// summarizeError turns yt-dlp output into a short message that is safe to show
-// to users: the last ERROR line, without the full command output.
+// summarizeError turns yt-dlp output of a failed download into a short
+// message that is safe to show to users.
 func summarizeError(output []byte, err error) string {
+	return summarize(output, err, "Timed out while downloading the clip", "Failed to download the clip")
+}
+
+// summarize returns the last yt-dlp ERROR line, without the rest of the
+// output (which can contain the command line), or a fallback message.
+func summarize(output []byte, err error, timeoutMsg string, fallbackMsg string) string {
 	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
 	for i := len(lines) - 1; i >= 0; i-- {
 		line := strings.TrimSpace(lines[i])
@@ -108,112 +157,9 @@ func summarizeError(output []byte, err error) string {
 		}
 	}
 	if errors.Is(err, errTimeout) {
-		return "Timed out while downloading the clip"
+		return timeoutMsg
 	}
-	return "Failed to download the clip"
-}
-
-func GetAvailableFormats(url string) ([]map[string]string, error) {
-	glogger.Log.Infof("Get Available Formats: Fetching available formats for URL %s", url)
-
-	output, err := execute("yt-dlp", []string{"-F", url})
-	if err != nil {
-		glogger.Log.Errorf(err, "Get Available Formats: Error executing yt-dlp. Output\n%s", string(output))
-		return nil, fmt.Errorf("yt-dlp failed: %w", err)
-	}
-
-	if config.CONFIG.Debug {
-		glogger.Log.Infof("Get Available Formats: yt-dlp command succeeded. Output:\n%s", output)
-	}
-
-	formats := parseFormats(string(output))
-	if len(formats) == 0 {
-		glogger.Log.Errorf(errors.New("no formats"), "Get Available Formats: Could not find any available formats. Output:\n%s", output)
-		return nil, errors.New("could not find any available formats")
-	}
-
-	return formats, nil
-}
-
-func GetVideoDuration(url string) (string, error) {
-	glogger.Log.Infof("Get Video Duration: Fetch duration for URL %s", url)
-
-	output, err := execute("yt-dlp", []string{"--get-duration", url})
-	if err != nil {
-		glogger.Log.Errorf(err, "Get Video Duration: Error executing yt-dlp. Output\n%s", string(output))
-		return "", err
-	}
-
-	if config.CONFIG.Debug {
-		glogger.Log.Infof("Get Video Duration: yt-dlp command succeeded. Output:\n%s", output)
-	}
-
-	return ExtractDuration(string(output)), nil
-}
-
-func ExtractDuration(output string) string {
-	if match := durationWithColonRegex.FindString(output); match != "" {
-		return match
-	}
-
-	if secMatches := durationSecondsRegex.FindStringSubmatch(output); len(secMatches) > 1 {
-		return secMatches[1]
-	}
-
-	return ""
-}
-
-func parseFormats(output string) []map[string]string {
-	lines := strings.Split(strings.TrimSpace(output), "\n")
-	formats := make([]map[string]string, 0, len(lines))
-
-	for _, line := range lines {
-		if format := parseFormatLine(line); format != nil {
-			formats = append(formats, format)
-		}
-	}
-
-	return formats
-}
-
-func parseFormatLine(line string) map[string]string {
-	matches := formatLineRegex.FindStringSubmatch(line)
-	if len(matches) == 0 {
-		return nil
-	}
-
-	additional := strings.TrimSpace(matches[6])
-	if strings.Contains(additional, throttledStatus) {
-		return nil
-	}
-
-	return map[string]string{
-		"id":         matches[1],
-		"extension":  matches[2],
-		"label":      matches[3],
-		"codec":      strings.TrimSpace(matches[4]),
-		"bitrate":    extractBitrate(matches[6]),
-		"formatType": determineFormatType(matches[3]),
-		"additional": additional,
-	}
-}
-
-func determineFormatType(label string) string {
-	switch label {
-	case "audio only":
-		return "audio only"
-	case "video only":
-		return "video only"
-	default:
-		return "audio and video"
-	}
-}
-
-func extractBitrate(additional string) string {
-	if match := bitrateRegex.FindStringSubmatch(additional); len(match) > 0 {
-		return match[1]
-	}
-	return "N/A"
+	return fallbackMsg
 }
 
 // commonArgs returns the flags applied to every yt-dlp invocation: the optional

@@ -10,7 +10,8 @@ ytclipper is a small self-hostable web app: a Go server with a plain HTML/JS pag
 
 ## Features
 - Clip any section of a YouTube video by start and end time (`34`, `1:28` or `1:09:24`).
-- Choose from the formats YouTube offers for the video (video, audio, or both).
+- One click for a video (H.264/AAC MP4) or audio (MP3) clip, or pick any format YouTube offers.
+- Downloads get a readable name: `<title> [from - to].<ext>`.
 - Preview the video in the page before clipping.
 - Clips are processed as background jobs; the download starts when the job is done.
 - Light and dark theme.
@@ -70,23 +71,34 @@ YTCLIPPER_YT_DLP_PROXY=socks5h://proxy-host:1080
 `socks5h://` also resolves DNS through the proxy. With a residential exit, no cookies or other workarounds are needed.
 
 ## API
-The page uses a small JSON API, which you can also call directly. The `http/` folder has ready-made requests for REST clients.
+The page uses a small JSON API, which you can also call directly. The `http/` folder has ready-made requests for REST clients. Errors are JSON: `{"error": "..."}`.
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/api/v1/video/formats?youtubeUrl=…` | Formats available for the video |
-| `GET` | `/api/v1/video/duration?youtubeUrl=…` | Video length in seconds |
-| `POST` | `/api/v1/clip` | Start a clip job; returns the job id |
-| `GET` | `/api/v1/jobs/status?jobId=…` | Job state |
-| `GET` | `/api/v1/clip?jobId=…` | Download the finished clip |
+| `GET` | `/api/v1/video/info?youtubeUrl=…` | Title, uploader, duration (s), thumbnail and the format list |
+| `POST` | `/api/v1/clip` | Start a clip job; returns the job id as plain text (201) |
+| `GET` | `/api/v1/jobs/{id}` | Job state as JSON; `fileName` and `downloadUrl` once completed |
+| `GET` | `/api/v1/clip?jobId=…` | Download the finished clip as `<title> [h-mm-ss - h-mm-ss].<ext>` |
+| `GET` | `/api/v1/video/formats?youtubeUrl=…` | Legacy: formats in the old page's shape |
+| `GET` | `/api/v1/video/duration?youtubeUrl=…` | Legacy: video length in seconds |
+| `GET` | `/api/v1/jobs/status?jobId=…` | Legacy: job state as status code (201 running, 200 done, 500 failed) |
 | `GET` | `/health` | Health check (never behind auth) |
 
-Create a clip:
+Video info comes from one `yt-dlp -J` call and is cached in memory per video for 10 minutes, so the formats, duration and clip endpoints don't ask YouTube again. Each format has `id`, `ext`, `kind` (`video` = video only, `audio` = audio only, `both`), `width`, `height`, `fps`, `vcodec`, `acodec`, `tbr`, `abr` (kbit/s), `filesize` (bytes for the whole video, approximate if that's all YouTube reports, `0` if unknown) and `note`.
+
+A clip request names either a `preset` or a `format`:
+
+| Field | Value | Result |
+|---|---|---|
+| `preset` | `video` | Best H.264/AAC up to 1080p, merged to MP4 |
+| `preset` | `audio` | MP3 at ~192 kbit/s |
+| `format` | `137` or `137+140` | That yt-dlp format; a video-only format gets the best audio merged in |
 
 ```bash
-curl -X POST localhost:8080/api/v1/clip \
-  -H 'Content-Type: application/json' \
-  -d '{"url":"https://www.youtube.com/watch?v=dQw4w9WgXcQ","from":"00:00:10","to":"00:00:20","format":"18"}'
+curl -X POST localhost:8080/api/v1/clip   -H 'Content-Type: application/json'   -d '{"url":"https://www.youtube.com/watch?v=dQw4w9WgXcQ","from":"00:00:10","to":"00:00:20","preset":"video"}'
+# -> 3f1c...  (job id)
+curl localhost:8080/api/v1/jobs/3f1c...
+# -> {"id":"3f1c...","status":"completed","error":"","fileName":"Video title [0-00-10 - 0-00-20].mp4","downloadUrl":"/api/v1/clip?jobId=3f1c..."}
 ```
 
 ## Development

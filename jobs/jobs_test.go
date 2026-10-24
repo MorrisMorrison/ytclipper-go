@@ -50,7 +50,7 @@ func TestFailJob(t *testing.T) {
 
 func TestCompleteJob(t *testing.T) {
 	job := NewJob()
-	CompleteJob(job.ID, "/path/to/file.mp4")
+	CompleteJob(job.ID, "/path/to/file.mp4", "Title [0-00-01 - 0-00-02].mp4")
 
 	got, _ := GetJobById(job.ID)
 	if got.Status != StatusCompleted {
@@ -58,6 +58,9 @@ func TestCompleteJob(t *testing.T) {
 	}
 	if got.FilePath != "/path/to/file.mp4" {
 		t.Errorf("Unexpected file path %q", got.FilePath)
+	}
+	if got.FileName != "Title [0-00-01 - 0-00-02].mp4" {
+		t.Errorf("Unexpected file name %q", got.FileName)
 	}
 }
 
@@ -78,7 +81,7 @@ func TestGetJobByIdReturnsCopy(t *testing.T) {
 
 func TestRemoveFinishedBefore(t *testing.T) {
 	done := NewJob()
-	CompleteJob(done.ID, "x")
+	CompleteJob(done.ID, "x", "x")
 	failed := NewJob()
 	FailJob(failed.ID, "boom")
 	running := NewJob()

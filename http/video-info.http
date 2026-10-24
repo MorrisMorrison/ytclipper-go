@@ -1,3 +1,22 @@
+### Get Video Info
+# Title, uploader, duration, thumbnail and formats (one cached yt-dlp -J call)
+GET {{baseUrl}}/api/v1/video/info?youtubeUrl=https://www.youtube.com/watch?v=dQw4w9WgXcQ
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+
+###
+
+### Get Video Info - Short URL (same cache entry)
+GET {{baseUrl}}/api/v1/video/info?youtubeUrl=https://youtu.be/dQw4w9WgXcQ
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+
+###
+
+### Get Video Info - Invalid URL (400)
+GET {{baseUrl}}/api/v1/video/info?youtubeUrl=https://vimeo.com/123456
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+
+###
+
 ### Get Video Duration
 # Get the total duration of a YouTube video
 GET {{baseUrl}}/api/v1/video/duration?youtubeUrl=https://www.youtube.com/watch?v=dQw4w9WgXcQ

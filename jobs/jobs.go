@@ -20,6 +20,7 @@ type Job struct {
 	ID          string    `json:"id"`
 	Status      JobStatus `json:"status"`
 	FilePath    string    `json:"filePath,omitempty"`
+	FileName    string    `json:"fileName,omitempty"` // readable download name
 	Error       string    `json:"error,omitempty"`
 	CreatedAt   time.Time `json:"createdAt"`
 	StartedAt   time.Time `json:"startedAt"`
@@ -67,10 +68,11 @@ func FailJob(jobID, errorMsg string) {
 	})
 }
 
-func CompleteJob(jobID, filePath string) {
+func CompleteJob(jobID, filePath, fileName string) {
 	update(jobID, func(job *Job) {
 		job.Status = StatusCompleted
 		job.FilePath = filePath
+		job.FileName = fileName
 		job.CompletedAt = time.Now()
 	})
 }

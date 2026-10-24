@@ -43,8 +43,8 @@ export YTCLIPPER_AUTH_PASSWORD="your-password"
 
 ### Core API Testing
 - **`health.http`** - Health check and homepage endpoints
-- **`video-info.http`** - Video duration and format information
-- **`clips.http`** - Clip creation with various parameters
+- **`video-info.http`** - Video info (title, duration, formats) and the legacy duration/format endpoints
+- **`clips.http`** - Clip creation with presets and explicit formats
 - **`jobs.http`** - Job status checking and clip downloads
 
 ### Advanced Testing
@@ -94,10 +94,12 @@ GET {{baseUrl}}/api/v1/clip?jobId=your-job-id
 |--------|----------|-------------|
 | `GET` | `/health` | Health check (no auth) |
 | `GET` | `/` | Homepage HTML |
-| `GET` | `/api/v1/video/duration` | Get video duration |
-| `GET` | `/api/v1/video/formats` | Get available formats |
-| `POST` | `/api/v1/clip` | Create clip job |
-| `GET` | `/api/v1/jobs/status` | Check job status |
+| `GET` | `/api/v1/video/info` | Video title, duration, thumbnail and formats |
+| `GET` | `/api/v1/video/duration` | Get video duration (legacy) |
+| `GET` | `/api/v1/video/formats` | Get available formats (legacy shape) |
+| `POST` | `/api/v1/clip` | Create clip job (`preset` or `format`) |
+| `GET` | `/api/v1/jobs/{id}` | Job state as JSON |
+| `GET` | `/api/v1/jobs/status` | Check job status (legacy, status codes) |
 | `GET` | `/api/v1/clip` | Download completed clip |
 
 ## Common Parameters
