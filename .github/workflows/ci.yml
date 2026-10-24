@@ -21,8 +21,8 @@ jobs:
       id-token: write # Codecov upload via OIDC, no token secret
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
       - name: Format, vet, test, build
@@ -30,7 +30,7 @@ jobs:
       - name: Race detector and coverage
         run: go test -race -covermode=atomic -coverprofile=coverage-unit.out ./...
       - name: Upload unit coverage
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
           files: coverage-unit.out
           flags: unit
@@ -45,8 +45,8 @@ jobs:
       id-token: write # Codecov upload via OIDC, no token secret
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
       # Builds the app (with -cover) and the fakes, starts and stops its own
@@ -54,7 +54,7 @@ jobs:
       - name: Run e2e suite with coverage
         run: make coverage-e2e
       - name: Upload e2e coverage
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
           files: coverage-e2e.out
           flags: e2e
@@ -63,7 +63,7 @@ jobs:
       # Failure screenshots, console logs and the server logs.
       - name: Upload e2e artifacts
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-artifacts
           path: test/e2e/artifacts/
@@ -75,10 +75,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
       - name: Build image (not pushed)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           push: false
