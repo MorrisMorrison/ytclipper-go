@@ -26,3 +26,4 @@ yt-dlp is the app's only real dependency on the outside world, and three places 
 - Format availability differs per video and changes over time; never hard-code a format id outside tests and the stub.
 - "video only" formats have no audio; merge best audio (`<id>+bestaudio`, or `<id>+bestaudio[ext=m4a]/<id>+bestaudio` for MP4 video so the merge needs no re-encode) unless the user explicitly wants video only.
 - Merging or remuxing needs ffmpeg; extracting audio (`-x --audio-format mp3`) re-encodes.
+- `--download-sections` downloads go through ffmpeg, which only supports **HTTP** proxies. With a SOCKS proxy yt-dlp extracts through it but ffmpeg connects directly, and YouTube answers 403 (media URLs are bound to the extracting IP). `--no-warnings` hides yt-dlp's warning about it.
