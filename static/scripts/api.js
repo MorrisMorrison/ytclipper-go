@@ -11,29 +11,28 @@ export class ApiError extends Error {
 async function send(url, options) {
     try {
         return await fetch(url, options);
-    } catch (err) {
-        if (err?.name === "AbortError") throw err;
+    } catch {
         throw new ApiError("Can't reach the server. Check your connection and try again.");
     }
 }
 
 async function errorFrom(response) {
-    if (response.status === 429) {
-        return new ApiError("Too many requests. Wait a moment and try again.", 429);
-    }
-    let message = "";
+    let body = null;
     try {
-        const body = await response.json();
-        message = body?.error || body?.message || "";
+        body = await response.json();
     } catch {
         // not JSON
     }
+    // Handlers send {"error"}; Echo's rate limiter sends {"message": "rate limit exceeded"}.
+    let message = body?.error || "";
+    if (!message && response.status === 429) message = "Too many requests. Wait a moment and try again.";
+    if (!message) message = body?.message || "";
     return new ApiError(message || `Request failed (HTTP ${response.status}).`, response.status);
 }
 
 // getVideoInfo → { id, title, uploader, duration, thumbnail, formats: [...] }
-export async function getVideoInfo(youtubeUrl, signal) {
-    const response = await send(`/api/v1/video/info?youtubeUrl=${encodeURIComponent(youtubeUrl)}`, { signal });
+export async function getVideoInfo(youtubeUrl) {
+    const response = await send(`/api/v1/video/info?youtubeUrl=${encodeURIComponent(youtubeUrl)}`);
     if (!response.ok) throw await errorFrom(response);
     return response.json();
 }

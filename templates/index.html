@@ -25,7 +25,7 @@
 </head>
 
 <body>
-    <div id="toasts" class="toasts" aria-live="polite"></div>
+    <div id="toasts" class="toasts"></div>
 
     <header class="topbar">
         <div class="brand">
@@ -66,7 +66,7 @@
             <div id="editor" class="editor" hidden>
                 <div class="player-frame">
                     <div id="player" class="player"></div>
-                    <div id="playerFallback" class="player-fallback">
+                    <div class="player-fallback">
                         <span id="playerSpinner" class="spinner" aria-hidden="true"></span>
                         <span id="playerStatus">Loading player…</span>
                     </div>
@@ -211,7 +211,9 @@
                 </button>
             </div>
 
-            <section id="job" class="job" data-state="idle" aria-live="polite" hidden>
+            <!-- Screen readers hear only state changes, not the elapsed-time ticks. -->
+            <p id="jobAnnounce" class="visually-hidden" aria-live="polite"></p>
+            <section id="job" class="job" data-state="idle" hidden>
                 <div class="job-row">
                     <span class="job-icon" aria-hidden="true"></span>
                     <div class="job-text">
@@ -225,6 +227,7 @@
                     </svg>
                     Download clip
                 </a>
+                <button id="jobKeepWaiting" class="button button-secondary button-sm" type="button" hidden>Keep waiting</button>
             </section>
         </form>
 

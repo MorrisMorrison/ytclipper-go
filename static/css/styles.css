@@ -77,6 +77,8 @@
     --text-muted: #64748b;
     --label: #64748b;
     --accent-text: #047857;
+    /* Focus indicators need 3:1 against the surface; the plain accent doesn't on white. */
+    --focus-ring: #047857;
 }
 
 :root[data-theme="dark"] {
@@ -107,6 +109,7 @@
     --text-muted: #7d8794;
     --label: #8b95a3;
     --accent-text: #34d399;
+    --focus-ring: #34d399;
 }
 
 /* ===== Base ===== */
@@ -160,7 +163,7 @@ code {
 }
 
 :focus-visible {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--focus-ring);
     outline-offset: 2px;
 }
 
@@ -331,8 +334,8 @@ code {
 }
 
 .input:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-soft);
+    border-color: var(--focus-ring);
+    box-shadow: 0 0 0 1px var(--focus-ring), 0 0 0 4px var(--accent-soft);
 }
 
 .input[aria-invalid="true"] {
@@ -340,7 +343,8 @@ code {
 }
 
 .input[aria-invalid="true"]:focus {
-    box-shadow: 0 0 0 3px var(--error-soft);
+    border-color: var(--error);
+    box-shadow: 0 0 0 1px var(--error), 0 0 0 4px var(--error-soft);
 }
 
 .helper-text {
@@ -434,8 +438,8 @@ code {
 }
 
 .button:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 3px var(--accent-ring);
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
 }
 
 .icon-button {
@@ -634,7 +638,17 @@ code {
     cursor: ew-resize;
     touch-action: none;
     z-index: 2;
-    outline: none;
+    border-radius: 6px;
+}
+
+/* The last-used handle sits on top, so overlapping handles stay reachable. */
+.trim-handle[data-active="true"] {
+    z-index: 3;
+}
+
+.trim-handle:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
 }
 
 .trim-handle::before {
@@ -660,10 +674,6 @@ code {
 .trim-handle:hover::before,
 .trim-handle[data-dragging="true"]::before {
     transform: scaleX(1.12);
-}
-
-.trim-handle:focus-visible::before {
-    box-shadow: 0 0 0 3px var(--accent-ring), 0 2px 8px -2px rgba(0, 0, 0, 0.45);
 }
 
 .trim-playhead {
@@ -816,7 +826,7 @@ code {
 
 .segment input:focus-visible + .segment-body,
 .fmt input:focus-visible + .fmt-body {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--focus-ring);
     outline-offset: 2px;
 }
 
@@ -1066,6 +1076,19 @@ code {
 
 .job[data-state="error"] .job-icon::before {
     content: "!";
+}
+
+.job[data-state="stalled"] .job-icon {
+    background: var(--warning);
+    color: #fff;
+}
+
+.job[data-state="stalled"] .job-icon::before {
+    content: "!";
+}
+
+.job #jobKeepWaiting {
+    margin-top: var(--spacing-lg);
 }
 
 .job[data-state="error"] {

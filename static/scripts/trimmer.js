@@ -2,6 +2,8 @@
 //
 // - Drag a handle to move one end; drag the highlighted selection to move both.
 // - Pressing on the bare track jumps the nearest handle there and keeps dragging.
+// - When the handles overlap, the first move direction picks the handle
+//   (left → start, right → end); the last-used handle is drawn on top.
 // - Handles are ARIA sliders: arrows move 1 s, Shift+arrows and Page keys 10 s,
 //   Home/End jump to the limits.
 // All values are whole seconds; the selection is at least MIN_LENGTH long.
@@ -9,6 +11,8 @@
 import { formatTime } from "./time.js";
 
 const MIN_LENGTH = 1;
+// Handles closer than this (px) count as overlapping.
+const OVERLAP_PX = 28;
 
 export class Trimmer {
     // els: { root, track, selection, playhead, startHandle, endHandle, durationLabel }
@@ -33,12 +37,12 @@ export class Trimmer {
     }
 
     get ready() {
-        return this.duration > 0;
+        return this.duration > MIN_LENGTH;
     }
 
     setDuration(duration) {
         this.duration = Math.max(0, Math.floor(duration));
-        const ready = this.duration > MIN_LENGTH;
+        const ready = this.ready;
         this.els.root.dataset.ready = String(ready);
         for (const handle of [this.els.startHandle, this.els.endHandle]) {
             handle.tabIndex = ready ? 0 : -1;
@@ -121,8 +125,26 @@ export class Trimmer {
     }
 
     bindHandle(handle, which) {
-        handle.addEventListener("pointerdown", (event) => this.beginDrag(event, which));
+        handle.addEventListener("pointerdown", (event) => this.onHandleDown(event, which));
         handle.addEventListener("keydown", (event) => this.onKey(event, which));
+        handle.addEventListener("focus", () => this.setActive(which));
+    }
+
+    handleFor(which) {
+        return which === "end" ? this.els.endHandle : this.els.startHandle;
+    }
+
+    // setActive raises the handle that was used last.
+    setActive(which) {
+        this.els.startHandle.dataset.active = String(which === "start");
+        this.els.endHandle.dataset.active = String(which === "end");
+    }
+
+    onHandleDown(event, which) {
+        const width = this.els.track.getBoundingClientRect().width;
+        const gapPx = ((this.percent(this.end) - this.percent(this.start)) / 100) * width;
+        // Overlapping handles: decide on the first move.
+        this.beginDrag(event, gapPx < OVERLAP_PX ? "either" : which);
     }
 
     beginDrag(event, which) {
@@ -130,13 +152,21 @@ export class Trimmer {
         event.preventDefault();
         event.stopPropagation();
         const grabbedAt = this.timeAt(event.clientX);
-        this.drag = { which, pointerId: event.pointerId, offset: which === "range" ? grabbedAt - this.start : 0 };
+        this.drag = {
+            which,
+            pointerId: event.pointerId,
+            originX: event.clientX,
+            offset: which === "range" ? grabbedAt - this.start : 0,
+        };
         this.els.track.setPointerCapture(event.pointerId);
-        const handle = which === "end" ? this.els.endHandle : this.els.startHandle;
-        if (which !== "range") {
-            handle.dataset.dragging = "true";
-            handle.focus({ preventScroll: true });
-        }
+        if (which === "start" || which === "end") this.grab(which);
+    }
+
+    grab(which) {
+        const handle = this.handleFor(which);
+        handle.dataset.dragging = "true";
+        handle.focus({ preventScroll: true });
+        this.setActive(which);
     }
 
     onTrackDown(event) {
@@ -149,6 +179,12 @@ export class Trimmer {
 
     onMove(event) {
         if (!this.drag || event.pointerId !== this.drag.pointerId) return;
+        if (this.drag.which === "either") {
+            const dx = event.clientX - this.drag.originX;
+            if (Math.abs(dx) < 2) return;
+            this.drag.which = dx < 0 ? "start" : "end";
+            this.grab(this.drag.which);
+        }
         this.move(this.drag.which, this.timeAt(event.clientX) - this.drag.offset, false);
     }
 
@@ -158,6 +194,7 @@ export class Trimmer {
         this.drag = null;
         delete this.els.startHandle.dataset.dragging;
         delete this.els.endHandle.dataset.dragging;
+        if (which === "either") return; // pressed without moving
         // Report the final position once so the player does an exact seek.
         this.onChange(this.start, this.end, { final: true });
         this.onSeek(which === "end" ? this.end : this.start, true);

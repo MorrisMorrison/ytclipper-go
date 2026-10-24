@@ -27,7 +27,12 @@ import { extractVideoId } from "./youtube-url.js";
 
 const DEFAULT_LENGTH = 30;
 const POLL_MS = 1500;
-const MAX_POLL_FAILURES = 3;
+const POLL_MAX_BACKOFF_MS = 15000;
+const JOB_DEADLINE_MS = 15 * 60 * 1000;
+// Poll errors worth retrying: rate limited, or the server is briefly unavailable.
+const TRANSIENT_STATUSES = new Set([0, 429, 502, 503, 504]);
+// Preview arms only once playback is clearly inside the range.
+const PREVIEW_ARM_MARGIN = 0.25;
 const TIME_HELP = "Use seconds (34), m:ss (1:28) or h:mm:ss (1:09:24).";
 const INVALID_URL = "That doesn't look like a YouTube video link. Paste a watch, youtu.be, Shorts or live URL.";
 
@@ -75,7 +80,10 @@ const el = {
     job: $("job"),
     jobTitle: $("jobTitle"),
     jobDetail: $("jobDetail"),
+    jobAnnounce: $("jobAnnounce"),
+    jobKeepWaiting: $("jobKeepWaiting"),
     downloadButton: $("downloadButton"),
+    trimmerHint: $("trimmerHint"),
 };
 
 const state = {
@@ -90,8 +98,13 @@ const state = {
     formats: { video: [], audio: [] },
     advancedFor: null, // videoId the advanced lists were built for
     previewing: false,
+    previewArmed: false, // set once the player reports playing inside the range
+    previewTimer: 0,
+    infoError: null,
+    playerUnavailable: false,
     playerState: "unstarted",
     jobToken: 0,
+    stalledPoll: null,
     busy: false,
 };
 
@@ -109,15 +122,23 @@ const player = new Player(el.player, {
     },
     onStateChange(name) {
         state.playerState = name;
-        if (state.previewing && (name === "paused" || name === "ended")) stopPreview(false);
+        if (!state.previewing) return;
+        if (!state.previewArmed) {
+            // Ignore the paused/ended echoes of the seek before playback starts.
+            if (name === "playing") armPreview();
+            return;
+        }
+        if (name === "paused" || name === "ended") stopPreview(false);
     },
     onUnavailable(message) {
+        state.playerUnavailable = true;
         el.playerFrame.dataset.player = "unavailable";
         el.playerSpinner.hidden = true;
         el.playerStatus.textContent = message;
         setPlayerControls(false);
         stopPreview(false);
         trimmer.setPlayhead(null);
+        updateTrimmerHint();
     },
 });
 
@@ -132,11 +153,17 @@ setInterval(() => {
     if (!player.ready || el.editor.hidden) return;
     const t = player.currentTime();
     trimmer.setPlayhead(t);
-    if (state.previewing && t >= state.end - 0.05) {
-        state.previewing = false;
-        player.pause();
-        player.seek(state.start, true);
-        updatePreviewButton();
+    if (!state.previewing) return;
+    if (!state.previewArmed) {
+        if (state.playerState === "playing") armPreview();
+        return;
+    }
+    const left = state.end - t;
+    if (left <= 0.05) {
+        finishPreview();
+    } else if (left < 0.3 && !state.previewTimer) {
+        // Stop close to the end instead of up to one tick late.
+        state.previewTimer = setTimeout(finishPreview, left * 1000);
     }
 }, 100);
 
@@ -291,7 +318,7 @@ el.from.addEventListener("change", () => commitFields());
 el.to.addEventListener("change", () => commitFields());
 
 el.setStart.addEventListener("click", () => {
-    const t = Math.floor(player.currentTime());
+    const t = Math.round(player.currentTime());
     const length = state.end - state.start;
     const end = state.end > t ? state.end : t + length;
     applyRange(t, end);
@@ -310,11 +337,30 @@ function updatePreviewButton() {
     el.previewButton.setAttribute("aria-pressed", String(state.previewing));
 }
 
+function clearPreview() {
+    clearTimeout(state.previewTimer);
+    state.previewTimer = 0;
+    state.previewing = false;
+    state.previewArmed = false;
+    updatePreviewButton();
+}
+
+function armPreview() {
+    const t = player.currentTime();
+    if (t >= state.start - 0.5 && t < state.end - PREVIEW_ARM_MARGIN) state.previewArmed = true;
+}
+
+function finishPreview() {
+    if (!state.previewing) return;
+    clearPreview();
+    player.pause();
+    player.seek(state.start, true);
+}
+
 function stopPreview(pause) {
     if (!state.previewing) return;
-    state.previewing = false;
+    clearPreview();
     if (pause) player.pause();
-    updatePreviewButton();
 }
 
 el.previewButton.addEventListener("click", () => {
@@ -325,6 +371,7 @@ el.previewButton.addEventListener("click", () => {
     }
     if (!commitFields({ seek: false })) return;
     state.previewing = true;
+    state.previewArmed = false;
     player.seek(state.start, true);
     player.play();
     updatePreviewButton();
@@ -343,6 +390,8 @@ function infoFor(videoId) {
 
 function useInfo(info) {
     state.info = info;
+    state.infoError = null;
+    if (info.thumbnail) el.playerFrame.style.backgroundImage = `url("${encodeURI(info.thumbnail)}")`;
     if (info.title) {
         el.videoTitle.textContent = info.title;
         el.videoUploader.textContent = info.uploader || "";
@@ -360,9 +409,19 @@ function showUrlError(message) {
 }
 
 function closeVideo() {
+    stopPreview(false);
     state.videoId = null;
-    stopPreview(true);
+    player.destroy(); // stops audio that would keep playing in the hidden editor
     el.editor.hidden = true;
+}
+
+// updateTrimmerHint explains why the slider isn't ready yet.
+function updateTrimmerHint() {
+    if (!state.duration && state.infoError && !player.ready) {
+        el.trimmerHint.textContent = `Couldn't get the video length (${state.infoError}). You can still type the start and end times.`;
+    } else {
+        el.trimmerHint.textContent = "Waiting for the video length… You can type the times below.";
+    }
 }
 
 function openVideo(videoId) {
@@ -374,9 +433,12 @@ function openVideo(videoId) {
     state.end = DEFAULT_LENGTH;
     state.rangeTouched = false;
     state.info = null;
+    state.infoError = null;
+    state.playerUnavailable = false;
     state.advancedFor = null;
 
     el.editor.hidden = false;
+    updateTrimmerHint();
     el.playerFrame.dataset.player = "loading";
     el.playerFrame.style.backgroundImage = `url("https://i.ytimg.com/vi/${videoId}/hqdefault.jpg")`;
     el.playerSpinner.hidden = false;
@@ -396,8 +458,11 @@ function openVideo(videoId) {
         .then((info) => {
             if (state.videoId === videoId) useInfo(info);
         })
-        .catch(() => {
+        .catch((err) => {
             // Simple mode works without it; advanced mode shows its own error.
+            if (state.videoId !== videoId) return;
+            state.infoError = err.message;
+            updateTrimmerHint();
         });
     if (el.advanced.open) loadAdvanced();
     else updateOutputMode();
@@ -586,17 +651,27 @@ function setBusy(busy) {
     el.clipButtonLabel.textContent = busy ? "Working…" : "Create clip";
 }
 
+// showJob updates the status panel. Only the title (and an error's message)
+// goes to the live region, so screen readers hear state changes, not every
+// elapsed-time update.
 function showJob(status, title, detail = "") {
     el.job.hidden = false;
     el.job.dataset.state = status;
-    el.jobTitle.textContent = title;
     el.jobDetail.textContent = detail;
     el.downloadButton.hidden = status !== "completed";
+    el.jobKeepWaiting.hidden = status !== "stalled";
+    if (el.jobTitle.textContent !== title || status === "error") {
+        el.jobTitle.textContent = title;
+        el.jobAnnounce.textContent = status === "error" ? `${title}. ${detail}` : title;
+    }
+    if (status === "completed" || status === "error" || status === "stalled") {
+        el.job.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
 }
 
 function failJob(message) {
+    // The panel announces the error; no toast, or it would be read twice.
     showJob("error", "The clip couldn't be created", message);
-    toast(message, { type: "error", timeout: 8000 });
     setBusy(false);
 }
 
@@ -619,25 +694,39 @@ function completeJob(job) {
     startDownload(url, job.fileName);
 }
 
-async function pollJob(jobId, token, startedAt, failures = 0) {
-    if (token !== state.jobToken) return;
+// pollJob polls until the job finishes. Rate limiting and brief server or
+// network trouble back off and retry; after JOB_DEADLINE_MS it asks the user
+// whether to keep waiting.
+async function pollJob(poll) {
+    if (poll.token !== state.jobToken) return;
+    if (Date.now() > poll.deadline) {
+        showJob("stalled", "This is taking unusually long", "The server hasn't finished the clip yet. Keep waiting, or create it again later.");
+        setBusy(false);
+        state.stalledPoll = poll;
+        return;
+    }
+
     let job;
     try {
-        job = await getJob(jobId);
+        job = await getJob(poll.jobId);
     } catch (err) {
-        if (token !== state.jobToken) return;
+        if (poll.token !== state.jobToken) return;
         if (err.status === 404) {
             failJob("The job wasn't found. It may have expired; please try again.");
-        } else if (failures + 1 >= MAX_POLL_FAILURES) {
-            failJob(err.message);
+        } else if (TRANSIENT_STATUSES.has(err.status)) {
+            poll.failures++;
+            const delay = Math.min(POLL_MAX_BACKOFF_MS, POLL_MS * 2 ** poll.failures);
+            showJob(el.job.dataset.state === "processing" ? "processing" : "queued", el.jobTitle.textContent || "Queued", `${err.message} Retrying…`);
+            setTimeout(() => pollJob(poll), delay);
         } else {
-            setTimeout(() => pollJob(jobId, token, startedAt, failures + 1), POLL_MS);
+            failJob(err.message);
         }
         return;
     }
-    if (token !== state.jobToken) return;
+    if (poll.token !== state.jobToken) return;
+    poll.failures = 0;
 
-    const seconds = Math.round((Date.now() - startedAt) / 1000);
+    const seconds = Math.round((Date.now() - poll.startedAt) / 1000);
     switch (job.status) {
         case "completed":
             completeJob(job);
@@ -651,11 +740,22 @@ async function pollJob(jobId, token, startedAt, failures = 0) {
         default:
             showJob("queued", "Queued", "Waiting for a free worker…");
     }
-    setTimeout(() => pollJob(jobId, token, startedAt), POLL_MS);
+    setTimeout(() => pollJob(poll), POLL_MS);
 }
+
+el.jobKeepWaiting.addEventListener("click", () => {
+    const poll = state.stalledPoll;
+    if (!poll || poll.token !== state.jobToken) return;
+    state.stalledPoll = null;
+    poll.deadline = Date.now() + JOB_DEADLINE_MS;
+    setBusy(true);
+    showJob("processing", "Creating your clip…", "Still waiting for the server…");
+    pollJob(poll);
+});
 
 async function startJob(payload) {
     const token = ++state.jobToken;
+    state.stalledPoll = null;
     setBusy(true);
     showJob("queued", "Starting…");
     let jobId;
@@ -666,7 +766,8 @@ async function startJob(payload) {
         return;
     }
     showJob("queued", "Queued", "Waiting for a free worker…");
-    pollJob(jobId, token, Date.now());
+    const now = Date.now();
+    pollJob({ jobId, token, startedAt: now, deadline: now + JOB_DEADLINE_MS, failures: 0 });
 }
 
 el.form.addEventListener("submit", (event) => {

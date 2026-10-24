@@ -60,12 +60,11 @@ export class Player {
         this.timers = [];
     }
 
-    async load(videoId) {
-        this.videoId = videoId;
+    // destroy stops playback and removes the player (link cleared).
+    destroy() {
+        this.videoId = null;
         this.ready = false;
         this.clearTimers();
-        // A fresh player per video: cueing into an old one briefly reports the
-        // previous video's duration.
         if (this.yt) {
             try {
                 this.yt.destroy();
@@ -74,6 +73,14 @@ export class Player {
             }
             this.yt = null;
         }
+        this.container.replaceChildren();
+    }
+
+    async load(videoId) {
+        // A fresh player per video: cueing into an old one briefly reports the
+        // previous video's duration.
+        this.destroy();
+        this.videoId = videoId;
         const mount = document.createElement("div");
         this.container.replaceChildren(mount);
 

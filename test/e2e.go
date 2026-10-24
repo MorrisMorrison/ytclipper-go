@@ -2,8 +2,9 @@
 //
 // Drives a headless Chrome against a running server (CI puts the yt-dlp stub
 // test/ci/yt-dlp first on PATH, so the whole page → API → job → download flow
-// runs offline). The YouTube player iframe is never required: it usually does
-// not load in CI, so every test types the times and works without it.
+// runs offline). The browser can't resolve YouTube hosts, so the player never
+// loads: the "player unavailable" path is what's tested, and the video length
+// always comes from the stub's /video/info (30 s). Every test types the times.
 //
 // Environment variables:
 //   - E2E_BASE_URL: server to test (default http://localhost:8080)
@@ -28,6 +29,7 @@ import (
 
 	"github.com/chromedp/cdproto/browser"
 	"github.com/chromedp/chromedp"
+	"github.com/chromedp/chromedp/kb"
 )
 
 const (
@@ -41,8 +43,9 @@ const (
 	timeError      = chromedp.CSS(`#timeError`)
 	presetAudio    = chromedp.CSS(`#presetAudio`)
 	advancedToggle = chromedp.CSS(`#advanced summary`)
-	videoFormat137 = chromedp.CSS(`#videoFormats input[value="137"]`)
-	audioFormat140 = chromedp.CSS(`#audioFormats input[value="140"]`)
+	videoFormat136 = chromedp.CSS(`#videoFormats input[value="136"]`)
+	videoFormat18  = chromedp.CSS(`#videoFormats input[value="18"]`)
+	audioFormat251 = chromedp.CSS(`#audioFormats input[value="251"]`)
 	formatSummary  = chromedp.CSS(`#formatSummary`)
 	clipButton     = chromedp.CSS(`#clipButton`)
 	downloadButton = chromedp.CSS(`#downloadButton`)
@@ -111,6 +114,9 @@ func runTest(test Test) error {
 		chromedp.Flag("disable-backgrounding-occluded-windows", true),
 		chromedp.Flag("disable-renderer-backgrounding", true),
 		chromedp.WindowSize(1280, 1000),
+		// No YouTube player or thumbnails: keeps runs offline and deterministic.
+		chromedp.Flag("host-resolver-rules", "MAP youtube.com ~NOTFOUND, MAP *.youtube.com ~NOTFOUND, "+
+			"MAP youtube-nocookie.com ~NOTFOUND, MAP *.youtube-nocookie.com ~NOTFOUND, MAP *.ytimg.com ~NOTFOUND"),
 	)
 	allocCtx, cancelAlloc := chromedp.NewExecAllocator(context.Background(), opts...)
 	defer cancelAlloc()
@@ -160,6 +166,7 @@ func openVideo(ctx context.Context) error {
 		chromedp.WaitVisible(urlInput),
 		chromedp.SendKeys(urlInput, validYouTubeURL),
 		chromedp.WaitVisible(editor),
+		recordClipRequests,
 	); err != nil {
 		return fmt.Errorf("editor did not appear after entering a URL (is the server running on %s?): %w", baseURL(), err)
 	}
@@ -174,15 +181,56 @@ func openVideo(ctx context.Context) error {
 	return nil
 }
 
-// typeTime replaces a time field's value with real keystrokes and blurs it,
-// which commits it the way a user leaving the field does.
-func typeTime(sel chromedp.CSS, value string) chromedp.Action[chromedp.Void] {
+// recordClipRequests wraps fetch so tests can check what the page POSTed to
+// /api/v1/clip (window.__clipPosts).
+var recordClipRequests = chromedp.Evaluate[chromedp.Void](`(() => {
+	window.__clipPosts = [];
+	const original = window.fetch;
+	window.fetch = (url, options = {}) => {
+		if (String(url).endsWith("/api/v1/clip") && options.method === "POST") window.__clipPosts.push(JSON.parse(options.body));
+		return original(url, options);
+	};
+})()`)
+
+type clipPayload struct {
+	Preset string `json:"preset"`
+	Format string `json:"format"`
+	From   string `json:"from"`
+	To     string `json:"to"`
+}
+
+func clipPosts(ctx context.Context) ([]clipPayload, error) {
+	return chromedp.Run(ctx, chromedp.Evaluate[[]clipPayload](`window.__clipPosts || []`))
+}
+
+// lastClipPost returns the last /api/v1/clip payload the page sent.
+func lastClipPost(ctx context.Context) (clipPayload, error) {
+	posts, err := clipPosts(ctx)
+	if err != nil {
+		return clipPayload{}, err
+	}
+	if len(posts) == 0 {
+		return clipPayload{}, fmt.Errorf("the page sent no clip request")
+	}
+	return posts[len(posts)-1], nil
+}
+
+// enterTime focuses a time field, then replaces its value with real
+// keystrokes. Focusing first matters: the page doesn't rewrite a focused field
+// when the video length arrives.
+func enterTime(sel chromedp.CSS, value string) chromedp.Action[chromedp.Void] {
 	return chromedp.Steps(
+		chromedp.Focus(sel),
 		// SetValue refuses an empty string, so clear the field from script.
 		chromedp.Evaluate[chromedp.Void](fmt.Sprintf(`document.querySelector(%q).value = ""; undefined`, string(sel))),
 		chromedp.SendKeys(sel, value),
-		chromedp.Blur(sel),
 	)
+}
+
+// typeTime enters a time and leaves the field, which commits it the way a
+// user does.
+func typeTime(sel chromedp.CSS, value string) chromedp.Action[chromedp.Void] {
+	return chromedp.Steps(enterTime(sel, value), chromedp.Blur(sel))
 }
 
 func setRange(ctx context.Context, from, to string) error {
@@ -248,12 +296,29 @@ func testVideoClip(ctx context.Context) error {
 	if err := openVideo(ctx); err != nil {
 		return err
 	}
+	// YouTube is unreachable here, so the page must say so and still know the
+	// length from /video/info.
+	if _, err := chromedp.Run(ctx, chromedp.Poll[bool](`document.querySelector(".player-frame").dataset.player === "unavailable"`,
+		chromedp.WithPollingTimeout(20*time.Second))); err != nil {
+		return fmt.Errorf("player-unavailable state not shown: %w", err)
+	}
+	length, err := chromedp.Run(ctx, chromedp.Text(chromedp.CSS(`#trimDuration`)))
+	if err != nil || length != "0:30" {
+		return fmt.Errorf("expected the stub's length 0:30 on the slider, got %q (%v)", length, err)
+	}
 	if err := setRange(ctx, "10", "20"); err != nil {
 		return err
 	}
 	fileName, err := clipAndWait(ctx)
 	if err != nil {
 		return err
+	}
+	post, err := lastClipPost(ctx)
+	if err != nil {
+		return err
+	}
+	if post.Preset != "video" || post.Format != "" || post.From != "00:00:10" || post.To != "00:00:20" {
+		return fmt.Errorf("unexpected clip request %+v", post)
 	}
 	return expectExtension(fileName, ".mp4")
 }
@@ -272,7 +337,25 @@ func testAudioClip(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	post, err := lastClipPost(ctx)
+	if err != nil {
+		return err
+	}
+	if post.Preset != "audio" || post.Format != "" {
+		return fmt.Errorf("expected the audio preset, sent %+v", post)
+	}
 	return expectExtension(fileName, ".mp3")
+}
+
+func expectSummary(ctx context.Context, want string) error {
+	got, err := chromedp.Run(ctx, chromedp.Text(formatSummary))
+	if err != nil {
+		return err
+	}
+	if got != want {
+		return fmt.Errorf("expected format %q, got %q", want, got)
+	}
+	return nil
 }
 
 func testAdvancedClip(ctx context.Context) error {
@@ -282,24 +365,50 @@ func testAdvancedClip(ctx context.Context) error {
 	if err := setRange(ctx, "10", "20"); err != nil {
 		return err
 	}
-	// The format list is only fetched when the panel is opened.
+	// The format list is only fetched when the panel is opened. Pick formats
+	// other than the defaults (137+140) so the choice must take effect.
 	if err := chromedp.Do(ctx,
 		chromedp.Click(advancedToggle),
-		chromedp.WaitReady(videoFormat137),
-		chromedp.Click(videoFormat137),
-		chromedp.Click(audioFormat140),
+		chromedp.WaitReady(videoFormat136),
+		chromedp.Click(videoFormat136),
+		chromedp.Click(audioFormat251),
 	); err != nil {
 		return fmt.Errorf("advanced formats did not load: %w", err)
 	}
-	summary, err := chromedp.Run(ctx, chromedp.Text(formatSummary))
+	if err := expectSummary(ctx, "136+251"); err != nil {
+		return err
+	}
+
+	// A format that already has audio is sent alone and disables the audio list.
+	if err := chromedp.Do(ctx, chromedp.Click(videoFormat18)); err != nil {
+		return err
+	}
+	if err := expectSummary(ctx, "18"); err != nil {
+		return err
+	}
+	disabled, err := chromedp.Run(ctx, chromedp.Evaluate[bool](
+		`[...document.querySelectorAll("#audioFormats input")].every(i => i.disabled)`))
+	if err != nil || !disabled {
+		return fmt.Errorf("audio list should be disabled for a format with audio (%v)", err)
+	}
+
+	if err := chromedp.Do(ctx, chromedp.Click(videoFormat136)); err != nil {
+		return err
+	}
+	if err := expectSummary(ctx, "136+251"); err != nil {
+		return err
+	}
+	if _, err := clipAndWait(ctx); err != nil {
+		return err
+	}
+	post, err := lastClipPost(ctx)
 	if err != nil {
 		return err
 	}
-	if summary != "137+140" {
-		return fmt.Errorf("expected format 137+140, got %q", summary)
+	if post.Format != "136+251" || post.Preset != "" {
+		return fmt.Errorf("expected format 136+251 and no preset, sent %+v", post)
 	}
-	_, err = clipAndWait(ctx)
-	return err
+	return nil
 }
 
 func testInvalidURL(ctx context.Context) error {
@@ -326,11 +435,25 @@ func testEndBeforeStart(ctx context.Context) error {
 	if err := openVideo(ctx); err != nil {
 		return err
 	}
-	if err := setRange(ctx, "20", "10"); err != nil {
+	// Start 20 is valid against the default end (0:30); the bad end is only
+	// submitted with Enter, so the error must come from the submit.
+	if err := chromedp.Do(ctx,
+		typeTime(fromInput, "20"),
+		enterTime(toInput, "10"+kb.Enter),
+		chromedp.WaitVisible(timeError),
+	); err != nil {
+		return fmt.Errorf("no error shown for end before start: %w", err)
+	}
+	text, err := chromedp.Run(ctx, chromedp.Text(timeError))
+	if err != nil || !strings.Contains(text, "after the start") {
+		return fmt.Errorf("unexpected time error %q (%v)", text, err)
+	}
+	posts, err := clipPosts(ctx)
+	if err != nil {
 		return err
 	}
-	if err := chromedp.Do(ctx, chromedp.Click(clipButton), chromedp.WaitVisible(timeError)); err != nil {
-		return fmt.Errorf("no error shown for end before start: %w", err)
+	if len(posts) > 0 {
+		return fmt.Errorf("a clip request was sent for an invalid range: %+v", posts)
 	}
 	hidden, err := isHidden(ctx, "job")
 	if err != nil {
