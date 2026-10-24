@@ -3,8 +3,45 @@ package main
 import (
 	"context"
 	"log/slog"
+	"os"
+	"path/filepath"
+	"runtime"
 	"testing"
 )
+
+func TestRedactProxy(t *testing.T) {
+	tests := map[string]string{
+		"http://user:secret@proxy:8118": "http://%2A%2A%2A@proxy:8118",
+		"http://proxy:8118":             "http://proxy:8118",
+		"socks5h://u:p@10.0.0.1:1080":   "socks5h://%2A%2A%2A@10.0.0.1:1080",
+		"::not a url":                   "::not a url",
+	}
+	for in, want := range tests {
+		if got := redactProxy(in); got != want {
+			t.Errorf("redactProxy(%q) = %q; want %q", in, got, want)
+		}
+	}
+}
+
+func TestCheckCommand(t *testing.T) {
+	dir := t.TempDir()
+	name := "ytclipper-fake-tool"
+	file := name
+	if runtime.GOOS == "windows" {
+		file += ".exe"
+	}
+	if err := os.WriteFile(filepath.Join(dir, file), []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir)
+
+	if err := checkCommand(name); err != nil {
+		t.Errorf("checkCommand(%q) = %v; want nil for a command on PATH", name, err)
+	}
+	if err := checkCommand("ytclipper-missing-tool"); err == nil {
+		t.Error("checkCommand must fail for a command that isn't on PATH")
+	}
+}
 
 func TestIsSocksProxy(t *testing.T) {
 	tests := map[string]bool{

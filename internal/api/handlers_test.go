@@ -152,3 +152,51 @@ func TestEncodeRFC5987(t *testing.T) {
 		t.Errorf("asciiFileName = %q", got)
 	}
 }
+
+func TestGetJobStatusLegacy(t *testing.T) {
+	if rec := serve(t, http.MethodGet, "/api/v1/jobs/status?jobId=nope", ""); rec.Code != http.StatusNotFound {
+		t.Errorf("unknown job: got %d", rec.Code)
+	}
+
+	queued := jobs.NewJob()
+	if rec := serve(t, http.MethodGet, "/api/v1/jobs/status?jobId="+queued.ID, ""); rec.Code != http.StatusCreated {
+		t.Errorf("queued job: got %d; want 201", rec.Code)
+	}
+
+	done := jobs.NewJob()
+	jobs.CompleteJob(done.ID, "x.mp4", "x.mp4")
+	if rec := serve(t, http.MethodGet, "/api/v1/jobs/status?jobId="+done.ID, ""); rec.Code != http.StatusOK {
+		t.Errorf("completed job: got %d; want 200", rec.Code)
+	}
+
+	failed := jobs.NewJob()
+	jobs.FailJob(failed.ID, "boom")
+	rec := serve(t, http.MethodGet, "/api/v1/jobs/status?jobId="+failed.ID, "")
+	if rec.Code != http.StatusInternalServerError || decode(t, rec)["error"] != "boom" {
+		t.Errorf("failed job: got %d %s; want 500 with the error", rec.Code, rec.Body)
+	}
+}
+
+func TestGetVideoInfoRequiresURL(t *testing.T) {
+	rec := serve(t, http.MethodGet, "/api/v1/video/info", "")
+	if rec.Code != http.StatusBadRequest || decode(t, rec)["error"] != "URL is required" {
+		t.Errorf("got %d %s", rec.Code, rec.Body)
+	}
+}
+
+func TestGetClipUnknownOrUnfinishedJob(t *testing.T) {
+	if rec := serve(t, http.MethodGet, "/api/v1/clip?jobId=nope", ""); rec.Code != http.StatusNotFound {
+		t.Errorf("unknown job: got %d; want 404", rec.Code)
+	}
+	queued := jobs.NewJob()
+	if rec := serve(t, http.MethodGet, "/api/v1/clip?jobId="+queued.ID, ""); rec.Code != http.StatusNotFound {
+		t.Errorf("unfinished job: got %d; want 404", rec.Code)
+	}
+}
+
+func TestCreateClipRejectsBadJSON(t *testing.T) {
+	rec := serve(t, http.MethodPost, "/api/v1/clip", `{"url":`)
+	if rec.Code != http.StatusBadRequest || decode(t, rec)["error"] != "Invalid input" {
+		t.Errorf("got %d %s", rec.Code, rec.Body)
+	}
+}

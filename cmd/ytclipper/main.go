@@ -85,7 +85,6 @@ func main() {
 		}
 	}
 
-	scheduler.StartClipCleanUpScheduler()
 	e, err := server.New()
 	if err != nil {
 		slog.Error("Invalid configuration", "err", err)
@@ -94,6 +93,8 @@ func main() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	scheduler.StartClipCleanUpScheduler(ctx)
 
 	go func() {
 		slog.Info("Starting server", "port", config.CONFIG.Port)
