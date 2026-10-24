@@ -1,0 +1,22 @@
+# Coverage is reported, never enforced: PR statuses are informational.
+coverage:
+  status:
+    project:
+      default:
+        informational: true
+    patch:
+      default:
+        informational: true
+
+flags:
+  unit:
+    carryforward: true
+  e2e:
+    carryforward: true
+
+ignore:
+  - "test/fakes/**"
+
+comment:
+  layout: "condensed_header, diff, flags"
+  require_changes: true

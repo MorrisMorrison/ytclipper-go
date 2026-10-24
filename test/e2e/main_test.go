@@ -42,6 +42,7 @@ var (
 	repoRoot     string // the repository, where templates/ and static/ live
 	binDir       string // the app and the fakes
 	artifactsDir string
+	coverDir     string // E2E_COVERDIR: build a -cover app and collect its coverage here
 
 	cleanupMu sync.Mutex
 	cleanups  []func()
@@ -68,6 +69,16 @@ func runMain(m *testing.M) int {
 		return 1
 	}
 	repoRoot = root
+
+	if coverDir = os.Getenv("E2E_COVERDIR"); coverDir != "" {
+		if coverDir, err = filepath.Abs(coverDir); err == nil {
+			err = os.MkdirAll(coverDir, 0o755)
+		}
+		if err != nil {
+			log.Printf("e2e: coverage directory: %v", err)
+			return 1
+		}
+	}
 
 	artifactsDir = os.Getenv("E2E_ARTIFACTS")
 	if artifactsDir == "" {
@@ -132,7 +143,13 @@ func buildBinaries(dir string) error {
 		{exe("ffmpeg"), "./test/fakes/ffmpeg"},
 	}
 	for _, b := range builds {
-		cmd := exec.Command(goCommand(), "build", "-o", filepath.Join(dir, b.out), b.pkg)
+		args := []string{"build", "-o", filepath.Join(dir, b.out)}
+		if coverDir != "" && b.pkg == "." {
+			// Coverage-instrumented app: it writes coverage data to
+			// GOCOVERDIR when it exits normally (see server.stop).
+			args = append(args, "-cover", "-coverpkg=./...")
+		}
+		cmd := exec.Command(goCommand(), append(args, b.pkg)...)
 		cmd.Dir = repoRoot
 		if out, err := cmd.CombinedOutput(); err != nil {
 			return fmt.Errorf("go build %s: %w\n%s", b.pkg, err, out)
@@ -191,6 +208,9 @@ func startServer(name string, extra map[string]string) (*server, error) {
 		env[k] = v
 	}
 	cmdEnv := append(os.Environ(), "PATH="+binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	if coverDir != "" {
+		cmdEnv = append(cmdEnv, "GOCOVERDIR="+coverDir)
+	}
 	for k, v := range env {
 		cmdEnv = append(cmdEnv, k+"="+v)
 	}
@@ -256,6 +276,15 @@ func (s *server) stop() {
 	case <-s.done:
 		return
 	default:
+	}
+	if coverDir != "" {
+		// A killed process writes no coverage data: ask it to shut down
+		// first, so main returns and the counters are flushed.
+		terminate(s.cmd)
+		select {
+		case <-s.done:
+		case <-time.After(10 * time.Second):
+		}
 	}
 	killProcessGroup(s.cmd)
 	select {

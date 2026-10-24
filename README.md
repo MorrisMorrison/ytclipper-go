@@ -1,6 +1,7 @@
 # ytclipper-go
 
 [![CI](https://github.com/MorrisMorrison/ytclipper-go/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/MorrisMorrison/ytclipper-go/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/MorrisMorrison/ytclipper-go/graph/badge.svg)](https://codecov.io/gh/MorrisMorrison/ytclipper-go)
 
 Cut a clip out of any YouTube video and download it. Paste a link, drag the range, get a file.
 
@@ -137,6 +138,7 @@ curl localhost:8080/api/v1/jobs/3f1c...
 ```bash
 make check        # gofmt check, go vet, unit tests (yt-dlp is mocked), build
 make e2e          # browser e2e suite (needs Chrome; starts its own servers)
+make coverage     # unit and e2e coverage profiles (e2e part needs Linux/macOS)
 make screenshots  # renders the README screenshots into docs/
 ```
 

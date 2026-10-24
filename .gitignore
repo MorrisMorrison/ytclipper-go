@@ -30,3 +30,7 @@ ytclipper-go
 
 # e2e failure screenshots, console and server logs
 test/e2e/artifacts/
+
+# Coverage
+.cover/
+coverage-*.out

@@ -26,6 +26,7 @@ ytclipper-go is a small self-hostable web app that cuts a clip out of a YouTube 
 make check               # gofmt check + go vet + unit tests + build (what CI runs first)
 go test -race ./...      # CI also runs the race detector
 make e2e                 # e2e suite: builds the app + fakes, starts its own servers; needs Chrome (see the e2e skill)
+make coverage           # coverage-unit.out + coverage-e2e.out (e2e part: unix only); CI uploads both to Codecov (flags unit, e2e) via OIDC
 make screenshots         # renders the README images (docs/screenshot-{light,dark}.png)
 ```
 Running the server locally needs `yt-dlp`, `ffmpeg` and (for current YouTube) `deno` on `PATH`; the app exits at startup if yt-dlp or ffmpeg is missing. The Docker image bundles all three.
