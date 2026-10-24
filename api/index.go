@@ -2,11 +2,15 @@ package api
 
 import (
 	"html/template"
+	"sync"
 
 	"github.com/labstack/echo/v4"
 )
 
+var homePage = sync.OnceValue(func() *template.Template {
+	return template.Must(template.ParseFiles("templates/index.html"))
+})
+
 func RenderHomePage(c echo.Context) error {
-	homePage := template.Must(template.ParseFiles("templates/index.html"))
-	return homePage.Execute(c.Response().Writer, nil)
+	return homePage().Execute(c.Response().Writer, nil)
 }

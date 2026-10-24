@@ -1,6 +1,6 @@
 # ytclipper-go
 
-[![CI](https://github.com/MorrisMorrison/ytclipper-go/actions/workflows/build_and_deploy_prod.yml/badge.svg?branch=main)](https://github.com/MorrisMorrison/ytclipper-go/actions/workflows/build_and_deploy_prod.yml)
+[![CI](https://github.com/MorrisMorrison/ytclipper-go/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/MorrisMorrison/ytclipper-go/actions/workflows/ci.yml)
 
 Cut a clip out of any YouTube video and download it. Paste a link, pick a format and a time range, get a file.
 
@@ -25,7 +25,7 @@ The image bundles yt-dlp, FFmpeg and deno.
 docker run -d -p 8080:8080 ghcr.io/morrismorrison/ytclipper-go:latest
 ```
 
-Then open http://localhost:8080. With Docker Compose, `docker compose up -d` uses the included `docker-compose.yml` (port 8080, clips in `./videos`).
+Then open http://localhost:8080. With Docker Compose, `docker compose up -d` uses the included `docker-compose.yml` (port 8080, clips in a named volume). The container runs as a non-root user.
 
 ### From source
 Requirements: Go (see `go.mod`), [yt-dlp](https://github.com/yt-dlp/yt-dlp#installation), FFmpeg, and [deno](https://deno.com/) (yt-dlp uses it to solve YouTube's JavaScript challenges).
@@ -44,7 +44,7 @@ All settings are environment variables; `.env.example` lists them.
 | Variable | Default | Description |
 |---|---|---|
 | `YTCLIPPER_PORT` | `8080` | HTTP port |
-| `YTCLIPPER_DEBUG` | `true` | Echo debug mode and verbose yt-dlp logging |
+| `YTCLIPPER_DEBUG` | `false` | Echo debug mode and verbose yt-dlp logging |
 | `YTCLIPPER_AUTH_USERNAME` | _(empty)_ | Basic auth user; auth is on only when user and password are both set |
 | `YTCLIPPER_AUTH_PASSWORD` | _(empty)_ | Basic auth password |
 | `YTCLIPPER_RATE_LIMITER_RATE` | `5` | Requests per second per IP (static files are not limited) |
@@ -54,8 +54,10 @@ All settings are environment variables; `.env.example` lists them.
 | `YTCLIPPER_YT_DLP_COMMAND_TIMEOUT_IN_SECONDS` | `60` | Timeout for each yt-dlp call |
 | `YTCLIPPER_YT_DLP_EXTRACTOR_RETRIES` | `3` | yt-dlp `--extractor-retries` |
 | `YTCLIPPER_YT_DLP_PROXY` | _(empty)_ | Proxy for yt-dlp, e.g. `socks5h://host:1080` |
+| `YTCLIPPER_MAX_CONCURRENT_JOBS` | `3` | Clips processed at the same time; more wait in the queue |
 | `YTCLIPPER_CLIP_CLEANUP_SCHEDULER_ENABLED` | `true` | Delete old clips and jobs periodically |
-| `YTCLIPPER_CLIP_CLEANUP_SCHEDULER_INTERVAL_IN_MINUTES` | `5` | Cleanup interval |
+| `YTCLIPPER_CLIP_CLEANUP_SCHEDULER_INTERVAL_IN_MINUTES` | `5` | How often cleanup runs |
+| `YTCLIPPER_CLIP_CLEANUP_SCHEDULER_RETENTION_IN_MINUTES` | `30` | How long clips and finished jobs are kept |
 | `YTCLIPPER_CLIP_CLEANUP_SCHEDULER_CLIP_DIRECTORY_PATH` | `./videos/` | Where clips are stored |
 
 ### YouTube blocking datacenter IPs
@@ -89,8 +91,7 @@ curl -X POST localhost:8080/api/v1/clip \
 
 ## Development
 ```bash
-go vet ./...     # lint
-go test ./...    # unit tests, yt-dlp is mocked
+make check       # gofmt check, go vet, unit tests (yt-dlp is mocked), build
 make e2e         # browser e2e suite against a running server (needs Chrome)
 ```
 

@@ -12,7 +12,7 @@ ytclipper-go is a small self-hostable web app that cuts a clip out of a YouTube 
 | `routes/` | Route table |
 | `api/` | HTTP handlers and input validation |
 | `videoprocessing/` | Everything that talks to yt-dlp: argument building, execution with timeout, output parsing |
-| `jobs/` | In-memory job store (map + mutex) |
+| `jobs/` | In-memory job store; `GetJobById` returns copies, mutate only through its functions |
 | `scheduler/` | Periodic cleanup of old clips and jobs |
 | `config/` | `YTCLIPPER_*` environment variables → `config.CONFIG` |
 | `middleware/` | Optional basic auth |
@@ -23,10 +23,8 @@ ytclipper-go is a small self-hostable web app that cuts a clip out of a YouTube 
 
 ## Commands
 ```bash
-go build ./...           # build
-go vet ./...             # lint
-gofmt -l .               # must print nothing
-go test ./...            # unit tests (yt-dlp is mocked, nothing external needed)
+make check               # gofmt check + go vet + unit tests + build (what CI runs first)
+go test -race ./...      # CI also runs the race detector
 make e2e                 # e2e suite; needs a running server + Chrome (see the e2e-with-stub skill)
 ```
 Running the server locally needs `yt-dlp`, `ffmpeg` and (for current YouTube) `deno` on `PATH`; the app exits at startup if yt-dlp or ffmpeg is missing. The Docker image bundles all three.
@@ -41,6 +39,7 @@ Running the server locally needs `yt-dlp`, `ffmpeg` and (for current YouTube) `d
 - **Config:** every setting is a `YTCLIPPER_*` env var with a sensible default in `config/config.go`, listed in `.env.example` and the README table.
 - **yt-dlp:** build arguments in `videoprocessing`, always through `execute` (timeout + common args such as the optional proxy). Never interpolate user input into a shell; pass args as a slice.
 - **Front-end:** vanilla ES modules, no framework, no bundler. The main flow must never block on a slow yt-dlp call.
+- **Errors shown to users** come from `summarizeError` (last yt-dlp `ERROR:` line). Never return raw command output: it contains the full command line.
 - **Security:** treat the URL and timestamps as untrusted; validate server-side even if the UI validated too.
 
 ## Workflow

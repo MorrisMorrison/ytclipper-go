@@ -15,14 +15,14 @@ func GetVideoDuration(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "URL is required"})
 	}
 
-	if !isValidYoutubeUrl(url) {
-		c.Logger().Errorf("Invalid Youtube URL: %s", url)
+	url, ok := canonicalYoutubeURL(url)
+	if !ok {
+		c.Logger().Errorf("Invalid Youtube URL: %s", c.QueryParam("youtubeUrl"))
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid YouTube URL"})
 	}
 
 	duration, err := videoprocessing.GetVideoDuration(url)
 	if err != nil {
-
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": "Failed to get video duration",
 		})
@@ -53,8 +53,9 @@ func GetAvailableFormats(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "URL is required"})
 	}
 
-	if !isValidYoutubeUrl(url) {
-		c.Logger().Errorf("Invalid Youtube URL: %s", url)
+	url, ok := canonicalYoutubeURL(url)
+	if !ok {
+		c.Logger().Errorf("Invalid Youtube URL: %s", c.QueryParam("youtubeUrl"))
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid YouTube URL"})
 	}
 

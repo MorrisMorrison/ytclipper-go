@@ -1,35 +1,35 @@
-.PHONY: clean build download-static test e2e build-prod fmt lint docker-build docker-run docker-stop compose-up compose-down
+.PHONY: run build test fmt fmt-check lint check e2e e2e-real docker-build docker-run docker-stop compose-up compose-down compose-logs
 
 run:
-	go run main.go
-
-download-static:
-	go run build/download_static.go
-
-test:
-	go test ./... -v
-
-e2e:
-	go run test/e2e.go
-
-e2e-fast:
-	YTCLIPPER_YT_DLP_COMMAND_TIMEOUT_IN_SECONDS=15 E2E_DOWNLOAD_TIMEOUT=20 go run test/e2e.go
-
-e2e-realistic:
-	E2E_DOWNLOAD_TIMEOUT=60 E2E_EXPECT_FAILURE=false go run test/e2e.go
+	go run .
 
 build:
-	go build -o ./ytclipper main.go
+	go build -o ./ytclipper .
+
+test:
+	go test ./...
 
 fmt:
-	go fmt ./...
+	gofmt -w .
+
+fmt-check:
+	@test -z "$$(gofmt -l .)" || (echo "Run 'make fmt':"; gofmt -l .; exit 1)
 
 lint:
 	go vet ./...
 
-build-prod: fmt lint test download-static build
+# Everything CI checks before the e2e suite.
+check: fmt-check lint test build
 
-# Docker commands
+# E2E against a server that is already running (CI and the e2e-with-stub skill
+# put the yt-dlp stub on PATH first).
+e2e:
+	E2E_DOWNLOAD_TIMEOUT=20 E2E_EXPECT_FAILURE=false go run test/e2e.go
+
+# E2E against real YouTube, where downloads may legitimately fail.
+e2e-real:
+	E2E_DOWNLOAD_TIMEOUT=60 E2E_EXPECT_FAILURE=true go run test/e2e.go
+
 docker-build:
 	docker build -t ytclipper:latest .
 
@@ -37,19 +37,13 @@ docker-run: docker-build
 	docker run -d --name ytclipper -p 8080:8080 ytclipper:latest
 
 docker-stop:
-	docker stop ytclipper 2>/dev/null || true
-	docker rm ytclipper 2>/dev/null || true
+	docker rm -f ytclipper 2>/dev/null || true
 
-docker-restart: docker-stop docker-run
-
-# Docker Compose commands
 compose-up:
-	docker-compose up -d --build
+	docker compose up -d --build
 
 compose-down:
-	docker-compose down
-
-compose-restart: compose-down compose-up
+	docker compose down
 
 compose-logs:
-	docker-compose logs -f
+	docker compose logs -f

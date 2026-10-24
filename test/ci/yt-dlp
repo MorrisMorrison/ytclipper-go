@@ -9,7 +9,7 @@
 #
 #   yt-dlp -F <url>             -> a fixed format table (incl. format 136 / mp4)
 #   yt-dlp --get-duration <url> -> a fixed duration
-#   yt-dlp -o <path> ...        -> writes a small dummy file at <path>
+#   yt-dlp -o <template> ...    -> writes a small dummy file (%(ext)s -> mp4)
 #
 # All other flags the app passes (--proxy, --download-sections, ...) are
 # accepted and ignored.
@@ -24,7 +24,7 @@ for a in "$@"; do
     -F|--list-formats) mode="formats" ;;
     --get-duration) mode="duration" ;;
   esac
-  if [ "$prev" = "-o" ]; then out="$a"; fi
+  if [ "$prev" = "-o" ]; then out="${a//%(ext)s/mp4}"; fi
   prev="$a"
 done
 

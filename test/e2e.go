@@ -39,14 +39,14 @@ import (
 
 const (
 	baseURL                = "http://localhost:8080"
-	urlInputSelector       = `#url`
-	formatSelectSelector   = `#formatSelect`
-	fromInputSelector      = `#from`
-	toInputSelector        = `#to`
-	clipButtonSelector     = `#clipButton`
-	downloadLinkWrapperSel = `#downloadLinkWrapper`
-	downloadLinkSelector   = `#downloadLink`
-	errorMessageSelector   = `.toast-error`
+	urlInputSelector       = chromedp.CSS(`#url`)
+	formatSelectSelector   = chromedp.CSS(`#formatSelect`)
+	fromInputSelector      = chromedp.CSS(`#from`)
+	toInputSelector        = chromedp.CSS(`#to`)
+	clipButtonSelector     = chromedp.CSS(`#clipButton`)
+	downloadLinkWrapperSel = chromedp.CSS(`#downloadLinkWrapper`)
+	downloadLinkSelector   = chromedp.CSS(`#downloadLink`)
+	errorMessageSelector   = chromedp.CSS(`.toast-error`)
 
 	validYouTubeURL      = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 	invalidYouTubeURL    = "invalid-url"
@@ -174,7 +174,7 @@ func runTest(test Test) error {
 
 func testBasicWorkflow(ctx context.Context) error {
 	log.Printf("Navigating to %s", baseURL)
-	err := chromedp.Run(ctx,
+	err := chromedp.Do(ctx,
 		// Step 1: Navigate to the app
 		chromedp.Navigate(baseURL),
 	)
@@ -184,13 +184,13 @@ func testBasicWorkflow(ctx context.Context) error {
 	log.Println("Successfully navigated to the app")
 
 	log.Printf("Filling YouTube URL: %s", validYouTubeURL)
-	err = chromedp.Run(ctx,
+	err = chromedp.Do(ctx,
 		// Step 2: Fill the YouTube URL
-		chromedp.WaitVisible(urlInputSelector, chromedp.ByID),
+		chromedp.WaitVisible(urlInputSelector),
 		// Use SendKeys (real keystrokes) rather than SetValue: the URL field has a
 		// debounced `input` listener that loads formats, and SetValue does not
 		// reliably fire that event under chromedp.
-		chromedp.SendKeys(urlInputSelector, validYouTubeURL, chromedp.ByID),
+		chromedp.SendKeys(urlInputSelector, validYouTubeURL),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to fill YouTube URL: %w", err)
@@ -198,10 +198,10 @@ func testBasicWorkflow(ctx context.Context) error {
 	log.Println("YouTube URL entered")
 
 	log.Println("Waiting for format dropdown to be enabled")
-	err = chromedp.Run(ctx,
+	err = chromedp.Do(ctx,
 		// Step 4: Wait for the dropdown to be enabled
-		chromedp.WaitReady(formatSelectSelector, chromedp.ByID),
-		chromedp.WaitEnabled(formatSelectSelector, chromedp.ByID),
+		chromedp.WaitReady(formatSelectSelector),
+		chromedp.WaitEnabled(formatSelectSelector),
 	)
 	if err != nil {
 		return fmt.Errorf("format dropdown not enabled: %w", err)
@@ -209,9 +209,9 @@ func testBasicWorkflow(ctx context.Context) error {
 	log.Println("Format dropdown enabled")
 
 	log.Printf("Selecting video format: %s", validFormatValue)
-	err = chromedp.Run(ctx,
+	err = chromedp.Do(ctx,
 		// Step 5: Select a format (e.g., the first available option)
-		chromedp.SetValue(formatSelectSelector, validFormatValue, chromedp.ByID),
+		chromedp.SetValue(formatSelectSelector, validFormatValue),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to select video format: %w", err)
@@ -219,10 +219,10 @@ func testBasicWorkflow(ctx context.Context) error {
 	log.Println("Video format selected")
 
 	log.Printf("Filling 'From' and 'To' inputs: from=%s, to=%s", validFromTimestamp, validToTimestamp)
-	err = chromedp.Run(ctx,
+	err = chromedp.Do(ctx,
 		// Step 6: Fill the "From" and "To" inputs
-		chromedp.SendKeys(fromInputSelector, validFromTimestamp, chromedp.ByID),
-		chromedp.SendKeys(toInputSelector, validToTimestamp, chromedp.ByID),
+		chromedp.SendKeys(fromInputSelector, validFromTimestamp),
+		chromedp.SendKeys(toInputSelector, validToTimestamp),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to fill 'From' and 'To' inputs: %w", err)
@@ -230,9 +230,9 @@ func testBasicWorkflow(ctx context.Context) error {
 	log.Println("'From' and 'To' inputs filled")
 
 	log.Println("Clicking 'Clip!' button")
-	err = chromedp.Run(ctx,
+	err = chromedp.Do(ctx,
 		// Step 7: Click the "Clip!" button
-		chromedp.Click(clipButtonSelector, chromedp.ByID),
+		chromedp.Click(clipButtonSelector),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to click 'Clip!' button: %w", err)
@@ -245,7 +245,7 @@ func testBasicWorkflow(ctx context.Context) error {
 
 func testInvalidTimestamps(ctx context.Context) error {
 	log.Printf("Navigating to %s", baseURL)
-	err := chromedp.Run(ctx,
+	err := chromedp.Do(ctx,
 		// Step 1: Navigate to the app
 		chromedp.Navigate(baseURL),
 	)
@@ -255,12 +255,12 @@ func testInvalidTimestamps(ctx context.Context) error {
 	log.Println("Successfully navigated to the app")
 
 	log.Printf("Entering valid YouTube URL: %s", validYouTubeURL)
-	err = chromedp.Run(ctx,
+	err = chromedp.Do(ctx,
 		// Step 2: Enter a valid YouTube URL
 		// Use SendKeys (real keystrokes) rather than SetValue: the URL field has a
 		// debounced `input` listener that loads formats, and SetValue does not
 		// reliably fire that event under chromedp.
-		chromedp.SendKeys(urlInputSelector, validYouTubeURL, chromedp.ByID),
+		chromedp.SendKeys(urlInputSelector, validYouTubeURL),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to enter YouTube URL: %w", err)
@@ -268,10 +268,10 @@ func testInvalidTimestamps(ctx context.Context) error {
 	log.Println("Valid YouTube URL entered")
 
 	log.Println("Waiting for format dropdown to be enabled")
-	err = chromedp.Run(ctx,
-		chromedp.WaitReady(formatSelectSelector, chromedp.ByID),
-		chromedp.WaitEnabled(formatSelectSelector, chromedp.ByID),
-		chromedp.SetValue(formatSelectSelector, validFormatValue, chromedp.ByID),
+	err = chromedp.Do(ctx,
+		chromedp.WaitReady(formatSelectSelector),
+		chromedp.WaitEnabled(formatSelectSelector),
+		chromedp.SetValue(formatSelectSelector, validFormatValue),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to select video format: %w", err)
@@ -279,10 +279,10 @@ func testInvalidTimestamps(ctx context.Context) error {
 	log.Printf("Video format '%s' selected", validFormatValue)
 
 	log.Printf("Entering invalid timestamps: from=%s, to=%s", fromInvalidTimestamp, toInvalidTimestamp)
-	err = chromedp.Run(ctx,
+	err = chromedp.Do(ctx,
 		// Step 3: Enter invalid "From" and "To" values
-		chromedp.SendKeys(fromInputSelector, fromInvalidTimestamp, chromedp.ByID),
-		chromedp.SendKeys(toInputSelector, toInvalidTimestamp, chromedp.ByID),
+		chromedp.SendKeys(fromInputSelector, fromInvalidTimestamp),
+		chromedp.SendKeys(toInputSelector, toInvalidTimestamp),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to enter timestamps: %w", err)
@@ -290,9 +290,9 @@ func testInvalidTimestamps(ctx context.Context) error {
 	log.Println("Invalid timestamps entered")
 
 	log.Println("Clicking 'Clip' button")
-	err = chromedp.Run(ctx,
+	err = chromedp.Do(ctx,
 		// Step 4: Attempt to clip
-		chromedp.Click(clipButtonSelector, chromedp.ByID),
+		chromedp.Click(clipButtonSelector),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to click 'Clip' button: %w", err)
@@ -300,9 +300,9 @@ func testInvalidTimestamps(ctx context.Context) error {
 	log.Println("'Clip' button clicked")
 
 	log.Println("Waiting for error message to appear")
-	err = chromedp.Run(ctx,
+	err = chromedp.Do(ctx,
 		// Step 5: Check for error message
-		chromedp.WaitVisible(errorMessageSelector, chromedp.ByQuery),
+		chromedp.WaitVisible(errorMessageSelector),
 	)
 	if err != nil {
 		return fmt.Errorf("error message did not appear: %w", err)
@@ -353,28 +353,22 @@ func testClipProcessingResultWithTimeout(ctx context.Context, timeoutSeconds int
 
 		case <-ticker.C:
 			// Check for download link first
-			err := chromedp.Run(timeoutCtx,
-				chromedp.ActionFunc(func(ctx context.Context) error {
-					return chromedp.Run(ctx,
-						chromedp.WaitVisible(downloadLinkWrapperSel, chromedp.ByID),
-						chromedp.AttributeValue(downloadLinkSelector, "href", &downloadLink, nil),
-					)
-				}),
-			)
+			err := chromedp.Do(timeoutCtx, chromedp.WaitVisible(downloadLinkWrapperSel))
+			if err == nil {
+				var attr chromedp.AttributeResult
+				attr, err = chromedp.Run(timeoutCtx, chromedp.AttributeValue(downloadLinkSelector, "href"))
+				downloadLink = attr.Value
+			}
 			if err == nil && downloadLink != "" {
 				log.Printf("Success: Download link generated: %s", downloadLink)
 				return nil
 			}
 
 			// Check for error message
-			err = chromedp.Run(timeoutCtx,
-				chromedp.ActionFunc(func(ctx context.Context) error {
-					return chromedp.Run(ctx,
-						chromedp.WaitVisible(errorMessageSelector, chromedp.ByQuery),
-						chromedp.Text(errorMessageSelector, &errorText, chromedp.ByQuery),
-					)
-				}),
-			)
+			err = chromedp.Do(timeoutCtx, chromedp.WaitVisible(errorMessageSelector))
+			if err == nil {
+				errorText, err = chromedp.Run(timeoutCtx, chromedp.Text(errorMessageSelector))
+			}
 			if err == nil && errorText != "" {
 				log.Printf("Success: Error handled properly: %s", errorText)
 				return nil
@@ -391,9 +385,9 @@ func testTimeoutConfiguration(ctx context.Context) error {
 	// We'll test this by making a quick API call that should either succeed fast or fail fast
 
 	// Navigate to app
-	err := chromedp.Run(ctx,
+	err := chromedp.Do(ctx,
 		chromedp.Navigate(baseURL),
-		chromedp.WaitVisible(urlInputSelector, chromedp.ByID),
+		chromedp.WaitVisible(urlInputSelector),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to navigate to app: %w", err)
@@ -402,11 +396,11 @@ func testTimeoutConfiguration(ctx context.Context) error {
 	// Test the GetVideoDuration endpoint which should be faster than full downloads
 	log.Println("Testing video duration fetch (should be fast)")
 
-	err = chromedp.Run(ctx,
+	err = chromedp.Do(ctx,
 		// Use SendKeys (real keystrokes) rather than SetValue: the URL field has a
 		// debounced `input` listener that loads formats, and SetValue does not
 		// reliably fire that event under chromedp.
-		chromedp.SendKeys(urlInputSelector, validYouTubeURL, chromedp.ByID),
+		chromedp.SendKeys(urlInputSelector, validYouTubeURL),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to enter URL: %w", err)
@@ -414,8 +408,8 @@ func testTimeoutConfiguration(ctx context.Context) error {
 
 	// Wait for format dropdown to be populated (indicates backend processed the URL)
 	start := time.Now()
-	err = chromedp.Run(ctx,
-		chromedp.WaitEnabled(formatSelectSelector, chromedp.ByID),
+	err = chromedp.Do(ctx,
+		chromedp.WaitEnabled(formatSelectSelector),
 	)
 	duration := time.Since(start)
 
