@@ -27,6 +27,11 @@ const (
 
 var videoIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{11}$`)
 
+// IsValidVideoID reports whether id looks like a YouTube video ID.
+func IsValidVideoID(id string) bool {
+	return videoIDPattern.MatchString(id)
+}
+
 // VideoInfo is what the app needs to know about a video, parsed from
 // `yt-dlp -J`. Values returned by GetVideoInfo are shared through the cache:
 // treat them as read-only.
@@ -73,31 +78,29 @@ func WatchURL(videoID string) string {
 // from the cache when possible. Concurrent calls for the same ID share one
 // yt-dlp run. Errors carry a short message that is safe to show to users.
 func GetVideoInfo(videoID string) (*VideoInfo, error) {
-	if !videoIDPattern.MatchString(videoID) {
+	if !IsValidVideoID(videoID) {
 		return nil, errors.New("Invalid YouTube video ID")
 	}
 	return videoInfoCache.get(videoID, func() (*VideoInfo, error) { return fetchVideoInfo(videoID) })
 }
 
-// CachedVideoInfo returns the cached info for a video without calling yt-dlp.
-func CachedVideoInfo(videoID string) (*VideoInfo, bool) {
-	return videoInfoCache.peek(videoID)
-}
-
 func fetchVideoInfo(videoID string) (*VideoInfo, error) {
 	glogger.Log.Infof("Get Video Info: Fetching info for video %s", videoID)
 
-	output, err := execute("yt-dlp", []string{"-J", "--no-playlist", WatchURL(videoID)})
+	timeout := time.Duration(config.CONFIG.YtDlpConfig.CommandTimeoutInSeconds) * time.Second
+	out, err := execute(timeout, "yt-dlp", []string{"-J", "--no-playlist", WatchURL(videoID)})
 	if err != nil {
+		output := out.combined()
 		glogger.Log.Errorf(err, "Get Video Info: Error executing yt-dlp. Output\n%s", string(output))
 		return nil, errors.New(summarize(output, err, "Timed out while fetching video information", "Could not fetch video information"))
 	}
 
 	if config.CONFIG.Debug {
-		glogger.Log.Infof("Get Video Info: yt-dlp command succeeded. Output:\n%s", output)
+		glogger.Log.Infof("Get Video Info: yt-dlp command succeeded. Stderr:\n%s", out.Stderr)
 	}
 
-	info, err := parseVideoInfo(output)
+	// The JSON is on stdout; log lines go to stderr.
+	info, err := parseVideoInfo(out.Stdout)
 	if err != nil {
 		glogger.Log.Errorf(err, "Get Video Info: Could not parse yt-dlp output")
 		return nil, errors.New("Could not read video information")
@@ -132,8 +135,8 @@ type rawFormat struct {
 	HasDRM         any     `json:"has_drm"`
 }
 
-// parseVideoInfo decodes `yt-dlp -J` output. The output is combined
-// stdout/stderr, so it skips anything before the line the JSON starts on.
+// parseVideoInfo decodes `yt-dlp -J` stdout. To be safe against stray lines
+// before the JSON, it skips anything before the line the JSON starts on.
 func parseVideoInfo(output []byte) (*VideoInfo, error) {
 	start := -1
 	if bytes.HasPrefix(output, []byte("{")) {

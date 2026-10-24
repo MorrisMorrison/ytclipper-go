@@ -124,3 +124,19 @@ GET {{baseUrl}}/api/v1/video/duration?youtubeUrl=https://www.youtube.com/watch?v
 Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
 
 ###
+
+### Clip Too Long Test
+# Ranges longer than YTCLIPPER_MAX_CLIP_LENGTH_IN_MINUTES (default 30) get a 400:
+# {"error": "Clip is too long (max 30 minutes)."}
+# A full job queue (YTCLIPPER_MAX_QUEUED_JOBS) answers any clip request with a 429:
+# {"error": "The server is busy, try again in a minute."}
+POST {{baseUrl}}/api/v1/clip
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+Content-Type: application/json
+
+{
+  "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "from": "00:00:00",
+  "to": "00:30:01",
+  "preset": "video"
+}

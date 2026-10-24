@@ -13,8 +13,9 @@
 #                               with -x, else the --merge-output-format value,
 #                               else mp4
 #
-# All other flags the app passes (--proxy, --download-sections, -f, ...) are
-# accepted and ignored.
+# All other flags the app passes (--proxy, --download-sections, -f ba/b,
+# --max-filesize, --downloader-args "ffmpeg:-fs <bytes>", ...) are accepted and
+# ignored.
 set -euo pipefail
 
 mode="download"

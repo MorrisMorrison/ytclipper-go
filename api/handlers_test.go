@@ -2,10 +2,14 @@ package api
 
 import (
 	"encoding/json"
+	"mime"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"ytclipper-go/config"
 	"ytclipper-go/jobs"
 	"ytclipper-go/videoprocessing"
 
@@ -16,6 +20,7 @@ func serve(t *testing.T, method, path, body string) *httptest.ResponseRecorder {
 	t.Helper()
 	e := echo.New()
 	e.POST("/api/v1/clip", CreateClip)
+	e.GET("/api/v1/clip", GetClip)
 	e.GET("/api/v1/jobs/status", GetJobStatus)
 	e.GET("/api/v1/jobs/:id", GetJob)
 	e.GET("/api/v1/video/info", GetVideoInfo)
@@ -107,5 +112,68 @@ func TestToLegacyFormat(t *testing.T) {
 		if got := toLegacyFormat(tt.in); got != tt.want {
 			t.Errorf("toLegacyFormat(%s) = %+v; want %+v", tt.in.ID, got, tt.want)
 		}
+	}
+}
+
+func TestCreateClipRejectsWhenQueueIsFull(t *testing.T) {
+	original := config.CONFIG.MaxQueuedJobs
+	config.CONFIG.MaxQueuedJobs = jobs.ActiveCount() // already full
+	t.Cleanup(func() { config.CONFIG.MaxQueuedJobs = original })
+
+	rec := serve(t, http.MethodPost, "/api/v1/clip", `{"url":"https://youtu.be/dQw4w9WgXcQ","from":"00:00:01","to":"00:00:05","preset":"video"}`)
+	if rec.Code != http.StatusTooManyRequests || decode(t, rec)["error"] != "The server is busy, try again in a minute." {
+		t.Errorf("got %d %s", rec.Code, rec.Body)
+	}
+
+	// Invalid requests are still answered with their validation error.
+	rec = serve(t, http.MethodPost, "/api/v1/clip", `{"url":"https://youtu.be/dQw4w9WgXcQ","from":"00:00:01","to":"00:00:05"}`)
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("got %d %s", rec.Code, rec.Body)
+	}
+}
+
+func TestCreateClipRejectsTooLongClip(t *testing.T) {
+	original := config.CONFIG.MaxClipLengthInMinutes
+	config.CONFIG.MaxClipLengthInMinutes = 5
+	t.Cleanup(func() { config.CONFIG.MaxClipLengthInMinutes = original })
+
+	rec := serve(t, http.MethodPost, "/api/v1/clip", `{"url":"https://youtu.be/dQw4w9WgXcQ","from":"00:00:00","to":"00:05:01","preset":"audio"}`)
+	if rec.Code != http.StatusBadRequest || decode(t, rec)["error"] != "Clip is too long (max 5 minutes)." {
+		t.Errorf("got %d %s", rec.Code, rec.Body)
+	}
+}
+
+func TestGetClipContentDisposition(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "clip.mp4")
+	if err := os.WriteFile(path, []byte("clip"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	job := jobs.NewJob()
+	jobs.CompleteJob(job.ID, path, "日本語 🎵 50% [0-00-10 - 0-00-20].mp4")
+
+	rec := serve(t, http.MethodGet, "/api/v1/clip?jobId="+job.ID, "")
+	if rec.Code != http.StatusOK || rec.Body.String() != "clip" {
+		t.Fatalf("got %d %q", rec.Code, rec.Body)
+	}
+	want := `attachment; filename="___ _ 50_ [0-00-10 - 0-00-20].mp4"; filename*=UTF-8''%E6%97%A5%E6%9C%AC%E8%AA%9E%20%F0%9F%8E%B5%2050%25%20%5B0-00-10%20-%200-00-20%5D.mp4`
+	if got := rec.Header().Get(echo.HeaderContentDisposition); got != want {
+		t.Errorf("Content-Disposition =\n%s\nwant\n%s", got, want)
+	}
+
+	_, params, err := mime.ParseMediaType(rec.Header().Get(echo.HeaderContentDisposition))
+	if err != nil || params["filename"] != "日本語 🎵 50% [0-00-10 - 0-00-20].mp4" {
+		t.Errorf("a standard parser reads %q (%v)", params["filename"], err)
+	}
+}
+
+func TestEncodeRFC5987(t *testing.T) {
+	if got := encodeRFC5987("a-Z_0.9!#$&+^`|~"); got != "a-Z_0.9!#$&+^`|~" {
+		t.Errorf("attr-chars must stay: %q", got)
+	}
+	if got := encodeRFC5987(`"'();,/:<=>?@[\]{} *%`); got != "%22%27%28%29%3B%2C%2F%3A%3C%3D%3E%3F%40%5B%5C%5D%7B%7D%20%2A%25" {
+		t.Errorf("everything else must be encoded: %q", got)
+	}
+	if got := asciiFileName("é\"\\%x"); got != "____x" {
+		t.Errorf("asciiFileName = %q", got)
 	}
 }

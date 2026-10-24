@@ -99,8 +99,8 @@ func TestGetVideoInfo(t *testing.T) {
 	if len(*calls) != 1 {
 		t.Errorf("second lookup should hit the cache, got %d calls", len(*calls))
 	}
-	if cached, ok := CachedVideoInfo("dQw4w9WgXcQ"); !ok || cached != info {
-		t.Error("CachedVideoInfo should return the cached info")
+	if cached, ok := videoInfoCache.peek("dQw4w9WgXcQ"); !ok || cached != info {
+		t.Error("the cache should return the cached info")
 	}
 }
 
@@ -119,7 +119,7 @@ func TestGetVideoInfoErrors(t *testing.T) {
 	if err == nil || err.Error() != "[youtube] dQw4w9WgXcQ: Video unavailable" {
 		t.Errorf("unexpected error %v", err)
 	}
-	if _, ok := CachedVideoInfo("dQw4w9WgXcQ"); ok {
+	if _, ok := videoInfoCache.peek("dQw4w9WgXcQ"); ok {
 		t.Error("failures must not be cached")
 	}
 }

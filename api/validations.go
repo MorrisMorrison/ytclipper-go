@@ -2,16 +2,17 @@ package api
 
 import (
 	"errors"
+	"fmt"
 	"net/url"
 	"regexp"
 	"strings"
+	"ytclipper-go/config"
 	"ytclipper-go/utils"
 	"ytclipper-go/videoprocessing"
 )
 
 var (
-	videoIDPattern    = regexp.MustCompile(`^[A-Za-z0-9_-]{11}$`)
-	timeFormatPattern = regexp.MustCompile(`^\d{2,}:[0-5]\d:[0-5]\d$`)
+	timeFormatPattern = regexp.MustCompile(`^\d{1,3}:[0-5]\d:[0-5]\d$`)
 	formatPattern     = regexp.MustCompile(`^\d{1,6}(\+\d{1,6})?$`)
 )
 
@@ -24,6 +25,8 @@ var youtubeHosts = map[string]bool{
 
 // extractVideoID returns the 11-character video ID of a YouTube link, accepting
 // watch, shorts, live and youtu.be URLs with any extra query parameters.
+// Only the ID reaches yt-dlp (as a plain watch URL), so playlist and tracking
+// parameters are dropped.
 func extractVideoID(rawURL string) (string, bool) {
 	u, err := url.Parse(strings.TrimSpace(rawURL))
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
@@ -45,29 +48,27 @@ func extractVideoID(rawURL string) (string, bool) {
 		}
 	}
 
-	if !videoIDPattern.MatchString(id) {
+	if !videoprocessing.IsValidVideoID(id) {
 		return "", false
 	}
 	return id, true
 }
 
-// canonicalYoutubeURL turns any accepted YouTube link into a plain watch URL,
-// dropping playlist and tracking parameters before the URL reaches yt-dlp.
-func canonicalYoutubeURL(rawURL string) (string, bool) {
-	id, ok := extractVideoID(rawURL)
-	if !ok {
-		return "", false
-	}
-	return videoprocessing.WatchURL(id), true
-}
-
-func isValidYoutubeUrl(rawURL string) bool {
-	_, ok := extractVideoID(rawURL)
-	return ok
-}
-
 func isValidTimeFormat(time string) bool {
 	return timeFormatPattern.MatchString(time)
+}
+
+// parseTime validates an "H:MM:SS" timestamp (1 to 3 hour digits) and returns
+// it in seconds and as zero-padded "HH:MM:SS".
+func parseTime(time string) (int, string, bool) {
+	if !isValidTimeFormat(time) {
+		return 0, "", false
+	}
+	seconds, err := utils.ToSeconds(time)
+	if err != nil {
+		return 0, "", false
+	}
+	return seconds, fmt.Sprintf("%02d:%02d:%02d", seconds/3600, seconds/60%60, seconds%60), true
 }
 
 func isValidFormat(format string) bool {
@@ -82,14 +83,16 @@ func validateCreateClipDto(createClipDto *CreateClipDTO) (videoprocessing.ClipRe
 		return videoprocessing.ClipRequest{}, errors.New("Invalid YouTube URL")
 	}
 
-	if !isValidTimeFormat(createClipDto.From) || !isValidTimeFormat(createClipDto.To) {
+	from, fromHHMMSS, fromOK := parseTime(createClipDto.From)
+	to, toHHMMSS, toOK := parseTime(createClipDto.To)
+	if !fromOK || !toOK {
 		return videoprocessing.ClipRequest{}, errors.New("Invalid time format. Use HH:MM:SS.")
 	}
-
-	from, _ := utils.ToSeconds(createClipDto.From)
-	to, _ := utils.ToSeconds(createClipDto.To)
 	if to <= from {
 		return videoprocessing.ClipRequest{}, errors.New("End time must be after start time.")
+	}
+	if maxMinutes := config.CONFIG.MaxClipLengthInMinutes; maxMinutes > 0 && to-from > maxMinutes*60 {
+		return videoprocessing.ClipRequest{}, fmt.Errorf("Clip is too long (max %d minutes).", maxMinutes)
 	}
 
 	preset, format := strings.TrimSpace(createClipDto.Preset), strings.TrimSpace(createClipDto.Format)
@@ -106,8 +109,8 @@ func validateCreateClipDto(createClipDto *CreateClipDTO) (videoprocessing.ClipRe
 
 	return videoprocessing.ClipRequest{
 		VideoID: videoID,
-		From:    createClipDto.From,
-		To:      createClipDto.To,
+		From:    fromHHMMSS,
+		To:      toHHMMSS,
 		Preset:  preset,
 		Format:  format,
 	}, nil
