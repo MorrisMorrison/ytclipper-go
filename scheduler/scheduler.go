@@ -10,54 +10,42 @@ import (
 	"github.com/MorrisMorrison/gutils/glogger"
 )
 
+// StartClipCleanUpScheduler periodically deletes clips and finished jobs that
+// are older than the configured retention.
 func StartClipCleanUpScheduler() {
-	intervalInMinutes := time.Duration(config.CONFIG.ClipCleanUpSchedulerConfig.IntervalInMinutes) * time.Minute
-	retentionInMinutes := time.Duration(config.CONFIG.ClipCleanUpSchedulerConfig.IntervalInMinutes) * time.Minute
+	cfg := config.CONFIG.ClipCleanUpSchedulerConfig
+	if !cfg.IsEnabled {
+		glogger.Log.Info("Clip cleanup disabled")
+		return
+	}
 
-	startFileCleanUpScheduler(intervalInMinutes, retentionInMinutes, config.CONFIG.ClipCleanUpSchedulerConfig.ClipDirectoryPath)
-	startJobCleanUpScheduler(intervalInMinutes, retentionInMinutes)
-}
-
-func startFileCleanUpScheduler(interval time.Duration, retention time.Duration, clipDir string) {
-	glogger.Log.Infof("Start File Cleanup: Interval %f minutes - Retention %f minutes - Clip Directory %s", interval.Minutes(), retention.Minutes(), clipDir)
-
-	ticker := time.NewTicker(interval)
-	go func() {
-		for range ticker.C {
-			if !config.CONFIG.ClipCleanUpSchedulerConfig.IsEnabled {
-				continue
-			}
-
-			cleanUpOldClips(retention, clipDir)
-		}
-	}()
-}
-
-func startJobCleanUpScheduler(interval time.Duration, retention time.Duration) {
-	glogger.Log.Infof("Start Job Cleanup: Retention %f minutes", retention.Minutes())
+	interval := time.Duration(cfg.IntervalInMinutes) * time.Minute
+	retention := time.Duration(cfg.RetentionInMinutes) * time.Minute
+	glogger.Log.Infof("Clip cleanup: every %v, retention %v, directory %s", interval, retention, cfg.ClipDirectoryPath)
 
 	ticker := time.NewTicker(interval)
 	go func() {
 		for range ticker.C {
-			if !config.CONFIG.ClipCleanUpSchedulerConfig.IsEnabled {
-				continue
+			cutoff := time.Now().Add(-retention)
+			cleanUpOldClips(cutoff, cfg.ClipDirectoryPath)
+			for _, id := range jobs.RemoveFinishedBefore(cutoff) {
+				glogger.Log.Infof("Job %s removed", id)
 			}
-
-			cleanUpOldJobs(retention)
 		}
 	}()
 }
 
-func cleanUpOldClips(retention time.Duration, clipDir string) {
-	now := time.Now()
-
+func cleanUpOldClips(cutoff time.Time, clipDir string) {
 	files, err := os.ReadDir(clipDir)
 	if err != nil {
-		glogger.Log.Errorf(err, "Failed to read directory: %s")
+		glogger.Log.Errorf(err, "Failed to read clip directory: %s", clipDir)
 		return
 	}
 
 	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
 		filePath := filepath.Join(clipDir, file.Name())
 		info, err := file.Info()
 		if err != nil {
@@ -65,25 +53,12 @@ func cleanUpOldClips(retention time.Duration, clipDir string) {
 			continue
 		}
 
-		if now.Sub(info.ModTime()) > retention {
+		if info.ModTime().Before(cutoff) {
 			if err := os.Remove(filePath); err != nil {
 				glogger.Log.Errorf(err, "Failed to delete file: %s", filePath)
 			} else {
-				glogger.Log.Errorf(err, "File %s deleted successfully", filePath)
+				glogger.Log.Infof("Deleted old clip %s", filePath)
 			}
-		}
-	}
-}
-
-func cleanUpOldJobs(retention time.Duration) {
-	now := time.Now()
-	jobs.JobsLock.Lock()
-	defer jobs.JobsLock.Unlock()
-
-	for jobID, job := range jobs.Jobs {
-		if job.Status == jobs.StatusCompleted && now.Sub(job.CompletedAt) > retention {
-			delete(jobs.Jobs, jobID)
-			glogger.Log.Infof("Job %s removed from Jobs map", jobID)
 		}
 	}
 }

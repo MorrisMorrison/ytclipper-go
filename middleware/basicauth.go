@@ -9,12 +9,12 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 )
 
-// SetupBasicAuth configures basic authentication middleware for the Echo instance
+// BasicAuthMiddleware returns basic authentication middleware
 // if credentials are provided via environment variables.
 //
 // Environment variables:
-// - YTCLIPPER_BASIC_AUTH_USERNAME: Username for basic auth
-// - YTCLIPPER_BASIC_AUTH_PASSWORD: Password for basic auth
+// - YTCLIPPER_AUTH_USERNAME: Username for basic auth
+// - YTCLIPPER_AUTH_PASSWORD: Password for basic auth
 //
 // The middleware skips authentication for the /health endpoint to allow
 // health checks to work without authentication.

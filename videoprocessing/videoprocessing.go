@@ -2,12 +2,15 @@ package videoprocessing
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"ytclipper-go/config"
 	"ytclipper-go/jobs"
@@ -15,16 +18,27 @@ import (
 	"github.com/MorrisMorrison/gutils/glogger"
 )
 
-const videoOutputDir = "./videos"
 const throttledStatus = "THROTTLED"
 
 var execContext = exec.CommandContext // allows mocking in tests
 
-func DownloadAndCutVideo(outputPath string, selectedFormat string, fileSizeLimit int64, from string, to string, url string) ([]byte, error) {
+var (
+	durationWithColonRegex = regexp.MustCompile(`\d+:\d{2}(?::\d{2})?`)
+	durationSecondsRegex   = regexp.MustCompile(`(?m)^\s*(\d+)\s*$`)
+	formatLineRegex        = regexp.MustCompile(`(?m)^\s*(\d+)\s+(\w+)\s+(audio only|video only|\d+x\d+|\d+p)\s+([a-zA-Z0-9\.\-\_]+)?\s*([\~\d\.]+(?:[kKM]i?B)?)?.*?\|\s+(.*?)$`)
+	bitrateRegex           = regexp.MustCompile(`([\~\d\.]+[kKM]i?B)`)
+)
+
+// jobSlots limits how many clips are processed at once; further jobs wait in
+// the queued state.
+var jobSlots = sync.OnceValue(func() chan struct{} {
+	return make(chan struct{}, config.CONFIG.MaxConcurrentJobs)
+})
+
+func DownloadAndCutVideo(outputTemplate string, selectedFormat string, fileSizeLimit int64, from string, to string, url string) ([]byte, error) {
 	cmdArgs := []string{
-		"-o", outputPath,
+		"-o", outputTemplate,
 		"-f", selectedFormat,
-		"-v",
 		"--max-filesize", fmt.Sprintf("%d", fileSizeLimit),
 		"--download-sections", fmt.Sprintf("*%s-%s", from, to),
 		url,
@@ -34,33 +48,69 @@ func DownloadAndCutVideo(outputPath string, selectedFormat string, fileSizeLimit
 }
 
 func ProcessClip(jobID string, url string, from string, to string, selectedFormat string) {
+	slots := jobSlots()
+	slots <- struct{}{}
+	defer func() { <-slots }()
+
 	glogger.Log.Infof("Process Clip: Start Job %s", jobID)
 	jobs.StartJob(jobID)
 
-	availableFormats, err := GetAvailableFormats(url)
-	if err != nil {
-		glogger.Log.Error(err, "Process Clip: Failed to retrieve formats")
-		jobs.FailJob(jobID, fmt.Sprintf("Failed to retrieve formats: %v", err))
+	clipDir := config.CONFIG.ClipCleanUpSchedulerConfig.ClipDirectoryPath
+	if err := os.MkdirAll(clipDir, 0o755); err != nil {
+		glogger.Log.Errorf(err, "Process Clip: Could not create clip directory %s", clipDir)
+		jobs.FailJob(jobID, "Could not store the clip")
 		return
 	}
 
-	fileExtension, err := getFileExtensionFromFormatID(selectedFormat, availableFormats)
+	// yt-dlp picks the extension; the job ID keeps the name unique.
+	outputTemplate := filepath.Join(clipDir, jobID+".%(ext)s")
+	output, err := DownloadAndCutVideo(outputTemplate, selectedFormat, config.CONFIG.YtDlpConfig.ClipSizeInMb, from, to, url)
 	if err != nil {
-		glogger.Log.Errorf(err, "Process Clip: Unsupported format ID: %s", selectedFormat)
-		jobs.FailJob(jobID, fmt.Sprintf("Unsupported format ID: %s", selectedFormat))
+		glogger.Log.Errorf(err, "Process Clip: Failed to download video. Output:\n%s", string(output))
+		jobs.FailJob(jobID, summarizeError(output, err))
 		return
 	}
 
-	outputPath := filepath.Join(videoOutputDir, fmt.Sprintf("%s%s", filepath.Base(jobID), fileExtension))
-	output, err := DownloadAndCutVideo(outputPath, selectedFormat, config.CONFIG.YtDlpConfig.ClipSizeInMb, from, to, url)
+	outputPath, err := findOutputFile(clipDir, jobID)
 	if err != nil {
-		glogger.Log.Errorf(err, "Process Clip: Failed to download video: %s", string(output))
-		jobs.FailJob(jobID, fmt.Sprintf("Failed to download video: %s", string(output)))
+		glogger.Log.Errorf(err, "Process Clip: yt-dlp finished but no clip was written. Output:\n%s", string(output))
+		jobs.FailJob(jobID, "The clip could not be created (it may exceed the size limit)")
 		return
 	}
 
 	glogger.Log.Infof("Process Clip: Complete Job %s", jobID)
 	jobs.CompleteJob(jobID, outputPath)
+}
+
+// findOutputFile returns the finished file yt-dlp wrote for a job, ignoring
+// partial downloads.
+func findOutputFile(dir string, jobID string) (string, error) {
+	matches, err := filepath.Glob(filepath.Join(dir, jobID+".*"))
+	if err != nil {
+		return "", err
+	}
+	for _, m := range matches {
+		if !strings.HasSuffix(m, ".part") && !strings.HasSuffix(m, ".ytdl") {
+			return m, nil
+		}
+	}
+	return "", fmt.Errorf("no output file for job %s", jobID)
+}
+
+// summarizeError turns yt-dlp output into a short message that is safe to show
+// to users: the last ERROR line, without the full command output.
+func summarizeError(output []byte, err error) string {
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	for i := len(lines) - 1; i >= 0; i-- {
+		line := strings.TrimSpace(lines[i])
+		if strings.HasPrefix(line, "ERROR:") {
+			return strings.TrimSpace(strings.TrimPrefix(line, "ERROR:"))
+		}
+	}
+	if errors.Is(err, errTimeout) {
+		return "Timed out while downloading the clip"
+	}
+	return "Failed to download the clip"
 }
 
 func GetAvailableFormats(url string) ([]map[string]string, error) {
@@ -77,9 +127,9 @@ func GetAvailableFormats(url string) ([]map[string]string, error) {
 	}
 
 	formats := parseFormats(string(output))
-	if formats == nil {
-		glogger.Log.Errorf(fmt.Errorf("Formats are nil"), "Get Video Duration: Could not find any available formats. Output:/n%s", output)
-		return nil, fmt.Errorf("Could not find any available formats")
+	if len(formats) == 0 {
+		glogger.Log.Errorf(errors.New("no formats"), "Get Available Formats: Could not find any available formats. Output:\n%s", output)
+		return nil, errors.New("could not find any available formats")
 	}
 
 	return formats, nil
@@ -98,20 +148,15 @@ func GetVideoDuration(url string) (string, error) {
 		glogger.Log.Infof("Get Video Duration: yt-dlp command succeeded. Output:\n%s", output)
 	}
 
-	duration := ExtractDuration(string(output))
-	return duration, nil
+	return ExtractDuration(string(output)), nil
 }
 
 func ExtractDuration(output string) string {
-	reWithColon := regexp.MustCompile(`\d+:\d{2}(?::\d{2})?`)
-	matches := reWithColon.FindString(output)
-	if matches != "" {
-		return matches
+	if match := durationWithColonRegex.FindString(output); match != "" {
+		return match
 	}
 
-	reJustSeconds := regexp.MustCompile(`(?m)^\s*(\d+)\s*$`)
-	secMatches := reJustSeconds.FindStringSubmatch(output)
-	if len(secMatches) > 1 {
+	if secMatches := durationSecondsRegex.FindStringSubmatch(output); len(secMatches) > 1 {
 		return secMatches[1]
 	}
 
@@ -120,16 +165,10 @@ func ExtractDuration(output string) string {
 
 func parseFormats(output string) []map[string]string {
 	lines := strings.Split(strings.TrimSpace(output), "\n")
-	if len(lines) == 0 {
-		glogger.Log.Warning("Empty output received when parsing formats")
-		return nil
-	}
-
-	formatRegex := regexp.MustCompile(`(?m)^\s*(\d+)\s+(\w+)\s+(audio only|video only|\d+x\d+|\d+p)\s+([a-zA-Z0-9\.\-\_]+)?\s*([\~\d\.]+(?:[kKM]i?B)?)?.*?\|\s+(.*?)$`)
 	formats := make([]map[string]string, 0, len(lines))
 
 	for _, line := range lines {
-		if format := parseFormatLine(line, formatRegex); format != nil {
+		if format := parseFormatLine(line); format != nil {
 			formats = append(formats, format)
 		}
 	}
@@ -137,8 +176,8 @@ func parseFormats(output string) []map[string]string {
 	return formats
 }
 
-func parseFormatLine(line string, formatRegex *regexp.Regexp) map[string]string {
-	matches := formatRegex.FindStringSubmatch(line)
+func parseFormatLine(line string) map[string]string {
+	matches := formatLineRegex.FindStringSubmatch(line)
 	if len(matches) == 0 {
 		return nil
 	}
@@ -171,35 +210,18 @@ func determineFormatType(label string) string {
 }
 
 func extractBitrate(additional string) string {
-	bitrateRegex := regexp.MustCompile(`([\~\d\.]+[kKM]i?B)`)
-	match := bitrateRegex.FindStringSubmatch(additional)
-	if len(match) > 0 {
+	if match := bitrateRegex.FindStringSubmatch(additional); len(match) > 0 {
 		return match[1]
 	}
-
-	glogger.Log.Warningf("Extract Bitrate: Could not extract bitrate from %s", additional)
 	return "N/A"
 }
 
-func getFileExtensionFromFormatID(formatID string, formats []map[string]string) (string, error) {
-	for _, format := range formats {
-		if format["id"] == formatID {
-			if ext, exists := format["extension"]; exists {
-				return fmt.Sprintf(".%s", ext), nil
-			}
-		}
-	}
-	return "", fmt.Errorf("format ID not found")
-}
-
-// commonArgs returns the flags applied to every yt-dlp invocation. Downloads run
-// from a residential network path (a SOCKS proxy over WireGuard), so there is no
-// anti-bot trickery here -- just the proxy and yt-dlp's own retry/quiet flags.
+// commonArgs returns the flags applied to every yt-dlp invocation: the optional
+// proxy and yt-dlp's own retry/quiet flags.
 func commonArgs() []string {
 	var args []string
 
 	if config.CONFIG.YtDlpConfig.Proxy != "" {
-		glogger.Log.Infof("Using proxy: %s", config.CONFIG.YtDlpConfig.Proxy)
 		args = append(args, "--proxy", config.CONFIG.YtDlpConfig.Proxy)
 	}
 
@@ -218,6 +240,8 @@ func execute(name string, baseArgs []string) ([]byte, error) {
 	return executeWithTimeout(timeout, name, args...)
 }
 
+var errTimeout = errors.New("command timed out")
+
 func executeWithTimeout(timeout time.Duration, name string, args ...string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
@@ -226,7 +250,7 @@ func executeWithTimeout(timeout time.Duration, name string, args ...string) ([]b
 
 	output, err := cmd.CombinedOutput()
 	if ctx.Err() == context.DeadlineExceeded {
-		return nil, fmt.Errorf("command timed out after %v", timeout)
+		return output, fmt.Errorf("%w after %v", errTimeout, timeout)
 	}
 
 	return output, err

@@ -4,25 +4,43 @@ import (
 	"testing"
 )
 
-func TestIsValidYoutubeUrl(t *testing.T) {
+func TestCanonicalYoutubeUrl(t *testing.T) {
+	const want = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 	tests := []struct {
 		url     string
 		isValid bool
 	}{
 		{"https://www.youtube.com/watch?v=dQw4w9WgXcQ", true},
 		{"http://youtu.be/dQw4w9WgXcQ", true},
+		{"https://youtu.be/dQw4w9WgXcQ?si=abc123", true},
 		{"https://youtube.com/watch?v=dQw4w9WgXcQ", true},
-		{"https://www.youtube.com/embed/dQw4w9WgXcQ", false},    // Invalid embed URL
-		{"https://www.youtu.be.com/watch?v=dQw4w9WgXcQ", false}, // Typo in domain
-		{"https://vimeo.com/123456", false},                     // Non-YouTube URL
-		{"invalidurl", false},                                   // Completely invalid URL
-		{"https://youtube.com/watch?", false},                   // Missing video ID
+		{"https://m.youtube.com/watch?v=dQw4w9WgXcQ&t=42s", true},
+		{"https://music.youtube.com/watch?v=dQw4w9WgXcQ", true},
+		{"https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=PL123&index=2", true},
+		{"https://www.youtube.com/shorts/dQw4w9WgXcQ", true},
+		{"https://www.youtube.com/live/dQw4w9WgXcQ?feature=share", true},
+		{"  https://www.youtube.com/watch?v=dQw4w9WgXcQ  ", true},
+		{"https://www.youtube.com/embed/dQw4w9WgXcQ", false},
+		{"https://www.youtu.be.com/watch?v=dQw4w9WgXcQ", false},
+		{"https://evil.com/watch?v=dQw4w9WgXcQ", false},
+		{"https://vimeo.com/123456", false},
+		{"invalidurl", false},
+		{"https://youtube.com/watch?", false},
+		{"https://www.youtube.com/watch?v=short", false},
+		{"ftp://www.youtube.com/watch?v=dQw4w9WgXcQ", false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.url, func(t *testing.T) {
-			if got := isValidYoutubeUrl(tt.url); got != tt.isValid {
-				t.Errorf("isValidYoutubeUrl(%q) = %v; want %v", tt.url, got, tt.isValid)
+			got, ok := canonicalYoutubeURL(tt.url)
+			if ok != tt.isValid {
+				t.Fatalf("canonicalYoutubeURL(%q) ok = %v; want %v", tt.url, ok, tt.isValid)
+			}
+			if ok && got != want {
+				t.Errorf("canonicalYoutubeURL(%q) = %q; want %q", tt.url, got, want)
+			}
+			if isValidYoutubeUrl(tt.url) != tt.isValid {
+				t.Errorf("isValidYoutubeUrl(%q) disagrees", tt.url)
 			}
 		})
 	}
@@ -36,12 +54,13 @@ func TestIsValidTimeFormat(t *testing.T) {
 		{"00:00:00", true},
 		{"12:34:56", true},
 		{"23:59:59", true},
-		{"24:00:00", false}, // Out of range hour
-		{"12:60:00", false}, // Out of range minutes
-		{"12:34:60", false}, // Out of range seconds
-		{"1:2:3", false},    // Missing leading zeros
-		{"invalid", false},  // Completely invalid input
-		{"12:34", false},    // Missing seconds
+		{"24:00:00", true},  // Streams can be longer than a day
+		{"100:00:00", true}, // ...much longer
+		{"12:60:00", false},
+		{"12:34:60", false},
+		{"1:2:3", false},
+		{"invalid", false},
+		{"12:34", false},
 	}
 
 	for _, tt := range tests {
@@ -61,10 +80,10 @@ func TestIsValidFormat(t *testing.T) {
 		{"399", true},
 		{"22", true},
 		{"1", true},
-		{"001", true},   // Leading zeros should still be valid
-		{"1a", false},   // Contains letters
-		{"", false},     // Empty string
-		{"-123", false}, // Negative number
+		{"001", true},
+		{"1a", false},
+		{"", false},
+		{"-123", false},
 	}
 
 	for _, tt := range tests {
@@ -77,54 +96,44 @@ func TestIsValidFormat(t *testing.T) {
 }
 
 func TestValidateCreateClipDto(t *testing.T) {
-	validDto := &CreateClipDTO{
-		Url:    "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-		From:   "00:01:30",
-		To:     "00:02:30",
-		Format: "399",
-	}
-
-	invalidUrlDto := &CreateClipDTO{
-		Url:    "https://invalidurl.com",
-		From:   "00:01:30",
-		To:     "00:02:30",
-		Format: "399",
-	}
-
-	invalidTimeDto := &CreateClipDTO{
-		Url:    "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-		From:   "invalid",
-		To:     "00:02:30",
-		Format: "399",
-	}
-
-	invalidFormatDto := &CreateClipDTO{
-		Url:    "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-		From:   "00:01:30",
-		To:     "00:02:30",
-		Format: "invalid",
+	valid := func() *CreateClipDTO {
+		return &CreateClipDTO{
+			Url:    "https://youtu.be/dQw4w9WgXcQ?si=x",
+			From:   "00:01:30",
+			To:     "00:02:30",
+			Format: "399",
+		}
 	}
 
 	tests := []struct {
 		name        string
-		dto         *CreateClipDTO
-		expectErr   bool
+		mutate      func(d *CreateClipDTO)
 		expectedMsg string
 	}{
-		{"Valid DTO", validDto, false, ""},
-		{"Invalid URL", invalidUrlDto, true, "Invalid YouTube URL"},
-		{"Invalid Time", invalidTimeDto, true, "Invalid time format. Use HH:MM:SS."},
-		{"Invalid Format", invalidFormatDto, true, "Invalid format. Must be a numeric value."},
+		{"Valid DTO", func(d *CreateClipDTO) {}, ""},
+		{"Invalid URL", func(d *CreateClipDTO) { d.Url = "https://invalidurl.com" }, "Invalid YouTube URL"},
+		{"Invalid Time", func(d *CreateClipDTO) { d.From = "invalid" }, "Invalid time format. Use HH:MM:SS."},
+		{"End before start", func(d *CreateClipDTO) { d.From, d.To = "00:02:30", "00:01:30" }, "End time must be after start time."},
+		{"End equals start", func(d *CreateClipDTO) { d.To = d.From }, "End time must be after start time."},
+		{"Invalid Format", func(d *CreateClipDTO) { d.Format = "invalid" }, "Invalid format. Must be a numeric value."},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateCreateClipDto(tt.dto)
-			if (err != nil) != tt.expectErr {
-				t.Errorf("validateCreateClipDto() error = %v, expectErr %v", err, tt.expectErr)
+			dto := valid()
+			tt.mutate(dto)
+			err := validateCreateClipDto(dto)
+			if tt.expectedMsg == "" {
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				if dto.Url != "https://www.youtube.com/watch?v=dQw4w9WgXcQ" {
+					t.Errorf("URL not canonicalised: %q", dto.Url)
+				}
+				return
 			}
-			if err != nil && err.Error() != tt.expectedMsg {
-				t.Errorf("Expected error message %q, got %q", tt.expectedMsg, err.Error())
+			if err == nil || err.Error() != tt.expectedMsg {
+				t.Errorf("Expected error %q, got %v", tt.expectedMsg, err)
 			}
 		})
 	}

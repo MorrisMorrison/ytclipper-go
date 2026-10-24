@@ -8,6 +8,8 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+// GetJobStatus reports a job's state through the status code the page polls
+// on: 201 while queued or processing, 200 when done, 500 on failure.
 func GetJobStatus(c echo.Context) error {
 	jobID := c.QueryParam("jobId")
 
@@ -17,15 +19,11 @@ func GetJobStatus(c echo.Context) error {
 	}
 
 	switch job.Status {
-	case jobs.StatusQueued:
-	case jobs.StatusProcessing:
+	case jobs.StatusQueued, jobs.StatusProcessing:
 		return c.JSON(http.StatusCreated, nil)
 	case jobs.StatusCompleted:
-		return c.JSON(http.StatusOK, job.FilePath)
-	case jobs.StatusError:
+		return c.JSON(http.StatusOK, nil)
 	default:
-		return c.JSON(http.StatusInternalServerError, job.Error)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": job.Error})
 	}
-
-	return c.JSON(http.StatusInternalServerError, job.Error)
 }
