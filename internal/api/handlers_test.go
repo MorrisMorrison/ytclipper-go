@@ -9,8 +9,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"ytclipper-go/config"
-	"ytclipper-go/jobs"
+
+	"github.com/MorrisMorrison/ytclipper-go/internal/config"
+	"github.com/MorrisMorrison/ytclipper-go/internal/jobs"
 
 	"github.com/labstack/echo/v4"
 )

@@ -23,8 +23,8 @@ go.work.sum
 
 # env file
 .env
-ytclipper
-ytclipper-go
+/ytclipper
+/ytclipper-go
 # Claude Code local settings
 .claude/settings.local.json
 

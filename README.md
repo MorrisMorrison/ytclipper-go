@@ -43,10 +43,10 @@ Requirements: Go (see `go.mod`), [yt-dlp](https://github.com/yt-dlp/yt-dlp#insta
 ```bash
 git clone https://github.com/MorrisMorrison/ytclipper-go.git
 cd ytclipper-go
-go run .
+go run ./cmd/ytclipper
 ```
 
-The server checks for `yt-dlp` and `ffmpeg` on startup and exits if either is missing.
+The server checks for `yt-dlp` and `ffmpeg` on startup and exits if either is missing. The page and its static files are embedded in the binary, so it runs from any directory.
 
 ## Configuration
 All settings are environment variables; `.env.example` lists them.
@@ -73,6 +73,7 @@ All settings are environment variables; `.env.example` lists them.
 | `YTCLIPPER_CLIP_CLEANUP_SCHEDULER_INTERVAL_IN_MINUTES` | `5` | How often cleanup runs |
 | `YTCLIPPER_CLIP_CLEANUP_SCHEDULER_RETENTION_IN_MINUTES` | `30` | How long clips and finished jobs are kept |
 | `YTCLIPPER_CLIP_CLEANUP_SCHEDULER_CLIP_DIRECTORY_PATH` | `./videos/` | Where clips are stored |
+| `YTCLIPPER_DEV_ASSETS_DIR` | _(empty)_ | Development only: serve the page and static files from this directory (the repo's `web/`) instead of the embedded copy, so edits show up on reload |
 
 ### YouTube blocking datacenter IPs
 YouTube often blocks downloads from cloud servers. If clips fail on a VPS but work at home, route yt-dlp through a proxy that exits from a residential network:
@@ -135,7 +136,11 @@ curl localhost:8080/api/v1/jobs/3f1c...
 ```
 
 ## Development
+The server's entry point is `cmd/ytclipper`; the packages live in `internal/` and the page (`web/templates/`, `web/static/`) is embedded into the binary with `go:embed`. See [`CLAUDE.md`](CLAUDE.md) for the full layout.
+
 ```bash
+make run          # go run ./cmd/ytclipper
+make run-dev      # same, but serves web/ from disk (YTCLIPPER_DEV_ASSETS_DIR=web): edit HTML, CSS or JS and reload
 make check        # gofmt check, go vet, unit tests (yt-dlp is mocked), build
 make e2e          # browser e2e suite (needs Chrome; starts its own servers)
 make coverage     # unit and e2e coverage profiles (e2e part needs Linux/macOS)

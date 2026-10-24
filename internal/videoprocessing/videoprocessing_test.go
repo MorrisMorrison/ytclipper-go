@@ -11,8 +11,9 @@ import (
 	"strings"
 	"testing"
 	"time"
-	"ytclipper-go/config"
-	"ytclipper-go/jobs"
+
+	"github.com/MorrisMorrison/ytclipper-go/internal/config"
+	"github.com/MorrisMorrison/ytclipper-go/internal/jobs"
 )
 
 func hasFlag(args []string, flag string) bool {

@@ -1,10 +1,11 @@
-package main
+package server
 
 import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"ytclipper-go/config"
+
+	"github.com/MorrisMorrison/ytclipper-go/internal/config"
 )
 
 func TestNewIPExtractor(t *testing.T) {
@@ -73,7 +74,7 @@ func TestRateLimiterRunsBeforeBasicAuth(t *testing.T) {
 	config.CONFIG.RateLimiterConfig = config.RateLimiterConfig{Rate: 0.001, Burst: 2, ExpiresInMinutes: 1}
 	config.CONFIG.TrustedProxies = nil
 
-	e, err := newServer()
+	e, err := New()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,21 +107,5 @@ func TestRateLimiterRunsBeforeBasicAuth(t *testing.T) {
 	}
 	if code := do("/api/v1/jobs/x", "203.0.113.8:4000", ""); code != http.StatusUnauthorized {
 		t.Errorf("another client: got %d; want 401", code)
-	}
-}
-
-func TestIsSocksProxy(t *testing.T) {
-	tests := map[string]bool{
-		"socks5h://10.0.0.1:1080": true,
-		"socks5://host:1080":      true,
-		"SOCKS4://host:1080":      true,
-		"http://10.0.0.1:8118":    false,
-		"https://proxy:443":       false,
-		"":                        false,
-	}
-	for proxy, want := range tests {
-		if got := isSocksProxy(proxy); got != want {
-			t.Errorf("isSocksProxy(%q) = %v; want %v", proxy, got, want)
-		}
 	}
 }

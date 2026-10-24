@@ -6,7 +6,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/ytclipper-go .
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/ytclipper-go ./cmd/ytclipper
 
 # --- Runtime -----------------------------------------------------------------
 FROM debian:bookworm-slim
@@ -27,9 +27,8 @@ RUN curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh -s v2.8
 RUN useradd --system --uid 10001 --home-dir /app ytclipper
 WORKDIR /app
 
+# The page and static files are embedded in the binary.
 COPY --from=build /out/ytclipper-go ./ytclipper-go
-COPY templates ./templates
-COPY static ./static
 RUN mkdir -p /app/videos /app/.cache && chown ytclipper:ytclipper /app/videos /app/.cache
 
 # /app itself is root-owned; yt-dlp and deno keep their caches (YouTube player

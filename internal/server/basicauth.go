@@ -1,15 +1,16 @@
-package middleware
+package server
 
 import (
 	"crypto/subtle"
-	"ytclipper-go/config"
+
+	"github.com/MorrisMorrison/ytclipper-go/internal/config"
 
 	"github.com/MorrisMorrison/gutils/glogger"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
 
-// BasicAuthMiddleware returns basic authentication middleware
+// basicAuth returns basic authentication middleware
 // if credentials are provided via environment variables.
 //
 // Environment variables:
@@ -18,7 +19,7 @@ import (
 //
 // The middleware skips authentication for the /health endpoint to allow
 // health checks to work without authentication.
-func BasicAuthMiddleware() echo.MiddlewareFunc {
+func basicAuth() echo.MiddlewareFunc {
 	username := config.CONFIG.BasicAuthConfig.Username
 	password := config.CONFIG.BasicAuthConfig.Password
 

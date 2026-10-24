@@ -1,6 +1,6 @@
 ---
 name: yt-dlp-change
-description: Change how ytclipper calls or parses yt-dlp (new flags, a new format preset, a new metadata field, a different output template) end to end without breaking CI. Use for any edit in videoprocessing/ that touches command arguments or yt-dlp output.
+description: Change how ytclipper calls or parses yt-dlp (new flags, a new format preset, a new metadata field, a different output template) end to end without breaking CI. Use for any edit in internal/videoprocessing/ that touches command arguments or yt-dlp output.
 ---
 
 # Changing a yt-dlp invocation
@@ -9,8 +9,8 @@ yt-dlp is the app's only real dependency on the outside world, and three places 
 
 | Place | Role |
 |---|---|
-| `videoprocessing/` | Builds args, runs them through `execute`, parses output |
-| `videoprocessing/*_test.go` | Fakes `execContext` and asserts on args and parsing |
+| `internal/videoprocessing/` | Builds args, runs them through `execute`, parses output |
+| `internal/videoprocessing/*_test.go` | Fakes `execContext` and asserts on args and parsing |
 | `test/fakes/yt-dlp` | Offline fake yt-dlp (Go) the e2e suite runs against |
 
 ## Steps
@@ -19,7 +19,7 @@ yt-dlp is the app's only real dependency on the outside world, and three places 
 3. **Implement** through `execute(...)` so the timeout and common args (proxy, retries) still apply. Args are a slice; never build a shell string from user input.
 4. **Update the fake** `test/fakes/yt-dlp` so it answers the new invocation with matching fixed output (add new value-taking flags to `flagsWithValue`).
 5. **Run** `go vet ./... && go test ./...`, then the e2e suite (`make e2e`, see the `e2e` skill) if the page flow is affected.
-6. **Document** new config in `config/config.go`, `.env.example` and the README.
+6. **Document** new config in `internal/config/config.go`, `.env.example` and the README.
 7. In the PR, state that it was verified against the fake, and whether anyone tried it against real YouTube.
 
 ## Gotchas

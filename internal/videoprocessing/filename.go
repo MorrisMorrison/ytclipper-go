@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 	"unicode"
-	"ytclipper-go/utils"
 )
 
 const maxFileNameBaseLength = 120 // runes, before the time range and extension
@@ -33,7 +32,7 @@ func DownloadName(title string, videoID string, from string, to string, ext stri
 // fileTimestamp turns "00:01:30" into "0-01-30" (colons are not allowed in
 // file names on Windows).
 func fileTimestamp(hhmmss string) string {
-	seconds, err := utils.ToSeconds(hhmmss)
+	seconds, err := ToSeconds(hhmmss)
 	if err != nil {
 		return SanitizeFileName(strings.ReplaceAll(hhmmss, ":", "-"))
 	}

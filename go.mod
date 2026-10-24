@@ -1,4 +1,4 @@
-module ytclipper-go
+module github.com/MorrisMorrison/ytclipper-go
 
 go 1.26.0
 

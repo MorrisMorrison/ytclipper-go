@@ -11,7 +11,8 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"ytclipper-go/config"
+
+	"github.com/MorrisMorrison/ytclipper-go/internal/config"
 
 	"github.com/MorrisMorrison/gutils/glogger"
 )

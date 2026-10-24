@@ -24,7 +24,7 @@ Edit `http-client.env.json` to set your environment variables:
 
 ```bash
 # Run locally
-go run main.go
+go run ./cmd/ytclipper
 
 # Or with Docker
 docker-compose up

@@ -6,9 +6,9 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
-	"ytclipper-go/config"
-	"ytclipper-go/utils"
-	"ytclipper-go/videoprocessing"
+
+	"github.com/MorrisMorrison/ytclipper-go/internal/config"
+	"github.com/MorrisMorrison/ytclipper-go/internal/videoprocessing"
 )
 
 var (
@@ -64,7 +64,7 @@ func parseTime(time string) (int, string, bool) {
 	if !isValidTimeFormat(time) {
 		return 0, "", false
 	}
-	seconds, err := utils.ToSeconds(time)
+	seconds, err := videoprocessing.ToSeconds(time)
 	if err != nil {
 		return 0, "", false
 	}

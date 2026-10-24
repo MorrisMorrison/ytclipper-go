@@ -12,9 +12,9 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"ytclipper-go/config"
-	"ytclipper-go/jobs"
-	"ytclipper-go/utils"
+
+	"github.com/MorrisMorrison/ytclipper-go/internal/config"
+	"github.com/MorrisMorrison/ytclipper-go/internal/jobs"
 
 	"github.com/MorrisMorrison/gutils/glogger"
 )
@@ -174,7 +174,7 @@ func checkAgainstDuration(req ClipRequest, info *VideoInfo) string {
 	if info == nil || info.Duration <= 0 {
 		return ""
 	}
-	to, err := utils.ToSeconds(req.To)
+	to, err := ToSeconds(req.To)
 	if err != nil || to <= info.Duration {
 		return ""
 	}
