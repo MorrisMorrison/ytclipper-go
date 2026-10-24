@@ -6,7 +6,14 @@ Cut a clip out of any YouTube video and download it. Paste a link, drag the rang
 
 ytclipper is a small self-hostable web app: a Go server with a plain HTML/JS page in front of [yt-dlp](https://github.com/yt-dlp/yt-dlp) and [FFmpeg](https://ffmpeg.org/). Only the selected section is downloaded, not the whole video. No database, no accounts; clips are deleted automatically after a while.
 
-<img width="2513" height="1197" alt="ytclipper screenshot" src="https://github.com/user-attachments/assets/9480ccbb-a7ec-4407-9428-317c7d3702bb" />
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshot-dark.png">
+    <img width="640" alt="ytclipper: a YouTube video loaded, a 1:00 to 2:30 range selected on the trimmer, Video (MP4) chosen, and the finished clip ready to download" src="docs/screenshot-light.png">
+  </picture>
+</p>
+
+<sub>Screenshot rendered with <code>make screenshots</code>. Video: <a href="https://peach.blender.org/">Big Buck Bunny</a> © Blender Foundation, CC BY 3.0.</sub>
 
 ## Features
 - The YouTube player loads as soon as you paste a link; nothing waits on the server.
