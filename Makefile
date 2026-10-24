@@ -1,4 +1,4 @@
-.PHONY: run build test fmt fmt-check lint check e2e screenshots docker-build docker-run docker-stop compose-up compose-down compose-logs
+.PHONY: run build test fmt fmt-check lint check e2e coverage coverage-unit coverage-e2e screenshots docker-build docker-run docker-stop compose-up compose-down compose-logs
 
 run:
 	go run .
@@ -27,6 +27,19 @@ check: fmt-check lint test build
 # server you started yourself, set E2E_BASE_URL.
 e2e:
 	go test -tags e2e -count=1 ./test/e2e/
+
+# Coverage profiles for Codecov: coverage-unit.out (go test) and
+# coverage-e2e.out (the e2e suite against a -cover build of the app; unix only,
+# because the server must exit gracefully to write its counters).
+coverage: coverage-unit coverage-e2e
+
+coverage-unit:
+	go test -covermode=atomic -coverprofile=coverage-unit.out ./...
+
+coverage-e2e:
+	rm -rf .cover/e2e && mkdir -p .cover/e2e
+	E2E_COVERDIR="$(CURDIR)/.cover/e2e" go test -tags e2e -count=1 ./test/e2e/
+	go tool covdata textfmt -i=.cover/e2e -o coverage-e2e.out
 
 # Renders the README images into $(SCREENSHOTS_DIR)/docs/screenshot-{light,dark}.png.
 # Unlike the e2e suite, the browser may reach YouTube, so the real player shows.
