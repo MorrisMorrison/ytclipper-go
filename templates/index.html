@@ -2,110 +2,46 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ytclipper — clip any YouTube video</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <title>ytclipper: clip any YouTube video</title>
     <link rel="icon" href="/static/icons/favicon.ico" type="image/x-icon">
+    <script>
+        // Set the theme before first paint: a stored choice wins, otherwise the OS preference.
+        (function () {
+            var theme = null;
+            try { theme = localStorage.getItem("theme"); } catch (e) { /* storage blocked */ }
+            if (theme !== "light" && theme !== "dark") {
+                theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+            }
+            document.documentElement.setAttribute("data-theme", theme);
+        })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-    <link rel="stylesheet" href="/static/css/toastr.min.css" />
-    <link rel="stylesheet" href="/static/css/video-js.min.css">
     <link rel="stylesheet" href="/static/css/styles.css">
-    <link rel="stylesheet" href="/static/css/utilities.css">
-    <script type="text/javascript" src="/static/scripts/jquery.min.js"></script>
     <script type="module" src="/static/scripts/main.js"></script>
-    <script type="module" src="/static/scripts/utils.js"></script>
-    <script type="module" src="/static/scripts/api.js"></script>
-    <script type="module" src="/static/scripts/ui.js"></script>
-    <script type="text/javascript" src="/static/scripts/toastr.min.js"></script>
 </head>
 
-<body class="dark">
-    <main class="page">
-        <div id="searchGroup" class="main-card">
-            <header class="brand">
-                <span class="brand-mark" aria-hidden="true">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                        <path d="M8 5v14l11-7z" fill="#06231b" />
-                        <circle cx="6.5" cy="6.5" r="2" stroke="#06231b" stroke-width="1.6" />
-                        <circle cx="6.5" cy="17.5" r="2" stroke="#06231b" stroke-width="1.6" />
-                    </svg>
-                </span>
-                <span class="brand-text">
-                    <h1 class="wordmark">yt<span class="wordmark-accent">clipper</span></h1>
-                    <span class="tagline">Clip any YouTube video</span>
-                </span>
-            </header>
+<body>
+    <div id="toasts" class="toasts" aria-live="polite"></div>
 
-            <div class="divider"></div>
-
-            <div class="field">
-                <label class="field-label" for="url">Video URL</label>
-                <div class="input-row">
-                    <input autocomplete="off" class="input" type="text" id="url" placeholder="Paste a YouTube link…" title="Only valid youtube links will work" />
-                    <button id="previewButton" class="icon-button" type="button" aria-label="Preview video" title="Preview video">
-                        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
-                            <circle cx="12" cy="12" r="3" />
-                        </svg>
-                    </button>
-                </div>
-            </div>
-
-            <div id="videoPlayerWrapper" class="hidden field">
-                <video id="videoPlayer" class="video-js vjs-default-skin" controls autoplay playsinline></video>
-            </div>
-
-            <div class="field">
-                <label class="field-label" for="formatSelect">Format &amp; quality</label>
-                <div id="format-wrapper">
-                    <select id="formatSelect" class="input" disabled>
-                        <option value="">Select format…</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="field">
-                <label class="field-label" for="from">Time range</label>
-                <div class="time-range">
-                    <input step="1" autocomplete="off" class="input time-input" type="text" id="from" placeholder="from*" title="Provide timestamps as HH:MM:SS." />
-                    <span class="time-arrow" aria-hidden="true">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M5 12h14M13 6l6 6-6 6" />
-                        </svg>
-                    </span>
-                    <input step="1" autocomplete="off" class="input time-input" type="text" id="to" placeholder="to*" title="Provide timestamps as HH:MM:SS." />
-                </div>
-            </div>
-
-            <button id="clipButton" class="button button-primary" type="button">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <circle cx="6" cy="6" r="3" />
-                    <circle cx="6" cy="18" r="3" />
-                    <path d="M20 4L8.12 15.88M14.47 14.48L20 20M8.12 8.12L12 12" />
+    <header class="topbar">
+        <div class="brand">
+            <span class="brand-mark" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                    <path d="M8 5v14l11-7z" fill="#06231b" />
+                    <circle cx="6.5" cy="6.5" r="2" stroke="#06231b" stroke-width="1.6" />
+                    <circle cx="6.5" cy="17.5" r="2" stroke="#06231b" stroke-width="1.6" />
                 </svg>
-                Create clip
-            </button>
-
-            <p class="helper-text">Timestamps accept <code>34</code>, <code>1:28</code>, or <code>1:09:24</code>.</p>
-
-            <div id="progressBarWrapper" class="hidden field">
-                <div id="progress" class="progress" role="progressbar" aria-label="Creating clip">
-                    <div id="progressBar" class="progress-bar-custom"></div>
-                </div>
-            </div>
-
-            <div id="downloadLinkWrapper" class="hidden field">
-                <p class="helper-text">
-                    If the download didn't start automatically, you can
-                    <a class="text-link" id="downloadLink">download it here</a>.
-                </p>
-            </div>
+            </span>
+            <span class="brand-text">
+                <span class="wordmark">yt<span class="wordmark-accent">clipper</span></span>
+                <span class="tagline">Clip any YouTube video</span>
+            </span>
         </div>
-    </main>
-
-    <footer class="footer">
-        <button id="themeSlider" class="theme-toggle" type="button" aria-label="Toggle dark mode" title="Toggle theme">
+        <button id="themeToggle" class="icon-button icon-button-ghost" type="button" aria-label="Toggle dark theme" aria-pressed="false" title="Toggle theme">
             <svg class="theme-icon theme-icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <circle cx="12" cy="12" r="4" />
                 <path d="M12 3v2M12 19v2M5 12H3M21 12h-2M18.36 5.64l-1.41 1.41M7.05 16.95l-1.41 1.41M18.36 18.36l-1.41-1.41M7.05 7.05L5.64 5.64" />
@@ -114,9 +50,185 @@
                 <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
             </svg>
         </button>
-    </footer>
+    </header>
 
-    <script src="/static/scripts/video.min.js"></script>
-    <script src="/static/scripts/Youtube.min.js"></script>
+    <main class="page">
+        <h1 class="visually-hidden">Clip a YouTube video</h1>
+        <form id="clipForm" class="card" novalidate>
+            <div class="field">
+                <label class="field-label" for="url">YouTube link</label>
+                <input id="url" class="input input-lg" type="url" inputmode="url" autocomplete="off" spellcheck="false"
+                    placeholder="Paste a YouTube link…" aria-describedby="urlHint urlError">
+                <p id="urlError" class="field-error" role="alert" hidden></p>
+                <p id="urlHint" class="helper-text">Watch, youtu.be, Shorts and live links work.</p>
+            </div>
+
+            <div id="editor" class="editor" hidden>
+                <div class="player-frame">
+                    <div id="player" class="player"></div>
+                    <div id="playerFallback" class="player-fallback">
+                        <span id="playerSpinner" class="spinner" aria-hidden="true"></span>
+                        <span id="playerStatus">Loading player…</span>
+                    </div>
+                </div>
+                <div id="videoMeta" class="video-meta" hidden>
+                    <p id="videoTitle" class="video-title"></p>
+                    <p id="videoUploader" class="video-uploader"></p>
+                </div>
+
+                <fieldset class="section">
+                    <legend class="field-label">Clip range</legend>
+
+                    <div id="trimmer" class="trimmer" data-ready="false">
+                        <div id="trimTrack" class="trim-track">
+                            <div id="trimSelection" class="trim-selection"></div>
+                            <div id="trimPlayhead" class="trim-playhead" hidden></div>
+                            <div id="handleStart" class="trim-handle trim-handle-start" role="slider" tabindex="-1"
+                                aria-label="Clip start" aria-disabled="true"></div>
+                            <div id="handleEnd" class="trim-handle trim-handle-end" role="slider" tabindex="-1"
+                                aria-label="Clip end" aria-disabled="true"></div>
+                        </div>
+                        <div class="trim-scale" aria-hidden="true">
+                            <span>0:00</span>
+                            <span id="trimDuration"></span>
+                        </div>
+                        <p id="trimmerHint" class="helper-text trimmer-hint">Waiting for the video length… You can type the times below.</p>
+                    </div>
+
+                    <div class="time-grid">
+                        <div class="time-field">
+                            <label class="time-label" for="from">Start</label>
+                            <div class="time-input-row">
+                                <input id="from" class="input time-input" type="text" autocomplete="off" spellcheck="false"
+                                    placeholder="0:00" aria-describedby="timeHint timeError">
+                                <button id="setStart" class="chip-button" type="button" disabled
+                                    title="Set start to the current player time" aria-label="Set start to the current player time">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <path d="M12 7v5l3 2" /><circle cx="12" cy="12" r="9" />
+                                    </svg>
+                                    <span>Now</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="time-field">
+                            <label class="time-label" for="to">End</label>
+                            <div class="time-input-row">
+                                <input id="to" class="input time-input" type="text" autocomplete="off" spellcheck="false"
+                                    placeholder="0:30" aria-describedby="timeHint timeError">
+                                <button id="setEnd" class="chip-button" type="button" disabled
+                                    title="Set end to the current player time" aria-label="Set end to the current player time">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <path d="M12 7v5l3 2" /><circle cx="12" cy="12" r="9" />
+                                    </svg>
+                                    <span>Now</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <p id="timeError" class="field-error" role="alert" hidden></p>
+
+                    <div class="range-footer">
+                        <p class="clip-length">Length <strong id="clipLength">–</strong></p>
+                        <button id="previewButton" class="button button-secondary button-sm" type="button" disabled>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
+                            <span id="previewLabel">Preview selection</span>
+                        </button>
+                    </div>
+                    <p id="timeHint" class="helper-text">Type <code>34</code>, <code>1:28</code> or <code>1:09:24</code>. Drag the handles, or focus one and use the arrow keys (Shift for 10&nbsp;s).</p>
+                </fieldset>
+
+                <fieldset id="outputSection" class="section">
+                    <legend class="field-label">Output</legend>
+                    <div id="presetGroup" class="segmented">
+                        <label class="segment">
+                            <input type="radio" name="preset" id="presetVideo" value="video" checked>
+                            <span class="segment-body">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <rect x="2" y="5" width="15" height="14" rx="2" /><path d="M17 10l5-3v10l-5-3z" />
+                                </svg>
+                                <span class="segment-title">Video</span><span class="segment-sub">MP4</span>
+                            </span>
+                        </label>
+                        <label class="segment">
+                            <input type="radio" name="preset" id="presetAudio" value="audio">
+                            <span class="segment-body">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" />
+                                </svg>
+                                <span class="segment-title">Audio</span><span class="segment-sub">MP3</span>
+                            </span>
+                        </label>
+                    </div>
+                    <p id="presetOverride" class="helper-text" hidden>Using the formats picked under Advanced. Close it to go back to these presets.</p>
+
+                    <details id="advanced" class="advanced">
+                        <summary>
+                            <span>Advanced: pick exact formats</span>
+                            <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+                        </summary>
+                        <div class="advanced-body">
+                            <div id="advancedLoading" class="skeleton-list" role="status" hidden>
+                                <span class="skeleton"></span><span class="skeleton"></span><span class="skeleton"></span>
+                                <p class="helper-text">Asking YouTube which formats it has… this can take a few seconds.</p>
+                            </div>
+                            <div id="advancedError" class="inline-error" hidden>
+                                <p id="advancedErrorText"></p>
+                                <button id="advancedRetry" class="button button-secondary button-sm" type="button">Try again</button>
+                            </div>
+                            <div id="advancedContent" hidden>
+                                <div id="streamGroup" class="segmented segmented-sm">
+                                    <label class="segment">
+                                        <input type="radio" name="streams" id="streamsAV" value="av" checked>
+                                        <span class="segment-body"><span class="segment-title">Video + audio</span></span>
+                                    </label>
+                                    <label class="segment">
+                                        <input type="radio" name="streams" id="streamsA" value="a">
+                                        <span class="segment-body"><span class="segment-title">Audio only</span></span>
+                                    </label>
+                                </div>
+                                <div id="videoGroup" class="format-group">
+                                    <h2 class="format-heading">Video</h2>
+                                    <div id="videoFormats" class="format-list" role="radiogroup" aria-label="Video format"></div>
+                                </div>
+                                <div id="audioGroup" class="format-group">
+                                    <h2 class="format-heading">Audio</h2>
+                                    <p id="audioNote" class="helper-text" hidden>The selected video format already contains audio.</p>
+                                    <div id="audioFormats" class="format-list" role="radiogroup" aria-label="Audio format"></div>
+                                </div>
+                                <p class="format-summary">Format <code id="formatSummary"></code> <span id="formatSummaryText"></span></p>
+                                <p class="helper-text">Sizes are rough estimates for the selected range.</p>
+                            </div>
+                        </div>
+                    </details>
+                </fieldset>
+
+                <button id="clipButton" class="button button-primary" type="submit">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="6" cy="6" r="3" /><circle cx="6" cy="18" r="3" />
+                        <path d="M20 4L8.12 15.88M14.47 14.48L20 20M8.12 8.12L12 12" />
+                    </svg>
+                    <span id="clipButtonLabel">Create clip</span>
+                </button>
+            </div>
+
+            <section id="job" class="job" data-state="idle" aria-live="polite" hidden>
+                <div class="job-row">
+                    <span class="job-icon" aria-hidden="true"></span>
+                    <div class="job-text">
+                        <p id="jobTitle" class="job-title"></p>
+                        <p id="jobDetail" class="job-detail"></p>
+                    </div>
+                </div>
+                <a id="downloadButton" class="button button-primary" href="#" download hidden>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M12 3v12M7 10l5 5 5-5M5 21h14" />
+                    </svg>
+                    Download clip
+                </a>
+            </section>
+        </form>
+
+        <p class="footnote">Only the selected part is downloaded. Clips are deleted from the server after a while.</p>
+    </main>
 </body>
 </html>
