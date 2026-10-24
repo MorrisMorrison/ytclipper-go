@@ -18,6 +18,13 @@ func TestToSeconds(t *testing.T) {
 		{"invalid", 0, true},
 		{"00:xx:30", 0, true},
 		{"1:30:60", 0, true}, // Invalid seconds
+		{"xx:00:00", 0, true},
+		{"00:60:00", 0, true},
+		{"60:00", 0, true},
+		{"1:xx", 0, true},
+		{"60", 0, true},
+		{"1:00:00:00", 0, true},
+		{"100:00:00", 360000, false},
 	}
 
 	for _, test := range tests {
