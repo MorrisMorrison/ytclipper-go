@@ -1,4 +1,4 @@
-.PHONY: run build test fmt fmt-check lint check e2e e2e-real docker-build docker-run docker-stop compose-up compose-down compose-logs
+.PHONY: run build test fmt fmt-check lint check e2e screenshots docker-build docker-run docker-stop compose-up compose-down compose-logs
 
 run:
 	go run .
@@ -17,18 +17,22 @@ fmt-check:
 
 lint:
 	go vet ./...
+	go vet -tags e2e ./test/e2e/
 
 # Everything CI checks before the e2e suite.
 check: fmt-check lint test build
 
-# E2E against a server that is already running (CI and the e2e-with-stub skill
-# put the yt-dlp stub on PATH first).
+# Browser e2e suite (needs Chrome). Builds the app and the fake yt-dlp and
+# ffmpeg (test/fakes), starts its own servers and stops them. To test a
+# server you started yourself, set E2E_BASE_URL.
 e2e:
-	E2E_DOWNLOAD_TIMEOUT=20 E2E_EXPECT_FAILURE=false go run test/e2e.go
+	go test -tags e2e -count=1 ./test/e2e/
 
-# E2E against real YouTube, where downloads may legitimately fail.
-e2e-real:
-	E2E_DOWNLOAD_TIMEOUT=60 E2E_EXPECT_FAILURE=true go run test/e2e.go
+# Renders the README images into $(SCREENSHOTS_DIR)/docs/screenshot-{light,dark}.png.
+# Unlike the e2e suite, the browser may reach YouTube, so the real player shows.
+SCREENSHOTS_DIR ?= $(CURDIR)
+screenshots:
+	E2E_SCREENSHOTS="$(SCREENSHOTS_DIR)" go test -tags e2e -count=1 -v -run TestScreenshots ./test/e2e/
 
 docker-build:
 	docker build -t ytclipper:latest .

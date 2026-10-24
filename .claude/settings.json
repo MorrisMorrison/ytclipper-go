@@ -7,6 +7,7 @@
       "Bash(gofmt:*)",
       "Bash(go mod tidy)",
       "Bash(make check)",
+      "Bash(make e2e)",
       "Bash(git status:*)",
       "Bash(git diff:*)",
       "Bash(git log:*)",
