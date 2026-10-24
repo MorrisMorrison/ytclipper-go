@@ -18,6 +18,4 @@ func RegisterRoutes(e *echo.Echo) {
 	e.GET("/api/v1/jobs/:id", api.GetJob)
 
 	e.GET("/api/v1/video/info", api.GetVideoInfo)
-	e.GET("/api/v1/video/duration", api.GetVideoDuration)
-	e.GET("/api/v1/video/formats", api.GetAvailableFormats)
 }

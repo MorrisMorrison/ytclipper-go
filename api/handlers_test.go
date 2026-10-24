@@ -11,7 +11,6 @@ import (
 	"testing"
 	"ytclipper-go/config"
 	"ytclipper-go/jobs"
-	"ytclipper-go/videoprocessing"
 
 	"github.com/labstack/echo/v4"
 )
@@ -87,31 +86,6 @@ func TestGetVideoInfoRejectsInvalidURL(t *testing.T) {
 	rec := serve(t, http.MethodGet, "/api/v1/video/info?youtubeUrl=https://vimeo.com/1", "")
 	if rec.Code != http.StatusBadRequest || decode(t, rec)["error"] != "Invalid YouTube URL" {
 		t.Errorf("got %d %s", rec.Code, rec.Body)
-	}
-}
-
-func TestToLegacyFormat(t *testing.T) {
-	tests := []struct {
-		in   videoprocessing.Format
-		want legacyFormat
-	}{
-		{
-			videoprocessing.Format{ID: "140", Ext: "m4a", Kind: "audio", ACodec: "mp4a.40.2", TBR: 129.5, Note: "medium"},
-			legacyFormat{ID: "140", Extension: "m4a", Label: "audio only", Codec: "mp4a.40.2", Bitrate: "130k", FormatType: "audio only", Additional: "medium"},
-		},
-		{
-			videoprocessing.Format{ID: "136", Ext: "mp4", Kind: "video", Width: 1280, Height: 720, VCodec: "avc1.4d401f", Note: "720p"},
-			legacyFormat{ID: "136", Extension: "mp4", Label: "1280x720", Codec: "avc1.4d401f", Bitrate: "N/A", FormatType: "video only", Additional: "720p"},
-		},
-		{
-			videoprocessing.Format{ID: "18", Ext: "mp4", Kind: "both", Width: 640, Height: 360, VCodec: "avc1.42001E", ACodec: "mp4a.40.2", TBR: 492.5, Note: "360p"},
-			legacyFormat{ID: "18", Extension: "mp4", Label: "640x360", Codec: "avc1.42001E", Bitrate: "492k", FormatType: "audio and video", Additional: "360p"},
-		},
-	}
-	for _, tt := range tests {
-		if got := toLegacyFormat(tt.in); got != tt.want {
-			t.Errorf("toLegacyFormat(%s) = %+v; want %+v", tt.in.ID, got, tt.want)
-		}
 	}
 }
 

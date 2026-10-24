@@ -2,19 +2,20 @@
 
 [![CI](https://github.com/MorrisMorrison/ytclipper-go/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/MorrisMorrison/ytclipper-go/actions/workflows/ci.yml)
 
-Cut a clip out of any YouTube video and download it. Paste a link, pick a format and a time range, get a file.
+Cut a clip out of any YouTube video and download it. Paste a link, drag the range, get a file.
 
 ytclipper is a small self-hostable web app: a Go server with a plain HTML/JS page in front of [yt-dlp](https://github.com/yt-dlp/yt-dlp) and [FFmpeg](https://ffmpeg.org/). Only the selected section is downloaded, not the whole video. No database, no accounts; clips are deleted automatically after a while.
 
 <img width="2513" height="1197" alt="ytclipper screenshot" src="https://github.com/user-attachments/assets/9480ccbb-a7ec-4407-9428-317c7d3702bb" />
 
 ## Features
-- Clip any section of a YouTube video by start and end time (`34`, `1:28` or `1:09:24`).
-- One click for a video (H.264/AAC MP4) or audio (MP3) clip, or pick any format YouTube offers.
+- The YouTube player loads as soon as you paste a link; nothing waits on the server.
+- Pick the range with a two-handle slider under the player (drag, or arrow keys), by typing times (`34`, `1:28` or `1:09:24`), or with "Now" buttons that take the player's current time. **Preview selection** plays just that range.
+- One click for a video (H.264/AAC MP4) or audio (MP3) clip. **Advanced** lists every format YouTube offers (resolution, fps, codec, estimated clip size) so you can combine a video and an audio stream yourself.
 - Downloads get a readable name: `<title> [from - to].<ext>`.
-- Preview the video in the page before clipping.
-- Clips are processed as background jobs; the download starts when the job is done.
-- Light and dark theme.
+- Clips are processed as background jobs; the page shows their progress and starts the download when the job is done.
+- Works on phones; light and dark theme (follows the system until you pick one).
+- The page is plain HTML, CSS and ES modules: no framework, no build step.
 - For self-hosting: per-IP rate limiting, optional basic auth, automatic cleanup of old clips, a `/health` endpoint, and an optional proxy for yt-dlp.
 
 ## Quick start
@@ -92,8 +93,6 @@ The page uses a small JSON API, which you can also call directly. The `http/` fo
 | `POST` | `/api/v1/clip` | Start a clip job; returns the job id as plain text (201) |
 | `GET` | `/api/v1/jobs/{id}` | Job state as JSON; `fileName` and `downloadUrl` once completed |
 | `GET` | `/api/v1/clip?jobId=…` | Download the finished clip as `<title> [h-mm-ss - h-mm-ss].<ext>` |
-| `GET` | `/api/v1/video/formats?youtubeUrl=…` | Legacy: formats in the old page's shape |
-| `GET` | `/api/v1/video/duration?youtubeUrl=…` | Legacy: video length in seconds |
 | `GET` | `/api/v1/jobs/status?jobId=…` | Legacy: job state as status code (201 running, 200 done, 500 failed) |
 | `GET` | `/health` | Health check (never behind auth) |
 

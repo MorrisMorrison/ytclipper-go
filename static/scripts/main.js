@@ -616,7 +616,6 @@ function completeJob(job) {
     el.downloadButton.download = job.fileName || "";
     showJob("completed", "Your clip is ready", job.fileName || "");
     setBusy(false);
-    toast("Clip ready. The download should start by itself.", { type: "success" });
     startDownload(url, job.fileName);
 }
 
