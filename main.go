@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -45,7 +47,50 @@ func redactProxy(proxy string) string {
 	return u.String()
 }
 
-func newServer() *echo.Echo {
+// newIPExtractor decides where the client IP (used by the rate limiter and
+// the logs) comes from. Without trusted proxies it is the connection's remote
+// address, so a client cannot pick its own rate limit bucket by sending
+// X-Forwarded-For. With trusted proxies (IPs or CIDRs), X-Forwarded-For is
+// followed back through those proxies, and only those.
+func newIPExtractor(trustedProxies []string) (echo.IPExtractor, error) {
+	if len(trustedProxies) == 0 {
+		return echo.ExtractIPDirect(), nil
+	}
+
+	options := []echo.TrustOption{
+		// Trust exactly the configured proxies, not echo's defaults
+		// (loopback, link-local and private networks).
+		echo.TrustLoopback(false),
+		echo.TrustLinkLocal(false),
+		echo.TrustPrivateNet(false),
+	}
+	for _, p := range trustedProxies {
+		ipNet, err := parseIPOrCIDR(p)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", config.CONFIG_KEY_TRUSTED_PROXIES, err)
+		}
+		options = append(options, echo.TrustIPRange(ipNet))
+	}
+	return echo.ExtractIPFromXFFHeader(options...), nil
+}
+
+func parseIPOrCIDR(s string) (*net.IPNet, error) {
+	if strings.Contains(s, "/") {
+		_, ipNet, err := net.ParseCIDR(s)
+		return ipNet, err
+	}
+	ip := net.ParseIP(s)
+	if ip == nil {
+		return nil, fmt.Errorf("invalid IP or CIDR %q", s)
+	}
+	bits := 128
+	if ip4 := ip.To4(); ip4 != nil {
+		ip, bits = ip4, 32
+	}
+	return &net.IPNet{IP: ip, Mask: net.CIDRMask(bits, bits)}, nil
+}
+
+func newServer() (*echo.Echo, error) {
 	e := echo.New()
 	e.HideBanner = true
 
@@ -53,10 +98,20 @@ func newServer() *echo.Echo {
 	e.Debug = config.CONFIG.Debug
 	e.Logger.SetOutput(os.Stdout)
 
+	ipExtractor, err := newIPExtractor(config.CONFIG.TrustedProxies)
+	if err != nil {
+		return nil, err
+	}
+	e.IPExtractor = ipExtractor
+	if len(config.CONFIG.TrustedProxies) > 0 {
+		glogger.Log.Infof("Trusted proxies: %s", strings.Join(config.CONFIG.TrustedProxies, ", "))
+	}
+
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
-	e.Use(custommiddleware.BasicAuthMiddleware())
 
+	// The rate limiter runs before basic auth, so failed logins are limited
+	// too.
 	limiterStore := middleware.NewRateLimiterMemoryStoreWithConfig(middleware.RateLimiterMemoryStoreConfig{
 		Rate:      rate.Limit(config.CONFIG.RateLimiterConfig.Rate),
 		Burst:     config.CONFIG.RateLimiterConfig.Burst,
@@ -66,16 +121,19 @@ func newServer() *echo.Echo {
 		// Only rate-limit the expensive endpoints, never static assets: a single
 		// page load pulls several static files, which would otherwise burn the
 		// per-IP budget (and break the e2e, where every test shares one IP).
+		// Health checks are not limited either.
 		Skipper: func(c echo.Context) bool {
-			return strings.HasPrefix(c.Request().URL.Path, "/static")
+			path := c.Request().URL.Path
+			return strings.HasPrefix(path, "/static") || path == "/health"
 		},
 		Store: limiterStore,
 	}))
+	e.Use(custommiddleware.BasicAuthMiddleware())
 
 	e.Static("/static", "static")
 	routes.RegisterRoutes(e)
 
-	return e
+	return e, nil
 }
 
 func main() {
@@ -87,7 +145,10 @@ func main() {
 	}
 
 	scheduler.StartClipCleanUpScheduler()
-	e := newServer()
+	e, err := newServer()
+	if err != nil {
+		log.Fatalf("Invalid configuration: %v", err)
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

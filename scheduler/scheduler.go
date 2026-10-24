@@ -10,8 +10,16 @@ import (
 	"github.com/MorrisMorrison/gutils/glogger"
 )
 
+// queuedJobTimeout is how long a job may wait for a worker before cleanup
+// fails it.
+const queuedJobTimeout = 30 * time.Minute
+
+// QueuedJobTimeoutMessage is the error of a job that never got a worker.
+const QueuedJobTimeoutMessage = "The server was too busy to start the clip. Try again later."
+
 // StartClipCleanUpScheduler periodically deletes clips and finished jobs that
-// are older than the configured retention.
+// are older than the configured retention, and fails jobs that waited in the
+// queue for too long.
 func StartClipCleanUpScheduler() {
 	cfg := config.CONFIG.ClipCleanUpSchedulerConfig
 	if !cfg.IsEnabled {
@@ -26,6 +34,9 @@ func StartClipCleanUpScheduler() {
 	ticker := time.NewTicker(interval)
 	go func() {
 		for range ticker.C {
+			for _, id := range jobs.FailQueuedBefore(time.Now().Add(-queuedJobTimeout), QueuedJobTimeoutMessage) {
+				glogger.Log.Infof("Job %s failed: still queued after %v", id, queuedJobTimeout)
+			}
 			cutoff := time.Now().Add(-retention)
 			cleanUpOldClips(cutoff, cfg.ClipDirectoryPath)
 			for _, id := range jobs.RemoveFinishedBefore(cutoff) {

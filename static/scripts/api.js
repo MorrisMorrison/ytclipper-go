@@ -1,108 +1,58 @@
-import { hideProgressBar, enableClipButton, showDownloadLink } from './ui.js';
+// Thin wrappers around the JSON API. Every failure becomes an ApiError with a
+// message that can be shown to the user as is.
 
-// Function to create request options
-function createRequestOptions(options = {}) {
-    return {
-        ...options,
-        headers: {
-            ...options.headers,
-        }
-    };
+export class ApiError extends Error {
+    constructor(message, status = 0) {
+        super(message);
+        this.status = status;
+    }
 }
 
-export async function fetchAndPopulateFormats(url, dropdown) {
-    dropdown.disabled = true;
-    dropdown.innerHTML = '<option value="">Loading formats...</option>';
-            toastr.success(
-          "This may take a few seconds.",
-          "Fetching available formats."
-        )
+async function send(url, options) {
     try {
-        const requestOptions = createRequestOptions();
-        const response = await fetch(`/api/v1/video/formats?youtubeUrl=${encodeURIComponent(url)}`, requestOptions);
-        if (!response.ok) throw new Error(await response.text());
-
-        const formats = await response.json();
-        populateDropdown(formats, dropdown);
-    } catch (err) {
-        dropdown.innerHTML = '<option value="">Error loading formats</option>';
-        throw err;
+        return await fetch(url, options);
+    } catch {
+        throw new ApiError("Can't reach the server. Check your connection and try again.");
     }
 }
 
-export async function getVideoDuration(youtubeUrl) {
-    const url = `/api/v1/video/duration?youtubeUrl=${encodeURIComponent(youtubeUrl)}`;
-    const requestOptions = createRequestOptions();
-    const response = await fetch(url, requestOptions);
-    if (response.ok) return await response.text();
-    throw new Error('Failed to fetch video duration');
+async function errorFrom(response) {
+    let body = null;
+    try {
+        body = await response.json();
+    } catch {
+        // not JSON
+    }
+    // Handlers send {"error"}; Echo's rate limiter sends {"message": "rate limit exceeded"}.
+    let message = body?.error || "";
+    if (!message && response.status === 429) message = "Too many requests. Wait a moment and try again.";
+    if (!message) message = body?.message || "";
+    return new ApiError(message || `Request failed (HTTP ${response.status}).`, response.status);
 }
 
-function populateDropdown(formats, dropdown) {
-    dropdown.innerHTML = "";
-    const groups = {
-        "Audio Only": formats.filter(f => f.formatType === "audio only"),
-        "Video Only": formats.filter(f => f.formatType === "video only"),
-        "Audio and Video": formats.filter(f => f.formatType === "audio and video"),
-    };
-
-    for (const [label, items] of Object.entries(groups)) {
-        if (items.length === 0) continue;
-        const group = document.createElement("optgroup");
-        group.label = label;
-        items.forEach(format => {
-            const option = document.createElement("option");
-            option.value = format.id;
-            option.textContent = `${format.label} (${format.extension}, ${format.codec || 'N/A'}, ${format.bitrate || 'N/A'})`;
-            group.appendChild(option);
-        });
-        dropdown.appendChild(group);
-    }
-    dropdown.disabled = false;
+// getVideoInfo → { id, title, uploader, duration, thumbnail, formats: [...] }
+export async function getVideoInfo(youtubeUrl) {
+    const response = await send(`/api/v1/video/info?youtubeUrl=${encodeURIComponent(youtubeUrl)}`);
+    if (!response.ok) throw await errorFrom(response);
+    return response.json();
 }
 
-export async function getJobStatus(jobId){
-  const url = window.location.href + "api/v1/jobs/status?jobId=" + jobId;
-  try {
-    const res = await fetch(url, { method: "GET" });
-    switch (res.status) {
-      case 200:
-        const result = await res.text();
-        hideProgressBar();
-        const downloadUrl = "/api/v1/clip?jobId=" + jobId;
-        showDownloadLink(downloadUrl);
-        window.open(downloadUrl);
-        enableClipButton();
-        break;
-      case 201:
-        setTimeout(() => getJobStatus(jobId), 2000);
-        break;
-      case 408:
-        toastr.error(
-          "The download timed out. Please try again in a few minutes or use the contact form.",
-          "Download Timeout"
-        );
-        enableClipButton();
-        hideProgressBar();
-        break;
-      case 500:
-        toastr.error(
-          "An error occurred when downloading the clip. Please try again in a few minutes or use the contact form.",
-          "Download Error"
-        );
-        enableClipButton();
-        hideProgressBar();
-        break;
-      default:
-        toastr.error(
-          "An error occurred when retrieving the job status. Please try again in a few minutes or use the contact form.",
-          "Unknown Error"
-        );
-        enableClipButton();
-        break;
-    }
-  } catch (error) {
-    console.error("CLIENT - GETJOBSTATUS - An error occurred:", error);
-    enableClipButton();
-  }
-};
+// createClip posts { url, from, to, preset | format } and returns the job id.
+export async function createClip(payload) {
+    const response = await send("/api/v1/clip", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    if (!response.ok) throw await errorFrom(response);
+    const jobId = (await response.text()).trim();
+    if (!jobId) throw new ApiError("The server did not return a job.");
+    return jobId;
+}
+
+// getJob → { id, status, error, fileName, downloadUrl }
+export async function getJob(jobId) {
+    const response = await send(`/api/v1/jobs/${encodeURIComponent(jobId)}`, { cache: "no-store" });
+    if (!response.ok) throw await errorFrom(response);
+    return response.json();
+}

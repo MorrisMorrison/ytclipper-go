@@ -2,69 +2,28 @@ package api
 
 import (
 	"net/http"
-	"ytclipper-go/utils"
 	"ytclipper-go/videoprocessing"
 
 	"github.com/labstack/echo/v4"
 )
 
-func GetVideoDuration(c echo.Context) error {
-	url := c.QueryParam("youtubeUrl")
-	if url == "" {
-		c.Logger().Errorf("Url is required")
+// GetVideoInfo returns title, duration, thumbnail and formats of the video in
+// the youtubeUrl query parameter (cached per video ID).
+func GetVideoInfo(c echo.Context) error {
+	rawURL := c.QueryParam("youtubeUrl")
+	if rawURL == "" {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "URL is required"})
 	}
 
-	url, ok := canonicalYoutubeURL(url)
+	videoID, ok := extractVideoID(rawURL)
 	if !ok {
-		c.Logger().Errorf("Invalid Youtube URL: %s", c.QueryParam("youtubeUrl"))
+		c.Logger().Errorf("Invalid Youtube URL: %s", rawURL)
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid YouTube URL"})
 	}
 
-	duration, err := videoprocessing.GetVideoDuration(url)
+	info, err := videoprocessing.GetVideoInfo(videoID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "Failed to get video duration",
-		})
+		return c.JSON(http.StatusBadGateway, map[string]string{"error": err.Error()})
 	}
-
-	if duration == "" {
-		c.Logger().Error("Could not extract duration from yt-dlp output")
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "Could not extract duration from yt-dlp output",
-		})
-	}
-
-	totalSeconds, err := utils.ToSeconds(duration)
-	if err != nil {
-		c.Logger().Error("Could not calculate total seconds")
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "Could not calculate total seconds",
-		})
-	}
-
-	return c.JSON(http.StatusOK, totalSeconds)
-}
-
-func GetAvailableFormats(c echo.Context) error {
-	url := c.QueryParam("youtubeUrl")
-	if url == "" {
-		c.Logger().Errorf("Url is required")
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "URL is required"})
-	}
-
-	url, ok := canonicalYoutubeURL(url)
-	if !ok {
-		c.Logger().Errorf("Invalid Youtube URL: %s", c.QueryParam("youtubeUrl"))
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid YouTube URL"})
-	}
-
-	formats, err := videoprocessing.GetAvailableFormats(url)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "Failed to fetch formats",
-		})
-	}
-
-	return c.JSON(http.StatusOK, formats)
+	return c.JSON(http.StatusOK, info)
 }

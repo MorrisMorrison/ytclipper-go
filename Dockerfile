@@ -12,7 +12,7 @@ RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/ytclipper-go .
 FROM debian:bookworm-slim
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends ca-certificates curl unzip ffmpeg python3 python3-pip && \
+    apt-get install -y --no-install-recommends ca-certificates curl unzip ffmpeg python3 python3-pip tini && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # yt-dlp from PyPI: Debian's package lags behind YouTube changes. The latest
@@ -30,7 +30,12 @@ WORKDIR /app
 COPY --from=build /out/ytclipper-go ./ytclipper-go
 COPY templates ./templates
 COPY static ./static
-RUN mkdir -p /app/videos && chown ytclipper:ytclipper /app/videos
+RUN mkdir -p /app/videos /app/.cache && chown ytclipper:ytclipper /app/videos /app/.cache
+
+# /app itself is root-owned; yt-dlp and deno keep their caches (YouTube player
+# JS, challenge solver) in a directory the non-root user can write.
+ENV XDG_CACHE_HOME=/app/.cache \
+    DENO_DIR=/app/.cache/deno
 
 USER ytclipper
 EXPOSE 8080
@@ -38,4 +43,7 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
     CMD curl -fsS http://localhost:${YTCLIPPER_PORT:-8080}/health || exit 1
 
+# tini as PID 1 forwards signals and reaps orphaned processes (an ffmpeg left
+# behind by a killed yt-dlp).
+ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["./ytclipper-go"]
