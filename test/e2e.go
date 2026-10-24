@@ -1,28 +1,21 @@
-// E2E Tests for ytclipper-go
+// End-to-end tests for ytclipper-go.
 //
-// This enhanced test suite balances realistic testing with CI performance:
-// - Tests both success and failure scenarios
-// - Uses smart timeout detection for fast failures
-// - Maintains realistic expectations while being CI-friendly
-// - Tests timeout configuration and error handling
+// Drives a headless Chrome against a running server (CI puts the yt-dlp stub
+// test/ci/yt-dlp first on PATH, so the whole page → API → job → download flow
+// runs offline). The browser can't resolve YouTube hosts, so the player never
+// loads: the "player unavailable" path is what's tested, and the video length
+// always comes from the stub's /video/info (30 s). Every test types the times.
 //
-// Test Strategy:
-// - Basic Workflow: Tests full UI flow with adaptive timeout
-// - Fast Failure Detection: Tests quick error detection (15s timeout)
-// - Timeout Configuration: Tests backend response times
-// - Error Handling: Tests invalid inputs and error messages
-//
-// Environment Variables:
-// - E2E_DOWNLOAD_TIMEOUT: Timeout in seconds for download operations (default: 25)
-// - E2E_EXPECT_FAILURE: Whether to expect download failures (default: true)
-// - CI: Automatically detected CI environment (affects timeout behavior)
-// - YTCLIPPER_YT_DLP_COMMAND_TIMEOUT_IN_SECONDS: Backend timeout (affects test expectations)
+// Environment variables:
+//   - E2E_BASE_URL: server to test (default http://localhost:8080)
+//   - E2E_DOWNLOAD_TIMEOUT: seconds to wait for a clip job (default 25)
+//   - E2E_EXPECT_FAILURE: accept a job that ends in an error, for runs
+//     against real YouTube where downloads may be blocked (default false)
 //
 // Usage:
 //
-//	go run test/e2e.go                    # Run with defaults (balanced approach)
-//	E2E_DOWNLOAD_TIMEOUT=60 go run test/e2e.go   # Use longer timeout for real testing
-//	E2E_EXPECT_FAILURE=false go run test/e2e.go  # Expect downloads to succeed
+//	go run test/e2e.go
+//	E2E_DOWNLOAD_TIMEOUT=60 E2E_EXPECT_FAILURE=true go run test/e2e.go
 package main
 
 import (
@@ -34,57 +27,53 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chromedp/cdproto/browser"
 	"github.com/chromedp/chromedp"
+	"github.com/chromedp/chromedp/kb"
 )
 
 const (
-	baseURL                = "http://localhost:8080"
-	urlInputSelector       = chromedp.CSS(`#url`)
-	formatSelectSelector   = chromedp.CSS(`#formatSelect`)
-	fromInputSelector      = chromedp.CSS(`#from`)
-	toInputSelector        = chromedp.CSS(`#to`)
-	clipButtonSelector     = chromedp.CSS(`#clipButton`)
-	downloadLinkWrapperSel = chromedp.CSS(`#downloadLinkWrapper`)
-	downloadLinkSelector   = chromedp.CSS(`#downloadLink`)
-	errorMessageSelector   = chromedp.CSS(`.toast-error`)
+	defaultBaseURL = "http://localhost:8080"
 
-	validYouTubeURL      = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-	invalidYouTubeURL    = "invalid-url"
-	fromInvalidTimestamp = "1231:111"
-	toInvalidTimestamp   = "111"
-	validFromTimestamp   = "10"
-	validToTimestamp     = "20"
-	validFormatValue     = "136"
+	urlInput       = chromedp.CSS(`#url`)
+	urlError       = chromedp.CSS(`#urlError`)
+	editor         = chromedp.CSS(`#editor`)
+	fromInput      = chromedp.CSS(`#from`)
+	toInput        = chromedp.CSS(`#to`)
+	timeError      = chromedp.CSS(`#timeError`)
+	presetAudio    = chromedp.CSS(`#presetAudio`)
+	advancedToggle = chromedp.CSS(`#advanced summary`)
+	videoFormat136 = chromedp.CSS(`#videoFormats input[value="136"]`)
+	videoFormat18  = chromedp.CSS(`#videoFormats input[value="18"]`)
+	audioFormat251 = chromedp.CSS(`#audioFormats input[value="251"]`)
+	formatSummary  = chromedp.CSS(`#formatSummary`)
+	clipButton     = chromedp.CSS(`#clipButton`)
+	downloadButton = chromedp.CSS(`#downloadButton`)
+	jobDetail      = chromedp.CSS(`#jobDetail`)
 
-	// Test configuration - realistic timeouts with fast failure detection
-	defaultDownloadTimeoutSeconds = 25    // Shorter timeout for CI but realistic
-	ciQuickFailTimeoutSeconds     = 15    // Very fast timeout for known failure tests
-	defaultExpectDownloadFailure  = false // CI uses a yt-dlp stub, so downloads should succeed
+	validYouTubeURL   = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+	invalidYouTubeURL = "invalid-url"
+
+	defaultDownloadTimeoutSeconds = 25
 )
 
-// getDownloadTimeoutSeconds returns the timeout from environment or default
-func getDownloadTimeoutSeconds() int {
-	if timeoutStr := os.Getenv("E2E_DOWNLOAD_TIMEOUT"); timeoutStr != "" {
-		if timeout, err := strconv.Atoi(timeoutStr); err == nil {
-			return timeout
-		}
+func baseURL() string {
+	if v := os.Getenv("E2E_BASE_URL"); v != "" {
+		return strings.TrimRight(v, "/")
 	}
-	return defaultDownloadTimeoutSeconds
+	return defaultBaseURL
 }
 
-// expectDownloadFailure returns whether to expect download failures from environment or default
+func downloadTimeout() time.Duration {
+	if v, err := strconv.Atoi(os.Getenv("E2E_DOWNLOAD_TIMEOUT")); err == nil && v > 0 {
+		return time.Duration(v) * time.Second
+	}
+	return defaultDownloadTimeoutSeconds * time.Second
+}
+
 func expectDownloadFailure() bool {
-	if expectStr := os.Getenv("E2E_EXPECT_FAILURE"); expectStr != "" {
-		if expect, err := strconv.ParseBool(expectStr); err == nil {
-			return expect
-		}
-	}
-	return defaultExpectDownloadFailure
-}
-
-// isCIEnvironment checks if we're running in a CI environment
-func isCIEnvironment() bool {
-	return os.Getenv("CI") != "" || os.Getenv("GITHUB_ACTIONS") != "" || os.Getenv("GITLAB_CI") != ""
+	v, err := strconv.ParseBool(os.Getenv("E2E_EXPECT_FAILURE"))
+	return err == nil && v
 }
 
 type Test struct {
@@ -94,23 +83,22 @@ type Test struct {
 
 func main() {
 	tests := []Test{
-		{Name: "Basic Workflow Test", Run: testBasicWorkflow},
-		{Name: "Invalid Timestamps Test", Run: testInvalidTimestamps},
-		{Name: "Timeout Configuration Test", Run: testTimeoutConfiguration},
+		{Name: "Simple mode: video clip", Run: testVideoClip},
+		{Name: "Simple mode: audio preset", Run: testAudioClip},
+		{Name: "Advanced mode: chosen formats", Run: testAdvancedClip},
+		{Name: "Invalid URL shows an error", Run: testInvalidURL},
+		{Name: "End before start is rejected", Run: testEndBeforeStart},
 	}
 
-	var failedTests int
+	failed := 0
 	for _, test := range tests {
-		// Each test runs in its own function so its Chrome allocator/context are
-		// torn down (via defer) BEFORE the next test starts. Running the loop body
-		// inline leaked a Chrome instance per iteration, starving later tests.
+		// Each test gets its own browser, torn down before the next one starts.
 		if err := runTest(test); err != nil {
-			failedTests++
+			failed++
 		}
 	}
-
-	if failedTests > 0 {
-		log.Printf("%d test(s) failed", failedTests)
+	if failed > 0 {
+		log.Printf("%d test(s) failed", failed)
 		os.Exit(1)
 	}
 	log.Println("All tests passed")
@@ -119,34 +107,24 @@ func main() {
 func runTest(test Test) error {
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
 		chromedp.Headless,
-		// The first Chrome launch in CI is a cold start and can exceed the default
-		// 20s websocket timeout; give it generous headroom.
-		chromedp.WSURLReadTimeout(45*time.Second),
 		chromedp.DisableGPU,
 		chromedp.NoSandbox,
 		chromedp.Flag("disable-dev-shm-usage", true),
-		chromedp.Flag("ignore-certificate-errors", true),
-		chromedp.Flag("disable-web-security", true),
-		chromedp.Flag("disable-features", "VizDisplayCompositor,PrivateNetworkAccessSendPreflights,PrivateNetworkAccessRespectPreflightResults"),
 		chromedp.Flag("disable-background-timer-throttling", true),
 		chromedp.Flag("disable-backgrounding-occluded-windows", true),
 		chromedp.Flag("disable-renderer-backgrounding", true),
-		chromedp.Flag("disable-field-trial-config", true),
-		chromedp.Flag("disable-ipc-flooding-protection", true),
+		chromedp.WindowSize(1280, 1000),
+		// No YouTube player or thumbnails: keeps runs offline and deterministic.
+		chromedp.Flag("host-resolver-rules", "MAP youtube.com ~NOTFOUND, MAP *.youtube.com ~NOTFOUND, "+
+			"MAP youtube-nocookie.com ~NOTFOUND, MAP *.youtube-nocookie.com ~NOTFOUND, MAP *.ytimg.com ~NOTFOUND"),
 	)
-
-	log.Printf("Starting Chrome context with options for test: %s", test.Name)
 	allocCtx, cancelAlloc := chromedp.NewExecAllocator(context.Background(), opts...)
 	defer cancelAlloc()
 
-	// Create context with error logging suppression for known chromedp issues
-	ctx, cancel := chromedp.NewContext(allocCtx, chromedp.WithLogf(func(s string, i ...any) {
-		// Suppress known chromedp protocol errors that don't affect functionality
-		msg := fmt.Sprintf(s, i...)
-		if strings.Contains(msg, "PrivateNetworkRequestPolicy") ||
-			strings.Contains(msg, "PermissionWarn") ||
-			strings.Contains(msg, "could not unmarshal event") {
-			return // Suppress these specific errors
+	ctx, cancel := chromedp.NewContext(allocCtx, chromedp.WithLogf(func(format string, args ...any) {
+		msg := fmt.Sprintf(format, args...)
+		if strings.Contains(msg, "could not unmarshal event") {
+			return
 		}
 		log.Printf("Chrome: %s", msg)
 	}))
@@ -155,269 +133,334 @@ func runTest(test Test) error {
 	testCtx, cancelTest := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancelTest()
 
-	log.Printf("Running test: %s", test.Name)
-	startTime := time.Now()
-	err := test.Run(testCtx)
-	duration := time.Since(startTime)
+	// The page starts the download on its own when a clip is ready; don't
+	// write files from the test run.
+	if err := chromedp.Do(testCtx); err != nil {
+		log.Printf("Test '%s' failed: starting Chrome: %v", test.Name, err)
+		return err
+	}
+	if _, err := chromedp.CallBrowser(testCtx, browser.SetDownloadBehavior, browser.SetDownloadBehaviorParams{
+		Behavior: browser.SetDownloadBehaviorBehaviorDeny,
+	}); err != nil {
+		log.Printf("could not disable downloads (continuing): %v", err)
+	}
 
+	log.Printf("Running test: %s", test.Name)
+	start := time.Now()
+	err := test.Run(testCtx)
 	if err != nil {
-		log.Printf("Test '%s' failed after %v: %v", test.Name, duration, err)
-		if testCtx.Err() == context.DeadlineExceeded {
-			log.Printf("  → Test timed out")
+		log.Printf("Test '%s' failed after %v: %v", test.Name, time.Since(start), err)
+		return err
+	}
+	log.Printf("Test '%s' passed in %v", test.Name, time.Since(start))
+	return nil
+}
+
+// ===== helpers =====
+
+// openVideo loads the page and pastes a link; the editor appears without any
+// server round trip.
+func openVideo(ctx context.Context) error {
+	if err := chromedp.Do(ctx,
+		chromedp.Navigate(baseURL()),
+		chromedp.WaitVisible(urlInput),
+		chromedp.SendKeys(urlInput, validYouTubeURL),
+		chromedp.WaitVisible(editor),
+		recordClipRequests,
+	); err != nil {
+		return fmt.Errorf("editor did not appear after entering a URL (is the server running on %s?): %w", baseURL(), err)
+	}
+	// Give the background video info call a moment to set the duration, so it
+	// doesn't land while we type. Not required: the page works without it.
+	waitCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	if _, err := chromedp.Run(waitCtx, chromedp.Poll[bool](`document.getElementById("trimmer").dataset.ready === "true"`,
+		chromedp.WithPollingInterval(200*time.Millisecond), chromedp.WithPollingTimeout(10*time.Second))); err != nil {
+		log.Println("video duration not known yet; continuing with typed times")
+	}
+	return nil
+}
+
+// recordClipRequests wraps fetch so tests can check what the page POSTed to
+// /api/v1/clip (window.__clipPosts).
+var recordClipRequests = chromedp.Evaluate[chromedp.Void](`(() => {
+	window.__clipPosts = [];
+	const original = window.fetch;
+	window.fetch = (url, options = {}) => {
+		if (String(url).endsWith("/api/v1/clip") && options.method === "POST") window.__clipPosts.push(JSON.parse(options.body));
+		return original(url, options);
+	};
+})()`)
+
+type clipPayload struct {
+	Preset string `json:"preset"`
+	Format string `json:"format"`
+	From   string `json:"from"`
+	To     string `json:"to"`
+}
+
+func clipPosts(ctx context.Context) ([]clipPayload, error) {
+	return chromedp.Run(ctx, chromedp.Evaluate[[]clipPayload](`window.__clipPosts || []`))
+}
+
+// lastClipPost returns the last /api/v1/clip payload the page sent.
+func lastClipPost(ctx context.Context) (clipPayload, error) {
+	posts, err := clipPosts(ctx)
+	if err != nil {
+		return clipPayload{}, err
+	}
+	if len(posts) == 0 {
+		return clipPayload{}, fmt.Errorf("the page sent no clip request")
+	}
+	return posts[len(posts)-1], nil
+}
+
+// enterTime focuses a time field, then replaces its value with real
+// keystrokes. Focusing first matters: the page doesn't rewrite a focused field
+// when the video length arrives.
+func enterTime(sel chromedp.CSS, value string) chromedp.Action[chromedp.Void] {
+	return chromedp.Steps(
+		chromedp.Focus(sel),
+		// SetValue refuses an empty string, so clear the field from script.
+		chromedp.Evaluate[chromedp.Void](fmt.Sprintf(`document.querySelector(%q).value = ""; undefined`, string(sel))),
+		chromedp.SendKeys(sel, value),
+	)
+}
+
+// typeTime enters a time and leaves the field, which commits it the way a
+// user does.
+func typeTime(sel chromedp.CSS, value string) chromedp.Action[chromedp.Void] {
+	return chromedp.Steps(enterTime(sel, value), chromedp.Blur(sel))
+}
+
+func setRange(ctx context.Context, from, to string) error {
+	if err := chromedp.Do(ctx, typeTime(fromInput, from), typeTime(toInput, to)); err != nil {
+		return fmt.Errorf("could not type the time range: %w", err)
+	}
+	return nil
+}
+
+func isHidden(ctx context.Context, id string) (bool, error) {
+	return chromedp.Run(ctx, chromedp.Evaluate[bool](fmt.Sprintf(`document.getElementById(%q).hidden`, id)))
+}
+
+// clipAndWait clicks "Create clip" and waits for the job to finish. It
+// returns the file name the server reported.
+func clipAndWait(ctx context.Context) (string, error) {
+	if err := chromedp.Do(ctx, chromedp.Click(clipButton)); err != nil {
+		return "", fmt.Errorf("could not click Create clip: %w", err)
+	}
+
+	waitCtx, cancel := context.WithTimeout(ctx, downloadTimeout())
+	defer cancel()
+	state, err := chromedp.Run(waitCtx, chromedp.Poll[string](
+		`(s => s === "completed" || s === "error" ? s : false)(document.getElementById("job").dataset.state)`,
+		chromedp.WithPollingInterval(250*time.Millisecond), chromedp.WithPollingTimeout(downloadTimeout())))
+	if err != nil {
+		return "", fmt.Errorf("job did not finish within %v: %w", downloadTimeout(), err)
+	}
+	detail, _ := chromedp.Run(ctx, chromedp.Text(jobDetail))
+
+	if state == "error" {
+		if expectDownloadFailure() {
+			log.Printf("job failed as allowed by E2E_EXPECT_FAILURE: %s", detail)
+			return "", nil
 		}
+		return "", fmt.Errorf("job failed: %s", detail)
+	}
+
+	if err := chromedp.Do(ctx, chromedp.WaitVisible(downloadButton)); err != nil {
+		return "", fmt.Errorf("download button not shown: %w", err)
+	}
+	href, err := chromedp.Run(ctx, chromedp.AttributeValue(downloadButton, "href"))
+	if err != nil || !strings.Contains(href.Value, "/api/v1/clip?jobId=") {
+		return "", fmt.Errorf("unexpected download link %q (%v)", href.Value, err)
+	}
+	log.Printf("clip ready: %s (%s)", detail, href.Value)
+	return detail, nil
+}
+
+func expectExtension(fileName, ext string) error {
+	if fileName == "" && expectDownloadFailure() {
+		return nil
+	}
+	if !strings.HasSuffix(strings.ToLower(fileName), ext) {
+		return fmt.Errorf("expected a %s file, got %q", ext, fileName)
+	}
+	return nil
+}
+
+// ===== tests =====
+
+func testVideoClip(ctx context.Context) error {
+	if err := openVideo(ctx); err != nil {
+		return err
+	}
+	// YouTube is unreachable here, so the page must say so and still know the
+	// length from /video/info.
+	if _, err := chromedp.Run(ctx, chromedp.Poll[bool](`document.querySelector(".player-frame").dataset.player === "unavailable"`,
+		chromedp.WithPollingTimeout(20*time.Second))); err != nil {
+		return fmt.Errorf("player-unavailable state not shown: %w", err)
+	}
+	length, err := chromedp.Run(ctx, chromedp.Text(chromedp.CSS(`#trimDuration`)))
+	if err != nil || length != "0:30" {
+		return fmt.Errorf("expected the stub's length 0:30 on the slider, got %q (%v)", length, err)
+	}
+	if err := setRange(ctx, "10", "20"); err != nil {
+		return err
+	}
+	fileName, err := clipAndWait(ctx)
+	if err != nil {
+		return err
+	}
+	post, err := lastClipPost(ctx)
+	if err != nil {
+		return err
+	}
+	if post.Preset != "video" || post.Format != "" || post.From != "00:00:10" || post.To != "00:00:20" {
+		return fmt.Errorf("unexpected clip request %+v", post)
+	}
+	return expectExtension(fileName, ".mp4")
+}
+
+func testAudioClip(ctx context.Context) error {
+	if err := openVideo(ctx); err != nil {
+		return err
+	}
+	if err := setRange(ctx, "0:05", "0:15"); err != nil {
+		return err
+	}
+	if err := chromedp.Do(ctx, chromedp.Click(presetAudio)); err != nil {
+		return fmt.Errorf("could not choose the audio preset: %w", err)
+	}
+	fileName, err := clipAndWait(ctx)
+	if err != nil {
+		return err
+	}
+	post, err := lastClipPost(ctx)
+	if err != nil {
+		return err
+	}
+	if post.Preset != "audio" || post.Format != "" {
+		return fmt.Errorf("expected the audio preset, sent %+v", post)
+	}
+	return expectExtension(fileName, ".mp3")
+}
+
+func expectSummary(ctx context.Context, want string) error {
+	got, err := chromedp.Run(ctx, chromedp.Text(formatSummary))
+	if err != nil {
+		return err
+	}
+	if got != want {
+		return fmt.Errorf("expected format %q, got %q", want, got)
+	}
+	return nil
+}
+
+func testAdvancedClip(ctx context.Context) error {
+	if err := openVideo(ctx); err != nil {
+		return err
+	}
+	if err := setRange(ctx, "10", "20"); err != nil {
+		return err
+	}
+	// The format list is only fetched when the panel is opened. Pick formats
+	// other than the defaults (137+140) so the choice must take effect.
+	if err := chromedp.Do(ctx,
+		chromedp.Click(advancedToggle),
+		chromedp.WaitReady(videoFormat136),
+		chromedp.Click(videoFormat136),
+		chromedp.Click(audioFormat251),
+	); err != nil {
+		return fmt.Errorf("advanced formats did not load: %w", err)
+	}
+	if err := expectSummary(ctx, "136+251"); err != nil {
 		return err
 	}
 
-	log.Printf("Test '%s' passed in %v", test.Name, duration)
+	// A format that already has audio is sent alone and disables the audio list.
+	if err := chromedp.Do(ctx, chromedp.Click(videoFormat18)); err != nil {
+		return err
+	}
+	if err := expectSummary(ctx, "18"); err != nil {
+		return err
+	}
+	disabled, err := chromedp.Run(ctx, chromedp.Evaluate[bool](
+		`[...document.querySelectorAll("#audioFormats input")].every(i => i.disabled)`))
+	if err != nil || !disabled {
+		return fmt.Errorf("audio list should be disabled for a format with audio (%v)", err)
+	}
+
+	if err := chromedp.Do(ctx, chromedp.Click(videoFormat136)); err != nil {
+		return err
+	}
+	if err := expectSummary(ctx, "136+251"); err != nil {
+		return err
+	}
+	if _, err := clipAndWait(ctx); err != nil {
+		return err
+	}
+	post, err := lastClipPost(ctx)
+	if err != nil {
+		return err
+	}
+	if post.Format != "136+251" || post.Preset != "" {
+		return fmt.Errorf("expected format 136+251 and no preset, sent %+v", post)
+	}
 	return nil
 }
 
-func testBasicWorkflow(ctx context.Context) error {
-	log.Printf("Navigating to %s", baseURL)
-	err := chromedp.Do(ctx,
-		// Step 1: Navigate to the app
-		chromedp.Navigate(baseURL),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to navigate to app: %w (ensure server is running on %s)", err, baseURL)
+func testInvalidURL(ctx context.Context) error {
+	if err := chromedp.Do(ctx,
+		chromedp.Navigate(baseURL()),
+		chromedp.WaitVisible(urlInput),
+		chromedp.SendKeys(urlInput, invalidYouTubeURL),
+		chromedp.Blur(urlInput),
+		chromedp.WaitVisible(urlError),
+	); err != nil {
+		return fmt.Errorf("no error shown for an invalid URL: %w", err)
 	}
-	log.Println("Successfully navigated to the app")
-
-	log.Printf("Filling YouTube URL: %s", validYouTubeURL)
-	err = chromedp.Do(ctx,
-		// Step 2: Fill the YouTube URL
-		chromedp.WaitVisible(urlInputSelector),
-		// Use SendKeys (real keystrokes) rather than SetValue: the URL field has a
-		// debounced `input` listener that loads formats, and SetValue does not
-		// reliably fire that event under chromedp.
-		chromedp.SendKeys(urlInputSelector, validYouTubeURL),
-	)
+	hidden, err := isHidden(ctx, "editor")
 	if err != nil {
-		return fmt.Errorf("failed to fill YouTube URL: %w", err)
+		return err
 	}
-	log.Println("YouTube URL entered")
-
-	log.Println("Waiting for format dropdown to be enabled")
-	err = chromedp.Do(ctx,
-		// Step 4: Wait for the dropdown to be enabled
-		chromedp.WaitReady(formatSelectSelector),
-		chromedp.WaitEnabled(formatSelectSelector),
-	)
-	if err != nil {
-		return fmt.Errorf("format dropdown not enabled: %w", err)
+	if !hidden {
+		return fmt.Errorf("editor is shown for an invalid URL")
 	}
-	log.Println("Format dropdown enabled")
-
-	log.Printf("Selecting video format: %s", validFormatValue)
-	err = chromedp.Do(ctx,
-		// Step 5: Select a format (e.g., the first available option)
-		chromedp.SetValue(formatSelectSelector, validFormatValue),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to select video format: %w", err)
-	}
-	log.Println("Video format selected")
-
-	log.Printf("Filling 'From' and 'To' inputs: from=%s, to=%s", validFromTimestamp, validToTimestamp)
-	err = chromedp.Do(ctx,
-		// Step 6: Fill the "From" and "To" inputs
-		chromedp.SendKeys(fromInputSelector, validFromTimestamp),
-		chromedp.SendKeys(toInputSelector, validToTimestamp),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to fill 'From' and 'To' inputs: %w", err)
-	}
-	log.Println("'From' and 'To' inputs filled")
-
-	log.Println("Clicking 'Clip!' button")
-	err = chromedp.Do(ctx,
-		// Step 7: Click the "Clip!" button
-		chromedp.Click(clipButtonSelector),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to click 'Clip!' button: %w", err)
-	}
-	log.Println("'Clip!' button clicked")
-
-	// Test UI flow completion - either success or error handling
-	return testClipProcessingResult(ctx)
-}
-
-func testInvalidTimestamps(ctx context.Context) error {
-	log.Printf("Navigating to %s", baseURL)
-	err := chromedp.Do(ctx,
-		// Step 1: Navigate to the app
-		chromedp.Navigate(baseURL),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to navigate to app: %w", err)
-	}
-	log.Println("Successfully navigated to the app")
-
-	log.Printf("Entering valid YouTube URL: %s", validYouTubeURL)
-	err = chromedp.Do(ctx,
-		// Step 2: Enter a valid YouTube URL
-		// Use SendKeys (real keystrokes) rather than SetValue: the URL field has a
-		// debounced `input` listener that loads formats, and SetValue does not
-		// reliably fire that event under chromedp.
-		chromedp.SendKeys(urlInputSelector, validYouTubeURL),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to enter YouTube URL: %w", err)
-	}
-	log.Println("Valid YouTube URL entered")
-
-	log.Println("Waiting for format dropdown to be enabled")
-	err = chromedp.Do(ctx,
-		chromedp.WaitReady(formatSelectSelector),
-		chromedp.WaitEnabled(formatSelectSelector),
-		chromedp.SetValue(formatSelectSelector, validFormatValue),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to select video format: %w", err)
-	}
-	log.Printf("Video format '%s' selected", validFormatValue)
-
-	log.Printf("Entering invalid timestamps: from=%s, to=%s", fromInvalidTimestamp, toInvalidTimestamp)
-	err = chromedp.Do(ctx,
-		// Step 3: Enter invalid "From" and "To" values
-		chromedp.SendKeys(fromInputSelector, fromInvalidTimestamp),
-		chromedp.SendKeys(toInputSelector, toInvalidTimestamp),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to enter timestamps: %w", err)
-	}
-	log.Println("Invalid timestamps entered")
-
-	log.Println("Clicking 'Clip' button")
-	err = chromedp.Do(ctx,
-		// Step 4: Attempt to clip
-		chromedp.Click(clipButtonSelector),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to click 'Clip' button: %w", err)
-	}
-	log.Println("'Clip' button clicked")
-
-	log.Println("Waiting for error message to appear")
-	err = chromedp.Do(ctx,
-		// Step 5: Check for error message
-		chromedp.WaitVisible(errorMessageSelector),
-	)
-	if err != nil {
-		return fmt.Errorf("error message did not appear: %w", err)
-	}
-	log.Println("Error message displayed as expected")
-
-	log.Printf("Invalid timestamps test passed")
 	return nil
 }
 
-// testClipProcessingResult waits for either success or error and verifies the UI handles it properly
-func testClipProcessingResult(ctx context.Context) error {
-	return testClipProcessingResultWithTimeout(ctx, getDownloadTimeoutSeconds())
-}
-
-// testClipProcessingResultWithTimeout allows custom timeout for different test scenarios
-func testClipProcessingResultWithTimeout(ctx context.Context, timeoutSeconds int) error {
-	log.Printf("Waiting for clip processing result (timeout: %d seconds)", timeoutSeconds)
-
-	// Create a timeout context for the processing result
-	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
-	defer cancel()
-
-	// For fast failure detection, we'll check for errors more frequently
-	checkInterval := 2 * time.Second
-	if timeoutSeconds <= ciQuickFailTimeoutSeconds {
-		checkInterval = 500 * time.Millisecond
+func testEndBeforeStart(ctx context.Context) error {
+	if err := openVideo(ctx); err != nil {
+		return err
 	}
-
-	// Wait for either success (download link) or error message with periodic checks
-	var downloadLink string
-	var errorText string
-
-	ticker := time.NewTicker(checkInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-timeoutCtx.Done():
-			if expectDownloadFailure() {
-				// Opt-in path for manual runs against real YouTube, where a
-				// timeout/block is expected. CI uses the yt-dlp stub and does not
-				// set this, so a timeout here is a real failure.
-				log.Printf("Test timed out after %d seconds - download failure was expected (E2E_EXPECT_FAILURE)", timeoutSeconds)
-				return nil
-			}
-			return fmt.Errorf("test timed out after %d seconds (no download link or error shown)", timeoutSeconds)
-
-		case <-ticker.C:
-			// Check for download link first
-			err := chromedp.Do(timeoutCtx, chromedp.WaitVisible(downloadLinkWrapperSel))
-			if err == nil {
-				var attr chromedp.AttributeResult
-				attr, err = chromedp.Run(timeoutCtx, chromedp.AttributeValue(downloadLinkSelector, "href"))
-				downloadLink = attr.Value
-			}
-			if err == nil && downloadLink != "" {
-				log.Printf("Success: Download link generated: %s", downloadLink)
-				return nil
-			}
-
-			// Check for error message
-			err = chromedp.Do(timeoutCtx, chromedp.WaitVisible(errorMessageSelector))
-			if err == nil {
-				errorText, err = chromedp.Run(timeoutCtx, chromedp.Text(errorMessageSelector))
-			}
-			if err == nil && errorText != "" {
-				log.Printf("Success: Error handled properly: %s", errorText)
-				return nil
-			}
-		}
+	// Start 20 is valid against the default end (0:30); the bad end is only
+	// submitted with Enter, so the error must come from the submit.
+	if err := chromedp.Do(ctx,
+		typeTime(fromInput, "20"),
+		enterTime(toInput, "10"+kb.Enter),
+		chromedp.WaitVisible(timeError),
+	); err != nil {
+		return fmt.Errorf("no error shown for end before start: %w", err)
 	}
-}
-
-// testTimeoutConfiguration tests the application's timeout handling behavior
-func testTimeoutConfiguration(ctx context.Context) error {
-	log.Printf("Testing timeout configuration and backend response times")
-
-	// This test verifies that the system properly configures timeouts for yt-dlp
-	// We'll test this by making a quick API call that should either succeed fast or fail fast
-
-	// Navigate to app
-	err := chromedp.Do(ctx,
-		chromedp.Navigate(baseURL),
-		chromedp.WaitVisible(urlInputSelector),
-	)
+	text, err := chromedp.Run(ctx, chromedp.Text(timeError))
+	if err != nil || !strings.Contains(text, "after the start") {
+		return fmt.Errorf("unexpected time error %q (%v)", text, err)
+	}
+	posts, err := clipPosts(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to navigate to app: %w", err)
+		return err
 	}
-
-	// Test the GetVideoDuration endpoint which should be faster than full downloads
-	log.Println("Testing video duration fetch (should be fast)")
-
-	err = chromedp.Do(ctx,
-		// Use SendKeys (real keystrokes) rather than SetValue: the URL field has a
-		// debounced `input` listener that loads formats, and SetValue does not
-		// reliably fire that event under chromedp.
-		chromedp.SendKeys(urlInputSelector, validYouTubeURL),
-	)
+	if len(posts) > 0 {
+		return fmt.Errorf("a clip request was sent for an invalid range: %+v", posts)
+	}
+	hidden, err := isHidden(ctx, "job")
 	if err != nil {
-		return fmt.Errorf("failed to enter URL: %w", err)
+		return err
 	}
-
-	// Wait for format dropdown to be populated (indicates backend processed the URL)
-	start := time.Now()
-	err = chromedp.Do(ctx,
-		chromedp.WaitEnabled(formatSelectSelector),
-	)
-	duration := time.Since(start)
-
-	if err != nil {
-		log.Printf("Format loading timed out after %v - this indicates backend processing issues", duration)
-		return fmt.Errorf("format dropdown not enabled within reasonable time: %w", err)
+	if !hidden {
+		return fmt.Errorf("a job was started for an invalid range")
 	}
-
-	log.Printf("Backend responded in %v - this indicates good timeout configuration", duration)
 	return nil
 }

@@ -64,10 +64,9 @@ GET {{baseUrl}}/health
 ```
 
 ### 2. Get Video Information
-Get duration and available formats:
+Get title, duration and available formats:
 ```http
-GET {{baseUrl}}/api/v1/video/duration?youtubeUrl=https://www.youtube.com/watch?v=dQw4w9WgXcQ
-GET {{baseUrl}}/api/v1/video/formats?youtubeUrl=https://www.youtube.com/watch?v=dQw4w9WgXcQ
+GET {{baseUrl}}/api/v1/video/info?youtubeUrl=https://www.youtube.com/watch?v=dQw4w9WgXcQ
 ```
 
 ### 3. Create and Download Clip
@@ -78,11 +77,11 @@ POST {{baseUrl}}/api/v1/clip
   "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
   "from": "00:00:10",
   "to": "00:00:20",
-  "format": "136"
+  "preset": "video"
 }
 
 # Check job status (use job ID from creation response)
-GET {{baseUrl}}/api/v1/jobs/status?jobId=your-job-id
+GET {{baseUrl}}/api/v1/jobs/your-job-id
 
 # Download completed clip
 GET {{baseUrl}}/api/v1/clip?jobId=your-job-id
@@ -95,8 +94,6 @@ GET {{baseUrl}}/api/v1/clip?jobId=your-job-id
 | `GET` | `/health` | Health check (no auth) |
 | `GET` | `/` | Homepage HTML |
 | `GET` | `/api/v1/video/info` | Video title, duration, thumbnail and formats |
-| `GET` | `/api/v1/video/duration` | Get video duration (legacy) |
-| `GET` | `/api/v1/video/formats` | Get available formats (legacy shape) |
 | `POST` | `/api/v1/clip` | Create clip job (`preset` or `format`) |
 | `GET` | `/api/v1/jobs/{id}` | Job state as JSON |
 | `GET` | `/api/v1/jobs/status` | Check job status (legacy, status codes) |
@@ -122,7 +119,7 @@ Common format IDs from yt-dlp:
 - **298**: 720p MP4 (video + audio)
 - **299**: 1080p MP4 (video + audio)
 
-Get available formats using the `/api/v1/video/formats` endpoint.
+Get the available formats from the `/api/v1/video/info` endpoint.
 
 ## Response Codes
 
