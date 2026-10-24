@@ -1,55 +1,22 @@
-### Get Video Duration
-# Get the total duration of a YouTube video
-GET {{baseUrl}}/api/v1/video/duration?youtubeUrl=https://www.youtube.com/watch?v=dQw4w9WgXcQ
+### Get Video Info
+# Title, uploader, duration, thumbnail and formats (one cached yt-dlp -J call)
+GET {{baseUrl}}/api/v1/video/info?youtubeUrl=https://www.youtube.com/watch?v=dQw4w9WgXcQ
 Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
 
 ###
 
-### Get Video Duration - Short URL Format
-# Test with youtu.be format
-GET {{baseUrl}}/api/v1/video/duration?youtubeUrl=https://youtu.be/dQw4w9WgXcQ
+### Get Video Info - Short URL (same cache entry)
+GET {{baseUrl}}/api/v1/video/info?youtubeUrl=https://youtu.be/dQw4w9WgXcQ
 Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
 
 ###
 
-### Get Video Duration - Invalid URL
-# Test error handling with invalid URL
-GET {{baseUrl}}/api/v1/video/duration?youtubeUrl=invalid-url
+### Get Video Info - Invalid URL (400)
+GET {{baseUrl}}/api/v1/video/info?youtubeUrl=https://vimeo.com/123456
 Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
 
 ###
 
-### Get Video Duration - Missing URL
-# Test error handling with missing URL parameter
-GET {{baseUrl}}/api/v1/video/duration
+### Get Video Info - Missing URL (400 "URL is required")
+GET {{baseUrl}}/api/v1/video/info
 Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
-
-###
-
-### Get Available Formats
-# Get all available video formats for a YouTube video
-GET {{baseUrl}}/api/v1/video/formats?youtubeUrl=https://www.youtube.com/watch?v=dQw4w9WgXcQ
-Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
-
-###
-
-### Get Available Formats - Short URL
-# Test with youtu.be format
-GET {{baseUrl}}/api/v1/video/formats?youtubeUrl=https://youtu.be/dQw4w9WgXcQ
-Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
-
-###
-
-### Get Available Formats - Invalid URL
-# Test error handling with invalid URL
-GET {{baseUrl}}/api/v1/video/formats?youtubeUrl=invalid-url
-Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
-
-###
-
-### Get Available Formats - Missing URL
-# Test error handling with missing URL parameter
-GET {{baseUrl}}/api/v1/video/formats
-Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
-
-###

@@ -13,7 +13,7 @@ require github.com/go-json-experiment/json v0.0.0-20260820222146-c27c302e5fc3 //
 
 require (
 	github.com/MorrisMorrison/gutils v0.0.3
-	github.com/chromedp/cdproto v0.158.4 // indirect
+	github.com/chromedp/cdproto v0.158.4
 	github.com/labstack/gommon v0.5.0 // indirect
 	github.com/mattn/go-colorable v0.1.16 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect

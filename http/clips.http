@@ -1,3 +1,80 @@
+### Create Clip - Video Preset
+# Best H.264/AAC up to 1080p, merged to MP4
+POST {{baseUrl}}/api/v1/clip
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+Content-Type: application/json
+
+{
+  "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "from": "00:00:10",
+  "to": "00:00:20",
+  "preset": "video"
+}
+
+> {%
+client.global.set("jobId", response.body);
+%}
+
+###
+
+### Create Clip - Audio Preset
+# MP3 at ~192 kbit/s
+POST {{baseUrl}}/api/v1/clip
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+Content-Type: application/json
+
+{
+  "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "from": "00:00:10",
+  "to": "00:00:20",
+  "preset": "audio"
+}
+
+###
+
+### Create Clip - Explicit Video + Audio Formats
+POST {{baseUrl}}/api/v1/clip
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+Content-Type: application/json
+
+{
+  "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "from": "00:00:10",
+  "to": "00:00:20",
+  "format": "137+140"
+}
+
+###
+
+### Create Clip - Preset and Format (400)
+POST {{baseUrl}}/api/v1/clip
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+Content-Type: application/json
+
+{
+  "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "from": "00:00:10",
+  "to": "00:00:20",
+  "preset": "video",
+  "format": "18"
+}
+
+###
+
+### Create Clip - Unknown Preset (400)
+POST {{baseUrl}}/api/v1/clip
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+Content-Type: application/json
+
+{
+  "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "from": "00:00:10",
+  "to": "00:00:20",
+  "preset": "4k"
+}
+
+###
+
 ### Create Clip - Basic Request
 # Create a video clip with standard parameters
 POST {{baseUrl}}/api/v1/clip

@@ -1,33 +1,51 @@
 package videoprocessing
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 	"ytclipper-go/config"
 	"ytclipper-go/jobs"
+	"ytclipper-go/utils"
 
 	"github.com/MorrisMorrison/gutils/glogger"
 )
 
-const throttledStatus = "THROTTLED"
-
 var execContext = exec.CommandContext // allows mocking in tests
 
-var (
-	durationWithColonRegex = regexp.MustCompile(`\d+:\d{2}(?::\d{2})?`)
-	durationSecondsRegex   = regexp.MustCompile(`(?m)^\s*(\d+)\s*$`)
-	formatLineRegex        = regexp.MustCompile(`(?m)^\s*(\d+)\s+(\w+)\s+(audio only|video only|\d+x\d+|\d+p)\s+([a-zA-Z0-9\.\-\_]+)?\s*([\~\d\.]+(?:[kKM]i?B)?)?.*?\|\s+(.*?)$`)
-	bitrateRegex           = regexp.MustCompile(`([\~\d\.]+[kKM]i?B)`)
+// waitDelay bounds how long a command's output pipes may stay open after the
+// command was killed or exited (a variable for tests).
+var waitDelay = 5 * time.Second
+
+const (
+	PresetVideo = "video"
+	PresetAudio = "audio"
+
+	// videoPresetFormat prefers H.264/AAC up to 1080p (plays everywhere) and
+	// falls back to whatever is best up to 1080p.
+	videoPresetFormat = "bv*[vcodec^=avc1][height<=1080]+ba[acodec^=mp4a]/b[vcodec^=avc1][height<=1080]/bv*[height<=1080]+ba/b"
+	// audioPresetFormat is the best audio-only format, or the best combined
+	// one when a video has no separate audio.
+	audioPresetFormat = "ba/b"
 )
+
+// ClipRequest describes one clip job. Exactly one of Preset and Format is set;
+// the caller has validated all fields.
+type ClipRequest struct {
+	VideoID string
+	From    string // HH:MM:SS
+	To      string // HH:MM:SS
+	Preset  string // PresetVideo or PresetAudio
+	Format  string // yt-dlp format id, "137" or "137+140"
+}
 
 // jobSlots limits how many clips are processed at once; further jobs wait in
 // the queued state.
@@ -35,25 +53,76 @@ var jobSlots = sync.OnceValue(func() chan struct{} {
 	return make(chan struct{}, config.CONFIG.MaxConcurrentJobs)
 })
 
-func DownloadAndCutVideo(outputTemplate string, selectedFormat string, fileSizeLimit int64, from string, to string, url string) ([]byte, error) {
-	cmdArgs := []string{
-		"-o", outputTemplate,
-		"-f", selectedFormat,
-		"--max-filesize", fmt.Sprintf("%d", fileSizeLimit),
-		"--download-sections", fmt.Sprintf("*%s-%s", from, to),
-		url,
+// formatArgs returns the yt-dlp arguments that select what to download. info
+// may be nil when the video info could not be loaded.
+func formatArgs(req ClipRequest, info *VideoInfo) []string {
+	switch req.Preset {
+	case PresetVideo:
+		return []string{"-f", videoPresetFormat, "--merge-output-format", "mp4"}
+	case PresetAudio:
+		return []string{"-f", audioPresetFormat, "-x", "--audio-format", "mp3", "--audio-quality", "192K"}
 	}
-
-	return execute("yt-dlp", cmdArgs)
+	return []string{"-f", resolveFormat(req.Format, info)}
 }
 
-func ProcessClip(jobID string, url string, from string, to string, selectedFormat string) {
+// resolveFormat merges best audio into a single video-only format, so a
+// format picked from the list never yields a silent clip. MP4 video prefers
+// M4A audio, which can be merged into MP4 without re-encoding.
+func resolveFormat(format string, info *VideoInfo) string {
+	if strings.Contains(format, "+") || info == nil {
+		return format
+	}
+	f, ok := info.Format(format)
+	if !ok || f.Kind != FormatKindVideo {
+		return format
+	}
+	if f.Ext == "mp4" {
+		return format + "+bestaudio[ext=m4a]/" + format + "+bestaudio"
+	}
+	return format + "+bestaudio"
+}
+
+// DownloadAndCutVideo downloads the section from-to of url. fileSizeLimit is
+// enforced by ffmpeg (-fs), which yt-dlp always uses for sections and which
+// ignores --max-filesize; ffmpeg stops writing at the limit, so callers check
+// the size of the result. It returns stdout and stderr combined.
+func DownloadAndCutVideo(outputTemplate string, formatArgs []string, fileSizeLimit int64, from string, to string, url string) ([]byte, error) {
+	cmdArgs := []string{"-o", outputTemplate}
+	cmdArgs = append(cmdArgs, formatArgs...)
+	cmdArgs = append(cmdArgs,
+		"--max-filesize", strconv.FormatInt(fileSizeLimit, 10),
+		"--downloader-args", "ffmpeg:-fs "+strconv.FormatInt(fileSizeLimit, 10),
+		"--download-sections", fmt.Sprintf("*%s-%s", from, to),
+		url,
+	)
+
+	timeout := time.Duration(config.CONFIG.YtDlpConfig.DownloadTimeoutInSeconds) * time.Second
+	out, err := execute(timeout, "yt-dlp", cmdArgs)
+	return out.combined(), err
+}
+
+func ProcessClip(jobID string, req ClipRequest) {
 	slots := jobSlots()
 	slots <- struct{}{}
 	defer func() { <-slots }()
 
+	if !jobs.StartJob(jobID) {
+		glogger.Log.Infof("Process Clip: Job %s is no longer queued, skipping it", jobID)
+		return
+	}
 	glogger.Log.Infof("Process Clip: Start Job %s", jobID)
-	jobs.StartJob(jobID)
+
+	// Cached (or shared with a concurrent lookup) in the common case: the page
+	// loaded the info before asking for the clip.
+	info, err := GetVideoInfo(req.VideoID)
+	if err != nil {
+		glogger.Log.Errorf(err, "Process Clip: Could not load info for %s, continuing without it", req.VideoID)
+		info = nil
+	}
+	if msg := checkAgainstDuration(req, info); msg != "" {
+		jobs.FailJob(jobID, msg)
+		return
+	}
 
 	clipDir := config.CONFIG.ClipCleanUpSchedulerConfig.ClipDirectoryPath
 	if err := os.MkdirAll(clipDir, 0o755); err != nil {
@@ -63,8 +132,9 @@ func ProcessClip(jobID string, url string, from string, to string, selectedForma
 	}
 
 	// yt-dlp picks the extension; the job ID keeps the name unique.
+	sizeLimit := config.CONFIG.YtDlpConfig.ClipSizeInMb
 	outputTemplate := filepath.Join(clipDir, jobID+".%(ext)s")
-	output, err := DownloadAndCutVideo(outputTemplate, selectedFormat, config.CONFIG.YtDlpConfig.ClipSizeInMb, from, to, url)
+	output, err := DownloadAndCutVideo(outputTemplate, formatArgs(req, info), sizeLimit, req.From, req.To, WatchURL(req.VideoID))
 	if err != nil {
 		glogger.Log.Errorf(err, "Process Clip: Failed to download video. Output:\n%s", string(output))
 		jobs.FailJob(jobID, summarizeError(output, err))
@@ -74,12 +144,53 @@ func ProcessClip(jobID string, url string, from string, to string, selectedForma
 	outputPath, err := findOutputFile(clipDir, jobID)
 	if err != nil {
 		glogger.Log.Errorf(err, "Process Clip: yt-dlp finished but no clip was written. Output:\n%s", string(output))
-		jobs.FailJob(jobID, "The clip could not be created (it may exceed the size limit)")
+		jobs.FailJob(jobID, "The clip could not be created")
 		return
 	}
 
+	if st, err := os.Stat(outputPath); err == nil && sizeLimit > 0 && st.Size() >= sizeLimit {
+		glogger.Log.Infof("Process Clip: Job %s reached the size limit (%d bytes), discarding it", jobID, st.Size())
+		if err := os.Remove(outputPath); err != nil {
+			glogger.Log.Errorf(err, "Process Clip: Could not remove %s", outputPath)
+		}
+		jobs.FailJob(jobID, sizeLimitMessage(sizeLimit))
+		return
+	}
+
+	title := ""
+	if info != nil {
+		title = info.Title
+	}
+	fileName := DownloadName(title, req.VideoID, req.From, req.To, filepath.Ext(outputPath))
+
 	glogger.Log.Infof("Process Clip: Complete Job %s", jobID)
-	jobs.CompleteJob(jobID, outputPath)
+	jobs.CompleteJob(jobID, outputPath, fileName)
+}
+
+// checkAgainstDuration returns an error message when the clip ends after the
+// video does. Without info, or for videos without a known duration (live
+// streams), it accepts the request.
+func checkAgainstDuration(req ClipRequest, info *VideoInfo) string {
+	if info == nil || info.Duration <= 0 {
+		return ""
+	}
+	to, err := utils.ToSeconds(req.To)
+	if err != nil || to <= info.Duration {
+		return ""
+	}
+	return fmt.Sprintf("The end time is after the end of the video (%s).", formatDuration(info.Duration))
+}
+
+// formatDuration formats seconds as "m:ss" or, from an hour on, "h:mm:ss".
+func formatDuration(seconds int) string {
+	if seconds >= 3600 {
+		return fmt.Sprintf("%d:%02d:%02d", seconds/3600, seconds/60%60, seconds%60)
+	}
+	return fmt.Sprintf("%d:%02d", seconds/60, seconds%60)
+}
+
+func sizeLimitMessage(limit int64) string {
+	return fmt.Sprintf("The clip is larger than the %d MB limit. Choose a shorter range or a smaller format.", limit/(1024*1024))
 }
 
 // findOutputFile returns the finished file yt-dlp wrote for a job, ignoring
@@ -97,9 +208,15 @@ func findOutputFile(dir string, jobID string) (string, error) {
 	return "", fmt.Errorf("no output file for job %s", jobID)
 }
 
-// summarizeError turns yt-dlp output into a short message that is safe to show
-// to users: the last ERROR line, without the full command output.
+// summarizeError turns yt-dlp output of a failed download into a short
+// message that is safe to show to users.
 func summarizeError(output []byte, err error) string {
+	return summarize(output, err, "Timed out while downloading the clip", "Failed to download the clip")
+}
+
+// summarize returns the last yt-dlp ERROR line, without the rest of the
+// output (which can contain the command line), or a fallback message.
+func summarize(output []byte, err error, timeoutMsg string, fallbackMsg string) string {
 	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
 	for i := len(lines) - 1; i >= 0; i-- {
 		line := strings.TrimSpace(lines[i])
@@ -108,112 +225,9 @@ func summarizeError(output []byte, err error) string {
 		}
 	}
 	if errors.Is(err, errTimeout) {
-		return "Timed out while downloading the clip"
+		return timeoutMsg
 	}
-	return "Failed to download the clip"
-}
-
-func GetAvailableFormats(url string) ([]map[string]string, error) {
-	glogger.Log.Infof("Get Available Formats: Fetching available formats for URL %s", url)
-
-	output, err := execute("yt-dlp", []string{"-F", url})
-	if err != nil {
-		glogger.Log.Errorf(err, "Get Available Formats: Error executing yt-dlp. Output\n%s", string(output))
-		return nil, fmt.Errorf("yt-dlp failed: %w", err)
-	}
-
-	if config.CONFIG.Debug {
-		glogger.Log.Infof("Get Available Formats: yt-dlp command succeeded. Output:\n%s", output)
-	}
-
-	formats := parseFormats(string(output))
-	if len(formats) == 0 {
-		glogger.Log.Errorf(errors.New("no formats"), "Get Available Formats: Could not find any available formats. Output:\n%s", output)
-		return nil, errors.New("could not find any available formats")
-	}
-
-	return formats, nil
-}
-
-func GetVideoDuration(url string) (string, error) {
-	glogger.Log.Infof("Get Video Duration: Fetch duration for URL %s", url)
-
-	output, err := execute("yt-dlp", []string{"--get-duration", url})
-	if err != nil {
-		glogger.Log.Errorf(err, "Get Video Duration: Error executing yt-dlp. Output\n%s", string(output))
-		return "", err
-	}
-
-	if config.CONFIG.Debug {
-		glogger.Log.Infof("Get Video Duration: yt-dlp command succeeded. Output:\n%s", output)
-	}
-
-	return ExtractDuration(string(output)), nil
-}
-
-func ExtractDuration(output string) string {
-	if match := durationWithColonRegex.FindString(output); match != "" {
-		return match
-	}
-
-	if secMatches := durationSecondsRegex.FindStringSubmatch(output); len(secMatches) > 1 {
-		return secMatches[1]
-	}
-
-	return ""
-}
-
-func parseFormats(output string) []map[string]string {
-	lines := strings.Split(strings.TrimSpace(output), "\n")
-	formats := make([]map[string]string, 0, len(lines))
-
-	for _, line := range lines {
-		if format := parseFormatLine(line); format != nil {
-			formats = append(formats, format)
-		}
-	}
-
-	return formats
-}
-
-func parseFormatLine(line string) map[string]string {
-	matches := formatLineRegex.FindStringSubmatch(line)
-	if len(matches) == 0 {
-		return nil
-	}
-
-	additional := strings.TrimSpace(matches[6])
-	if strings.Contains(additional, throttledStatus) {
-		return nil
-	}
-
-	return map[string]string{
-		"id":         matches[1],
-		"extension":  matches[2],
-		"label":      matches[3],
-		"codec":      strings.TrimSpace(matches[4]),
-		"bitrate":    extractBitrate(matches[6]),
-		"formatType": determineFormatType(matches[3]),
-		"additional": additional,
-	}
-}
-
-func determineFormatType(label string) string {
-	switch label {
-	case "audio only":
-		return "audio only"
-	case "video only":
-		return "video only"
-	default:
-		return "audio and video"
-	}
-}
-
-func extractBitrate(additional string) string {
-	if match := bitrateRegex.FindStringSubmatch(additional); len(match) > 0 {
-		return match[1]
-	}
-	return "N/A"
+	return fallbackMsg
 }
 
 // commonArgs returns the flags applied to every yt-dlp invocation: the optional
@@ -234,24 +248,52 @@ func commonArgs() []string {
 	return args
 }
 
-func execute(name string, baseArgs []string) ([]byte, error) {
-	timeout := time.Duration(config.CONFIG.YtDlpConfig.CommandTimeoutInSeconds) * time.Second
+// cmdOutput is what a command wrote, stdout and stderr kept apart so that
+// machine-readable stdout (-J) is never mixed with log lines.
+type cmdOutput struct {
+	Stdout []byte
+	Stderr []byte
+}
+
+// combined returns stdout followed by stderr, for logs and summarize (yt-dlp
+// writes its ERROR lines to stderr).
+func (o cmdOutput) combined() []byte {
+	out := make([]byte, 0, len(o.Stdout)+len(o.Stderr)+1)
+	out = append(out, o.Stdout...)
+	if len(o.Stdout) > 0 && len(o.Stderr) > 0 && o.Stdout[len(o.Stdout)-1] != '\n' {
+		out = append(out, '\n')
+	}
+	return append(out, o.Stderr...)
+}
+
+// execute runs a yt-dlp command with the common args and the given timeout.
+func execute(timeout time.Duration, name string, baseArgs []string) (cmdOutput, error) {
 	args := append(commonArgs(), baseArgs...)
 	return executeWithTimeout(timeout, name, args...)
 }
 
 var errTimeout = errors.New("command timed out")
 
-func executeWithTimeout(timeout time.Duration, name string, args ...string) ([]byte, error) {
+// executeWithTimeout runs a command and kills it when the timeout expires. On
+// Unix the command gets its own process group and the whole group is killed,
+// so children (the ffmpeg yt-dlp starts for --download-sections) die with it.
+// waitDelay keeps a surviving child that holds the output pipes from blocking
+// the caller.
+func executeWithTimeout(timeout time.Duration, name string, args ...string) (cmdOutput, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	cmd := execContext(ctx, name, args...)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	cmd.WaitDelay = waitDelay
+	killProcessGroupOnCancel(cmd)
 
-	output, err := cmd.CombinedOutput()
+	err := cmd.Run()
+	out := cmdOutput{Stdout: stdout.Bytes(), Stderr: stderr.Bytes()}
 	if ctx.Err() == context.DeadlineExceeded {
-		return output, fmt.Errorf("%w after %v", errTimeout, timeout)
+		return out, fmt.Errorf("%w after %v", errTimeout, timeout)
 	}
 
-	return output, err
+	return out, err
 }

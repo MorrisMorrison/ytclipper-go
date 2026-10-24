@@ -1,3 +1,16 @@
+### Get Job - JSON
+# status: queued | processing | completed | error; fileName and downloadUrl once completed
+GET {{baseUrl}}/api/v1/jobs/{{jobId}}
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+
+###
+
+### Get Job - Non-existent Job (404)
+GET {{baseUrl}}/api/v1/jobs/non-existent-job-123
+Authorization: Basic {{basicAuth.username}} {{basicAuth.password}}
+
+###
+
 ### Get Job Status - Using Stored Job ID
 # Check status of job created in previous request
 GET {{baseUrl}}/api/v1/jobs/status?jobId={{jobId}}
