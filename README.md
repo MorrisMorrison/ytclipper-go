@@ -1,279 +1,105 @@
 # ytclipper-go
-[![Build and Test (Development)](https://github.com/MorrisMorrison/ytclipper-go/actions/workflows/build_dev.yml/badge.svg?branch=main)](https://github.com/MorrisMorrison/ytclipper-go/actions/workflows/build_dev.yml)
-[![main](https://github.com/MorrisMorrison/ytclipper-go/actions/workflows/build_and_deploy_prod.yml/badge.svg?branch=main)](https://github.com/MorrisMorrison/ytclipper-go/actions/workflows/build_and_deploy_prod.yml)
 
-A high-performance web application for creating and downloading video clips from YouTube videos. This is the Go version of [ytclipper](https://github.com/MorrisMorrison/ytclipper), built with modern web technologies and designed for production use.
+[![CI](https://github.com/MorrisMorrison/ytclipper-go/actions/workflows/build_and_deploy_prod.yml/badge.svg?branch=main)](https://github.com/MorrisMorrison/ytclipper-go/actions/workflows/build_and_deploy_prod.yml)
 
+Cut a clip out of any YouTube video and download it. Paste a link, pick a format and a time range, get a file.
 
-<img width="2513" height="1197" alt="image" src="https://github.com/user-attachments/assets/9480ccbb-a7ec-4407-9428-317c7d3702bb" />
+ytclipper is a small self-hostable web app: a Go server with a plain HTML/JS page in front of [yt-dlp](https://github.com/yt-dlp/yt-dlp) and [FFmpeg](https://ffmpeg.org/). Only the selected section is downloaded, not the whole video. No database, no accounts; clips are deleted automatically after a while.
 
-
-
+<img width="2513" height="1197" alt="ytclipper screenshot" src="https://github.com/user-attachments/assets/9480ccbb-a7ec-4407-9428-317c7d3702bb" />
 
 ## Features
+- Clip any section of a YouTube video by start and end time (`34`, `1:28` or `1:09:24`).
+- Choose from the formats YouTube offers for the video (video, audio, or both).
+- Preview the video in the page before clipping.
+- Clips are processed as background jobs; the download starts when the job is done.
+- Light and dark theme.
+- For self-hosting: per-IP rate limiting, optional basic auth, automatic cleanup of old clips, a `/health` endpoint, and an optional proxy for yt-dlp.
 
-### Core Functionality
-- **YouTube Video Clipping**: Extract specific segments from YouTube videos with precise start/end timestamps
-- **Format Selection**: Support for multiple video formats and quality options available from YouTube
-- **Video Preview**: Built-in video player for previewing YouTube videos before clipping
-- **Asynchronous Processing**: Job-based processing system with real-time status tracking
-- **Progress Tracking**: Real-time progress updates for clip creation jobs
+## Quick start
 
-### Production Features
-- **Rate Limiting**: Built-in rate limiting to prevent abuse and ensure fair usage
-- **Automatic Cleanup**: Scheduled cleanup of old clips and jobs to manage storage efficiently
-- **Health Monitoring**: Health check endpoint for monitoring and load balancing
-- **Responsive UI**: Clean web interface with light and dark themes, optimized for all devices
+### Docker (recommended)
+The image bundles yt-dlp, FFmpeg and deno.
 
-### Usage
-1. Enter a YouTube URL
-2. Select your desired video format and quality
-3. Specify start and end times in flexible format (`34`, `1:28`, `1:09:24`)
-4. Track progress and download your clip when ready
-
-## Built With
-- [Go](https://golang.org/)
-- [Echo](https://echo.labstack.com/) - High-performance web framework for Go
-- [yt-dlp](https://github.com/yt-dlp/yt-dlp) - A YouTube downloader with additional features
-- [FFmpeg](https://ffmpeg.org/) - Tool for handling multimedia data
-- [Video.js](https://videojs.com/) - HTML5 video player
-- [Toastr](https://github.com/CodeSeven/toastr) - Notification library
-
----
-
-## Quick Start
-
-### Prerequisites
-- **Go 1.21+**: [Download Go](https://golang.org/dl/)
-- **Python 3.8+**: [Download Python](https://www.python.org/downloads/)
-- **FFmpeg**: [Download FFmpeg](https://ffmpeg.org/download.html)
-
-### Installation
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/MorrisMorrison/ytclipper-go.git
-   cd ytclipper-go
-   ```
-
-2. **Install dependencies**:
-   ```bash
-   go mod tidy
-   ```
-
-3. **Install Python dependencies**:
-   ```bash
-   pip install yt-dlp
-   ```
-
-4. **Run the application**:
-   ```bash
-   go run main.go
-   ```
-
-5. **Access the application**:
-   Open your browser and navigate to `http://localhost:8080`
-
-### Development Commands
-- **Run application**: `go run main.go` or `make run`
-- **Run tests**: `make test`
-- **Run end-to-end tests**: `make e2e`
-- **Run fast E2E tests (CI-friendly)**: `make e2e-fast`
-- **Run realistic E2E tests**: `make e2e-realistic`
-- **Build for production**: `make build-prod`
-- **Download static assets**: `make download-static`
-
-## Docker Deployment
-
-### Using Makefile (Recommended)
-
-#### Single Container
 ```bash
-# Build and run (rebuilds only on changes)
-make docker-run
-
-# Stop and remove container
-make docker-stop
-
-# Restart container
-make docker-restart
-
-# Build image only
-make docker-build
+docker run -d -p 8080:8080 ghcr.io/morrismorrison/ytclipper-go:latest
 ```
 
-#### Docker Compose
+Then open http://localhost:8080. With Docker Compose, `docker compose up -d` uses the included `docker-compose.yml` (port 8080, clips in `./videos`).
+
+### From source
+Requirements: Go (see `go.mod`), [yt-dlp](https://github.com/yt-dlp/yt-dlp#installation), FFmpeg, and [deno](https://deno.com/) (yt-dlp uses it to solve YouTube's JavaScript challenges).
+
 ```bash
-# Start services (recommended for production)
-make compose-up
-
-# Stop services
-make compose-down
-
-# Restart services
-make compose-restart
-
-# View logs
-make compose-logs
+git clone https://github.com/MorrisMorrison/ytclipper-go.git
+cd ytclipper-go
+go run .
 ```
 
-### Manual Docker Commands
-```bash
-# Build the Docker image
-docker build -t ytclipper .
-
-# Run the container
-docker run -d -e PORT=8080 -p 8080:8080 ytclipper
-```
-
-### Docker Compose Configuration
-The included `docker-compose.yml` provides:
-- **Port mapping**: 8080:8080
-- **Volume mounting**: `./videos:/app/videos` for persistent storage
-- **Environment variables**: Production-ready configuration
-- **Restart policy**: `unless-stopped` for reliability
-
-## API Endpoints
-
-The application provides a REST API for programmatic access:
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/v1/clip` | Create a new clip job |
-| `GET` | `/api/v1/clip` | Download completed clip |
-| `GET` | `/api/v1/jobs/status` | Check job status |
-| `GET` | `/api/v1/video/duration` | Get video duration |
-| `GET` | `/api/v1/video/formats` | Get available video formats |
-| `GET` | `/health` | Health check endpoint |
+The server checks for `yt-dlp` and `ffmpeg` on startup and exits if either is missing.
 
 ## Configuration
+All settings are environment variables; `.env.example` lists them.
 
-The application can be configured using environment variables:
+| Variable | Default | Description |
+|---|---|---|
+| `YTCLIPPER_PORT` | `8080` | HTTP port |
+| `YTCLIPPER_DEBUG` | `true` | Echo debug mode and verbose yt-dlp logging |
+| `YTCLIPPER_AUTH_USERNAME` | _(empty)_ | Basic auth user; auth is on only when user and password are both set |
+| `YTCLIPPER_AUTH_PASSWORD` | _(empty)_ | Basic auth password |
+| `YTCLIPPER_RATE_LIMITER_RATE` | `5` | Requests per second per IP (static files are not limited) |
+| `YTCLIPPER_RATE_LIMITER_BURST` | `20` | Burst size |
+| `YTCLIPPER_RATE_LIMITER_EXPIRES_IN_MINUTES` | `1` | How long an idle IP's limiter is kept |
+| `YTCLIPPER_YT_DLP_CLIP_SIZE_LIMIT_IN_MB` | `300` | Maximum clip size |
+| `YTCLIPPER_YT_DLP_COMMAND_TIMEOUT_IN_SECONDS` | `60` | Timeout for each yt-dlp call |
+| `YTCLIPPER_YT_DLP_EXTRACTOR_RETRIES` | `3` | yt-dlp `--extractor-retries` |
+| `YTCLIPPER_YT_DLP_PROXY` | _(empty)_ | Proxy for yt-dlp, e.g. `socks5h://host:1080` |
+| `YTCLIPPER_CLIP_CLEANUP_SCHEDULER_ENABLED` | `true` | Delete old clips and jobs periodically |
+| `YTCLIPPER_CLIP_CLEANUP_SCHEDULER_INTERVAL_IN_MINUTES` | `5` | Cleanup interval |
+| `YTCLIPPER_CLIP_CLEANUP_SCHEDULER_CLIP_DIRECTORY_PATH` | `./videos/` | Where clips are stored |
 
-### Server Configuration
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `YTCLIPPER_PORT` | Server port | `8080` |
-| `YTCLIPPER_DEBUG` | Enable debug mode | `true` |
-
-### Rate Limiting
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `YTCLIPPER_RATE_LIMITER_RATE` | Requests per second | `5` |
-| `YTCLIPPER_RATE_LIMITER_BURST` | Maximum burst requests | `20` |
-| `YTCLIPPER_RATE_LIMITER_EXPIRES_IN_MINUTES` | Token expiration (minutes) | `1` |
-
-### Video Processing
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `YTCLIPPER_YT_DLP_CLIP_SIZE_LIMIT_IN_MB` | Maximum clip size (MB) | `300` |
-| `YTCLIPPER_YT_DLP_COMMAND_TIMEOUT_IN_SECONDS` | yt-dlp timeout (seconds) | `60` |
-| `YTCLIPPER_YT_DLP_EXTRACTOR_RETRIES` | Number of retry attempts | `3` |
-| `YTCLIPPER_YT_DLP_PROXY` | Proxy for yt-dlp egress, e.g. `socks5h://host:1080` (optional) | `` |
-
-### Cleanup Scheduler
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `YTCLIPPER_CLIP_CLEANUP_SCHEDULER_ENABLED` | Enable automatic cleanup | `true` |
-| `YTCLIPPER_CLIP_CLEANUP_SCHEDULER_INTERVAL_IN_MINUTES` | Cleanup interval (minutes) | `5` |
-| `YTCLIPPER_CLIP_CLEANUP_SCHEDULER_CLIP_DIRECTORY_PATH` | Directory to clean | `./videos` |
-
-### Auth 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `YTCLIPPER_AUTH_USERNAME` | Basic Auth Username | `` |
-| `YTCLIPPER_AUTH_PASSWORD` | Basic Auth Password | `` |
-
-## Architecture
-
-### System Components
-- **Web Server**: Echo-based HTTP server with middleware for rate limiting and logging
-- **Job Queue**: In-memory job management system with concurrent-safe operations
-- **Video Processor**: yt-dlp and FFmpeg integration for video downloading and clipping
-- **Scheduler**: Background cleanup service for automatic file management
-- **Static Assets**: Responsive web UI with real-time progress tracking
-
-### Data Flow
-1. User submits clip request via web interface
-2. System validates input and creates job
-3. Job queue processes request asynchronously
-4. yt-dlp downloads video segment
-5. FFmpeg processes and optimizes clip
-6. User downloads completed clip
-7. Scheduler automatically cleans up old files
-
-## Security
-
-- **Rate Limiting**: Prevents abuse with configurable request limits
-- **Input Validation**: Sanitizes all user inputs and URL parameters
-- **File Management**: Automatic cleanup prevents disk space exhaustion
-- **Error Handling**: Graceful error handling without exposing internal details
-- **Minimal Configuration**: Optional proxy support with no credentials stored by default
-- **Basic Auth**: Optional Basic Auth support when configuration is set
-
-## YouTube Access
-
-YouTube blocks downloads from datacenter IPs (e.g. a cloud VPS). To get a reliable
-residential exit, point yt-dlp at a SOCKS5 proxy that egresses from a residential
-network:
+### YouTube blocking datacenter IPs
+YouTube often blocks downloads from cloud servers. If clips fail on a VPS but work at home, route yt-dlp through a proxy that exits from a residential network:
 
 ```bash
-export YTCLIPPER_YT_DLP_PROXY=socks5h://proxy-host:1080
+YTCLIPPER_YT_DLP_PROXY=socks5h://proxy-host:1080
 ```
 
-`socks5h://` resolves DNS through the proxy too. With a residential exit, no cookies
-or anti-detection tricks are needed.
+`socks5h://` also resolves DNS through the proxy. With a residential exit, no cookies or other workarounds are needed.
 
-## Monitoring
+## API
+The page uses a small JSON API, which you can also call directly. The `http/` folder has ready-made requests for REST clients.
 
-- **Health Checks**: `/health` endpoint for load balancer integration
-- **Logging**: Structured logging with configurable levels
-- **Metrics**: Job processing statistics and performance metrics
-- **Error Tracking**: Comprehensive error logging and tracking
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/v1/video/formats?youtubeUrl=…` | Formats available for the video |
+| `GET` | `/api/v1/video/duration?youtubeUrl=…` | Video length in seconds |
+| `POST` | `/api/v1/clip` | Start a clip job; returns the job id |
+| `GET` | `/api/v1/jobs/status?jobId=…` | Job state |
+| `GET` | `/api/v1/clip?jobId=…` | Download the finished clip |
+| `GET` | `/health` | Health check (never behind auth) |
 
----
+Create a clip:
+
+```bash
+curl -X POST localhost:8080/api/v1/clip \
+  -H 'Content-Type: application/json' \
+  -d '{"url":"https://www.youtube.com/watch?v=dQw4w9WgXcQ","from":"00:00:10","to":"00:00:20","format":"18"}'
+```
+
+## Development
+```bash
+go vet ./...     # lint
+go test ./...    # unit tests, yt-dlp is mocked
+make e2e         # browser e2e suite against a running server (needs Chrome)
+```
+
+CI never calls real YouTube. It puts a deterministic yt-dlp stub (`test/ci/yt-dlp`) on the `PATH` and runs the unit tests and the e2e suite against it. Every push to `main` publishes the Docker image to GHCR.
+
+Working with Claude Code? See [`CLAUDE.md`](CLAUDE.md).
 
 ## Contributing
-
-1. **Fork the repository**
-2. **Create a feature branch**: `git checkout -b feature/amazing-feature`
-3. **Make your changes**: Follow the existing code style and patterns
-4. **Run tests**: `make test && make e2e`
-5. **Test with Docker**: `make docker-run` to verify containerized deployment
-6. **Commit your changes**: `git commit -m 'Add amazing feature'`
-7. **Push to the branch**: `git push origin feature/amazing-feature`
-8. **Open a Pull Request**
-
-### Development Guidelines
-- Follow Go best practices and idioms
-- Add tests for new functionality
-- Update documentation for API changes
-- Test both local and Docker deployments
-- Ensure all CI checks pass
-
-### Available Make Commands
-| Command | Description |
-|---------|-------------|
-| `make run` | Run application locally |
-| `make test` | Run unit tests |
-| `make e2e` | Run end-to-end tests |
-| `make build` | Build binary |
-| `make build-prod` | Production build (tests + assets + build) |
-| `make download-static` | Download static assets |
-| `make docker-build` | Build Docker image |
-| `make docker-run` | Build and run container |
-| `make docker-stop` | Stop and remove container |
-| `make docker-restart` | Restart container |
-| `make compose-up` | Start with Docker Compose |
-| `make compose-down` | Stop Docker Compose services |
-| `make compose-restart` | Restart Docker Compose services |
-| `make compose-logs` | View Docker Compose logs |
+Issues and pull requests are welcome. Please open an issue first for larger changes, keep PRs focused, and make sure `go vet`, `go test` and CI pass.
 
 ## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- [yt-dlp](https://github.com/yt-dlp/yt-dlp) for powerful YouTube downloading capabilities
-- [FFmpeg](https://ffmpeg.org/) for video processing
-- [Echo](https://echo.labstack.com/) for the excellent web framework
+[MIT](LICENSE)
