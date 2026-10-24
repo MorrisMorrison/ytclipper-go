@@ -17,22 +17,23 @@ ytclipper-go is a small self-hostable web app that cuts a clip out of a YouTube 
 | `config/` | `YTCLIPPER_*` environment variables → `config.CONFIG` |
 | `middleware/` | Optional basic auth |
 | `templates/`, `static/` | The page: `index.html`, CSS, vanilla ES modules (no build step) |
-| `test/e2e.go` | Browser end-to-end suite (chromedp) against a running server |
-| `test/ci/yt-dlp` | Deterministic offline yt-dlp stub used by CI and the e2e suite |
+| `test/e2e/` | Browser end-to-end suite (chromedp, `go test -tags e2e`); starts its own servers |
+| `test/fakes/` | Fake `yt-dlp` and `ffmpeg` (small Go programs) the e2e suite puts first on `PATH` |
 | `http/` | `.http` request collections for manual API testing |
 
 ## Commands
 ```bash
 make check               # gofmt check + go vet + unit tests + build (what CI runs first)
 go test -race ./...      # CI also runs the race detector
-make e2e                 # e2e suite; needs a running server + Chrome (see the e2e-with-stub skill)
+make e2e                 # e2e suite: builds the app + fakes, starts its own servers; needs Chrome (see the e2e skill)
+make screenshots         # renders the README images (docs/screenshot-{light,dark}.png)
 ```
 Running the server locally needs `yt-dlp`, `ffmpeg` and (for current YouTube) `deno` on `PATH`; the app exits at startup if yt-dlp or ffmpeg is missing. The Docker image bundles all three.
 
 ## How tests isolate yt-dlp
 - **Unit tests** never run yt-dlp: `videoprocessing` executes commands through the package variable `execContext`, which tests replace with a fake (see `videoprocessing_test.go`). Follow that pattern for any new command.
-- **CI and e2e** put `test/ci/yt-dlp` first on `PATH`. It answers the handful of yt-dlp invocations the app makes with fixed output and writes a dummy file for downloads. **If you change how the app calls yt-dlp, update the stub in the same PR**, or CI breaks.
-- Nothing in CI talks to real YouTube (datacenter IPs get bot-blocked, so it would be flaky and meaningless). Say so in PRs: "verified against the stub, not real YouTube".
+- **The e2e suite** (`test/e2e`) builds `test/fakes/yt-dlp` and `test/fakes/ffmpeg` and starts the app with them first on `PATH`. The fake yt-dlp answers the handful of invocations the app makes with fixed output, writes a small file for downloads, and has magic video IDs for failure modes (failed or slow download, slow or failed `-J`). **If you change how the app calls yt-dlp, update the fake in the same PR**, or CI breaks.
+- Nothing in CI talks to real YouTube (datacenter IPs get bot-blocked, so it would be flaky and meaningless), and the e2e browser can't resolve YouTube hosts. Say so in PRs: "verified against the fakes, not real YouTube".
 
 ## Conventions
 - **Go:** standard library style, `gofmt`. Handlers validate input and return JSON errors as `{"error": "..."}`. Log through `glogger.Log`. Wrap errors with `%w`. No new global state beyond the existing `config.CONFIG` and job store.
@@ -44,7 +45,7 @@ Running the server locally needs `yt-dlp`, `ffmpeg` and (for current YouTube) `d
 - **Middleware order:** logger, recover, rate limiter, basic auth (so failed logins are rate limited). The client IP is the connection address unless `YTCLIPPER_TRUSTED_PROXIES` is set; never trust `X-Forwarded-For` otherwise.
 - **Clip format:** a request carries either a preset (`video`, `audio`) or a numeric format (`137`, `137+140`). Never pass user-supplied format selectors through to yt-dlp beyond that pattern.
 - **File names** shown to users go through `SanitizeFileName`; the clip on disk is always named by job ID. The download sets `Content-Disposition` with an ASCII `filename` fallback plus the real name in `filename*` (RFC 5987); don't use `c.Attachment`, which only writes the raw name.
-- **Front-end:** vanilla ES modules, no framework, no bundler, no vendored libraries (`static/scripts/`: `main.js` controller, `player.js` YouTube IFrame API wrapper, `trimmer.js` range slider, `formats.js` advanced lists, `api.js`, `time.js`, `toast.js`, `theme.js`). The main flow must never block on a slow yt-dlp call: simple mode needs no server call before clipping, and advanced mode fetches `/video/info` only when opened. The YouTube player is optional; the page must keep working (typed times) when it doesn't load, which is the case in CI (the e2e blocks YouTube hosts). Errors come as `{"error"}` (Echo's rate limiter: `{"message"}`); job polling retries 429/5xx with backoff. Styles use the semantic tokens in `static/css/styles.css` (see `docs/STYLEGUIDE.md`).
+- **Front-end:** vanilla ES modules, no framework, no bundler, no vendored libraries (`static/scripts/`: `main.js` controller, `player.js` YouTube IFrame API wrapper, `trimmer.js` range slider, `formats.js` advanced lists, `api.js`, `time.js`, `toast.js`, `theme.js`). The main flow must never block on a slow yt-dlp call: simple mode needs no server call before clipping, and advanced mode fetches `/video/info` only when opened. The YouTube player is optional; the page must keep working (typed times) when it doesn't load, which is the case in the e2e suite (it blocks YouTube hosts). Errors come as `{"error"}` (Echo's rate limiter: `{"message"}`); job polling retries 429/5xx with backoff. Styles use the semantic tokens in `static/css/styles.css` (see `docs/STYLEGUIDE.md`).
 - **Errors shown to users** come from `summarizeError` (last yt-dlp `ERROR:` line). Never return raw command output: it contains the full command line.
 - **Security:** treat the URL and timestamps as untrusted; validate server-side even if the UI validated too.
 

@@ -128,11 +128,12 @@ curl localhost:8080/api/v1/jobs/3f1c...
 
 ## Development
 ```bash
-make check       # gofmt check, go vet, unit tests (yt-dlp is mocked), build
-make e2e         # browser e2e suite against a running server (needs Chrome)
+make check        # gofmt check, go vet, unit tests (yt-dlp is mocked), build
+make e2e          # browser e2e suite (needs Chrome; starts its own servers)
+make screenshots  # renders the README screenshots into docs/
 ```
 
-CI never calls real YouTube. It puts a deterministic yt-dlp stub (`test/ci/yt-dlp`) on the `PATH` and runs the unit tests and the e2e suite against it. Every push to `main` publishes the Docker image to GHCR.
+The e2e suite (`go test -tags e2e ./test/e2e/`) builds the app plus fake `yt-dlp` and `ffmpeg` binaries (`test/fakes/`), starts the server with them first on the `PATH`, and drives a headless Chrome through the page: presets, advanced formats, the trimmer, job errors, a full queue, the download itself and the phone layout. Failure screenshots and logs go to `test/e2e/artifacts/`. CI never calls real YouTube. Every push to `main` publishes the Docker image to GHCR.
 
 Working with Claude Code? See [`CLAUDE.md`](CLAUDE.md).
 

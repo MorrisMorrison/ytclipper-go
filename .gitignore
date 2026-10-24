@@ -27,3 +27,6 @@ ytclipper
 ytclipper-go
 # Claude Code local settings
 .claude/settings.local.json
+
+# e2e failure screenshots, console and server logs
+test/e2e/artifacts/
