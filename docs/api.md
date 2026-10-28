@@ -8,7 +8,7 @@ The page uses a small JSON API, which you can also call directly. The [`http/`](
 | `GET` | `/api/v1/jobs/{id}` | Job state as JSON; `fileName` and `downloadUrl` once completed |
 | `GET` | `/api/v1/clip?jobId=…` | Download the finished clip as `<title> [h-mm-ss - h-mm-ss].<ext>` |
 | `GET` | `/api/v1/jobs/status?jobId=…` | Legacy: job state as status code (201 running, 200 done, 500 failed) |
-| `GET` | `/health` | Health check (never behind auth) |
+| `GET` | `/health` | Health check (never behind auth): `Server is running (v0.0.1)`, with the running version (`dev-<sha>` for main builds) |
 
 ## Page routes
 Besides `/`, the page is served for YouTube paths, so swapping the host of a YouTube link opens the editor with that video. The page reads the video from its own address and then resets the address bar to `/`.

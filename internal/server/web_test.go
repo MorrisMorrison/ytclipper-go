@@ -140,7 +140,7 @@ func TestDomainSwapRoutes(t *testing.T) {
 	}
 
 	// Static routes win over the /:id catch-all.
-	if rec := get(t, "", "/health"); rec.Code != http.StatusOK || rec.Body.String() != "Server is running" {
+	if rec := get(t, "", "/health"); rec.Code != http.StatusOK || !strings.HasPrefix(rec.Body.String(), "Server is running") {
 		t.Errorf("/health = %d %q", rec.Code, rec.Body.String())
 	}
 }

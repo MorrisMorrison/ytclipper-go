@@ -12,6 +12,7 @@ import (
 
 	"github.com/MorrisMorrison/ytclipper-go/internal/config"
 	"github.com/MorrisMorrison/ytclipper-go/internal/jobs"
+	"github.com/MorrisMorrison/ytclipper-go/internal/version"
 
 	"github.com/labstack/echo/v4"
 )
@@ -198,5 +199,19 @@ func TestCreateClipRejectsBadJSON(t *testing.T) {
 	rec := serve(t, http.MethodPost, "/api/v1/clip", `{"url":`)
 	if rec.Code != http.StatusBadRequest || decode(t, rec)["error"] != "Invalid input" {
 		t.Errorf("got %d %s", rec.Code, rec.Body)
+	}
+}
+
+func TestHealthReportsVersion(t *testing.T) {
+	original := version.Version
+	version.Version = "v1.2.3"
+	t.Cleanup(func() { version.Version = original })
+
+	e := echo.New()
+	Register(e)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/health", nil))
+	if rec.Code != http.StatusOK || rec.Body.String() != "Server is running (v1.2.3)" {
+		t.Errorf("/health = %d %q", rec.Code, rec.Body.String())
 	}
 }
