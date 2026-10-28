@@ -6,7 +6,11 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/ytclipper-go ./cmd/ytclipper
+# The release tag (v0.0.1) or dev-<sha>, set by the publish workflow.
+ARG VERSION=dev
+RUN CGO_ENABLED=0 go build -trimpath \
+    -ldflags="-s -w -X github.com/MorrisMorrison/ytclipper-go/internal/version.Version=${VERSION}" \
+    -o /out/ytclipper-go ./cmd/ytclipper
 
 # --- Runtime -----------------------------------------------------------------
 FROM debian:bookworm-slim

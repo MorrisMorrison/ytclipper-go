@@ -10,7 +10,7 @@ make coverage     # unit and e2e coverage profiles (e2e part needs Linux/macOS)
 make screenshots  # renders the README screenshots into docs/
 ```
 
-The e2e suite (`go test -tags e2e ./test/e2e/`) builds the app plus fake `yt-dlp` and `ffmpeg` binaries (`test/fakes/`), starts the server with them first on the `PATH`, and drives a headless Chrome through the page: presets, advanced formats, the trimmer, job errors, a full queue, the download itself and the phone layout. Failure screenshots and logs go to `test/e2e/artifacts/`. CI never calls real YouTube. Every push to `main` publishes the Docker image to GHCR.
+The e2e suite (`go test -tags e2e ./test/e2e/`) builds the app plus fake `yt-dlp` and `ffmpeg` binaries (`test/fakes/`), starts the server with them first on the `PATH`, and drives a headless Chrome through the page: presets, advanced formats, the trimmer, job errors, a full queue, the download itself and the phone layout. Failure screenshots and logs go to `test/e2e/artifacts/`. CI never calls real YouTube. Every push to `main` publishes the Docker image as `:latest`; a version tag (`v0.0.1`) creates a GitHub release (pre-release while `v0.*`) and the image `:0.0.1`. The tag is stamped into the binary and logged at startup (`version=`).
 
 Working with Claude Code? See [`CLAUDE.md`](../CLAUDE.md) and the project skills in [`.claude/skills/`](../.claude/skills/). The page's design tokens are described in [`STYLEGUIDE.md`](STYLEGUIDE.md).
 

@@ -57,4 +57,4 @@ Running the server locally needs `yt-dlp`, `ffmpeg` and (for current YouTube) `d
 - Branch names: `feat/…`, `fix/…`, `chore/…`, `docs/…`.
 - PR description: what changed, why, and what was verified (and what wasn't).
 - CI must be green before merge.
-- `main` publishes the Docker image to GHCR on every push.
+- `main` publishes the Docker image `:latest` to GHCR on every push. Releases: push a `vX.Y.Z` tag on main HEAD (the user picks the version; pre-1.0) → `release.yml` makes the GitHub release, `docker-publish.yml` the `:X.Y.Z` image (never `:latest`). `internal/version.Version` is stamped from the tag.
