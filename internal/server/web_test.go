@@ -106,3 +106,41 @@ func TestServesDevAssetsFromDisk(t *testing.T) {
 		t.Errorf("after an edit: got %q", got)
 	}
 }
+
+// A YouTube link with the host swapped for ours opens the page; anything that
+// isn't a video ID keeps returning 404.
+func TestDomainSwapRoutes(t *testing.T) {
+	tests := []struct {
+		path string
+		want int
+	}{
+		{"/watch?v=dQw4w9WgXcQ", http.StatusOK},
+		{"/watch?v=dQw4w9WgXcQ&list=PL123&t=42s", http.StatusOK},
+		{"/shorts/dQw4w9WgXcQ", http.StatusOK},
+		{"/live/dQw4w9WgXcQ?si=abc", http.StatusOK},
+		{"/dQw4w9WgXcQ", http.StatusOK},
+		{"/dQw4w9WgXcQ?si=abc&t=90", http.StatusOK},
+		{"/watch", http.StatusNotFound},
+		{"/watch?v=short", http.StatusNotFound},
+		{"/shorts/not-an-id", http.StatusNotFound},
+		{"/favicon.ico", http.StatusNotFound},
+		{"/robots.txt", http.StatusNotFound},
+		{"/nope", http.StatusNotFound},
+		{"/dQw4w9WgXcQ/extra", http.StatusNotFound},
+	}
+	for _, tt := range tests {
+		rec := get(t, "", tt.path)
+		if rec.Code != tt.want {
+			t.Errorf("GET %s = %d; want %d", tt.path, rec.Code, tt.want)
+			continue
+		}
+		if tt.want == http.StatusOK && !strings.Contains(rec.Body.String(), "/static/scripts/main.js") {
+			t.Errorf("GET %s did not serve the page", tt.path)
+		}
+	}
+
+	// Static routes win over the /:id catch-all.
+	if rec := get(t, "", "/health"); rec.Code != http.StatusOK || rec.Body.String() != "Server is running" {
+		t.Errorf("/health = %d %q", rec.Code, rec.Body.String())
+	}
+}
