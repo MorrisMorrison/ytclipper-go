@@ -2,13 +2,13 @@ name: Build and Push Docker Image
 
 on:
   push:
-    branches: [ main ]   # publish :latest on every main commit (Komodo auto-pulls)
+    branches: [ main ]   # :latest on every main commit
+    tags: [ 'v*' ]       # :<version> on a release tag (v0.0.1 → :0.0.1)
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Docker image tag (optional, defaults to latest)'
+        description: 'Extra Docker image tag (optional)'
         required: false
-        default: 'latest'
         type: string
 
 env:
@@ -33,14 +33,20 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
+    # latest=false: only a push to main moves :latest, so tagging an older
+    # commit never rolls it back.
     - name: Extract metadata
       id: meta
       uses: docker/metadata-action@v6
       with:
         images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        flavor: |
+          latest=false
         tags: |
-          type=raw,value=${{ github.event.inputs.tag || 'latest' }}
-          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
+          type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag != '' }}
+          type=semver,pattern={{version}}
+          type=sha,prefix={{branch}}-,enable=${{ github.ref_type == 'branch' }}
 
     - name: Build and push Docker image
       uses: docker/build-push-action@v7
@@ -49,3 +55,5 @@ jobs:
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
+        build-args: |
+          VERSION=${{ github.ref_type == 'tag' && github.ref_name || format('dev-{0}', github.sha) }}

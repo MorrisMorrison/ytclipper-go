@@ -20,6 +20,7 @@ import (
 	"github.com/MorrisMorrison/ytclipper-go/internal/config"
 	"github.com/MorrisMorrison/ytclipper-go/internal/scheduler"
 	"github.com/MorrisMorrison/ytclipper-go/internal/server"
+	"github.com/MorrisMorrison/ytclipper-go/internal/version"
 )
 
 func checkCommand(command string) error {
@@ -74,7 +75,7 @@ func newLogger(format string, debug bool) *slog.Logger {
 
 func main() {
 	slog.SetDefault(newLogger(config.CONFIG.LogFormat, config.CONFIG.Debug))
-	slog.Info("Start ytclipper")
+	slog.Info("Start ytclipper", "version", version.Version)
 	checkDependencies()
 
 	if proxy := config.CONFIG.YtDlpConfig.Proxy; proxy != "" {
