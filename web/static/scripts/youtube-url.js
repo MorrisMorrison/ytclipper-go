@@ -2,6 +2,26 @@
 // server validates again; this only decides whether to load the player.
 
 const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
+const LINK_TIME = /^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s?)?$/;
+
+// linkStartTime returns the start time a YouTube link carries, in seconds:
+// t= or start= in the query, or #t= in the fragment, as "90", "90s",
+// "1m30s" or "1h2m3s". Null when the link has none (or 0).
+export function linkStartTime(raw) {
+    let url;
+    try {
+        url = new URL(String(raw ?? "").trim());
+    } catch {
+        return null;
+    }
+    const hash = new URLSearchParams(url.hash.replace(/^#/, ""));
+    const value = url.searchParams.get("t") ?? url.searchParams.get("start") ?? hash.get("t");
+    const match = LINK_TIME.exec(String(value ?? "").trim().toLowerCase());
+    if (!match || !value) return null;
+    const [h, m, s] = match.slice(1).map((part) => Number(part ?? 0));
+    const seconds = h * 3600 + m * 60 + s;
+    return seconds > 0 ? seconds : null;
+}
 const HOSTS = new Set(["youtube.com", "www.youtube.com", "m.youtube.com", "music.youtube.com"]);
 
 // extractVideoId returns the 11-character video ID of a watch, youtu.be,

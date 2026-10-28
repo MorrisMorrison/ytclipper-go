@@ -23,7 +23,7 @@ import { initTheme } from "./theme.js";
 import { formatTime, parseTime, toHHMMSS } from "./time.js";
 import { toast } from "./toast.js";
 import { Trimmer } from "./trimmer.js";
-import { extractVideoId, linkFromLocation } from "./youtube-url.js";
+import { extractVideoId, linkFromLocation, linkStartTime } from "./youtube-url.js";
 
 const DEFAULT_LENGTH = 30;
 const POLL_MS = 1500;
@@ -93,6 +93,7 @@ const state = {
     start: 0,
     end: DEFAULT_LENGTH,
     rangeTouched: false,
+    linkStart: 0, // t= of the opened link, in seconds (0: none)
     info: null,
     infoCache: new Map(), // videoId → Promise<info>
     formats: { video: [], audio: [] },
@@ -295,8 +296,10 @@ function setDuration(seconds, source) {
     }
     let { start, end } = state;
     if (!state.rangeTouched) {
-        start = 0;
-        end = Math.min(DEFAULT_LENGTH, duration);
+        // The default range: from the link's t= (if it lies inside the
+        // video), DEFAULT_LENGTH long.
+        start = state.linkStart < duration ? state.linkStart : 0;
+        end = Math.min(start + DEFAULT_LENGTH, duration);
     }
     const adjusted = end > duration;
     end = Math.min(end, duration);
@@ -424,13 +427,16 @@ function updateTrimmerHint() {
     }
 }
 
-function openVideo(videoId) {
+// openVideo shows the editor for videoId. linkStart (seconds, from the link's
+// t=) is where the default range begins.
+function openVideo(videoId, linkStart = 0) {
     stopPreview(true);
     state.videoId = videoId;
     state.duration = 0;
     state.durationSource = null;
-    state.start = 0;
-    state.end = DEFAULT_LENGTH;
+    state.linkStart = linkStart;
+    state.start = linkStart;
+    state.end = linkStart + DEFAULT_LENGTH;
     state.rangeTouched = false;
     state.info = null;
     state.infoError = null;
@@ -453,7 +459,7 @@ function openVideo(videoId) {
     writeFields();
     rangeChanged();
 
-    player.load(videoId);
+    player.load(videoId, linkStart);
     infoFor(videoId)
         .then((info) => {
             if (state.videoId === videoId) useInfo(info);
@@ -482,7 +488,7 @@ function applyUrl() {
         return;
     }
     showUrlError(null);
-    if (videoId !== state.videoId) openVideo(videoId);
+    if (videoId !== state.videoId) openVideo(videoId, linkStartTime(raw) ?? 0);
 }
 
 let urlTimer = 0;
@@ -785,7 +791,7 @@ el.form.addEventListener("submit", (event) => {
         // Enter in the URL field: show the editor first.
         clearTimeout(urlTimer);
         showUrlError(null);
-        openVideo(videoId);
+        openVideo(videoId, linkStartTime(raw) ?? 0);
         return;
     }
     if (!commitFields({ seek: false })) {
