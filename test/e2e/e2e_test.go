@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -450,5 +451,40 @@ func TestThemeToggle(t *testing.T) {
 		if got := theme(); got != want {
 			t.Fatalf("the %s theme did not survive a reload (got %q)", want, got)
 		}
+	}
+}
+
+// TestDomainSwap opens YouTube links with the host swapped for the app's: the
+// editor loads that video, the URL field shows the YouTube link, and the
+// address bar is reset to /.
+func TestDomainSwap(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct{ name, path, link, id string }{
+		{"watch", "/watch?v=abcdefghijk&list=PL1&t=42s", "https://www.youtube.com/watch?v=abcdefghijk&list=PL1&t=42s", "abcdefghijk"},
+		{"shorts", "/shorts/ABCDEFGHIJK", "https://www.youtube.com/shorts/ABCDEFGHIJK", "ABCDEFGHIJK"},
+		{"live", "/live/LIVEstream1", "https://www.youtube.com/live/LIVEstream1", "LIVEstream1"},
+		{"youtu.be", "/a1b2c3d4e5f?si=xyz", "https://youtu.be/a1b2c3d4e5f?si=xyz", "a1b2c3d4e5f"},
+		{"url param", "/?url=" + url.QueryEscape("https://youtu.be/zyxwvutsrqp"), "https://youtu.be/zyxwvutsrqp", "zyxwvutsrqp"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			p := newPage(t)
+			p.do("the editor did not appear for "+tc.path,
+				chromedp.Navigate(p.base+tc.path),
+				chromedp.WaitVisible(editor),
+			)
+			poll[bool](p, "the video length did not arrive", `document.getElementById("trimmer").dataset.ready === "true"`, 15*time.Second)
+
+			if got := p.value("#url"); got != tc.link {
+				t.Errorf("URL field = %q; want %q", got, tc.link)
+			}
+			if loc := eval[string](p, `location.pathname + location.search + location.hash`); loc != "/" {
+				t.Errorf("address bar = %q; want it reset to /", loc)
+			}
+			infos := p.fetches("/api/v1/video/info?")
+			if len(infos) != 1 || !strings.Contains(infos[0].URL, "watch%3Fv%3D"+tc.id) {
+				t.Fatalf("expected one info request for %s, got %+v", tc.id, infos)
+			}
+		})
 	}
 }

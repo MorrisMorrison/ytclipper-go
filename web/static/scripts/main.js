@@ -23,7 +23,7 @@ import { initTheme } from "./theme.js";
 import { formatTime, parseTime, toHHMMSS } from "./time.js";
 import { toast } from "./toast.js";
 import { Trimmer } from "./trimmer.js";
-import { extractVideoId } from "./youtube-url.js";
+import { extractVideoId, linkFromLocation } from "./youtube-url.js";
 
 const DEFAULT_LENGTH = 30;
 const POLL_MS = 1500;
@@ -803,4 +803,12 @@ el.form.addEventListener("submit", (event) => {
 
 // ===== Start =====
 initTheme($("themeToggle"));
+
+// Opened through a domain swap (/watch?v=…, /shorts/…, /<id>) or /?url=…:
+// load that video, then show the plain address so a reload starts fresh.
+const linked = linkFromLocation(window.location);
+if (linked) {
+    el.url.value = linked;
+    history.replaceState(null, "", "/");
+}
 if (el.url.value) applyUrl();

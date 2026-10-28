@@ -10,6 +10,18 @@ The page uses a small JSON API, which you can also call directly. The [`http/`](
 | `GET` | `/api/v1/jobs/status?jobId=…` | Legacy: job state as status code (201 running, 200 done, 500 failed) |
 | `GET` | `/health` | Health check (never behind auth) |
 
+## Page routes
+Besides `/`, the page is served for YouTube paths, so swapping the host of a YouTube link opens the editor with that video. The page reads the video from its own address and then resets the address bar to `/`.
+
+| Path | Same as |
+|---|---|
+| `/watch?v=ID` | `https://www.youtube.com/watch?v=ID` (other parameters such as `t` are kept) |
+| `/shorts/ID`, `/live/ID` | `https://www.youtube.com/shorts/ID`, `…/live/ID` |
+| `/ID` | `https://youtu.be/ID` |
+| `/?url=<YouTube link>` | that link |
+
+Only valid 11-character video IDs match; other paths return `404`. The API, `/static/…` and `/health` routes take precedence.
+
 Video info comes from one `yt-dlp -J` call and is cached in memory per video for 10 minutes, so the formats, duration and clip endpoints don't ask YouTube again. Each format has `id`, `ext`, `kind` (`video` = video only, `audio` = audio only, `both`), `width`, `height`, `fps`, `vcodec`, `acodec`, `tbr`, `abr` (kbit/s), `filesize` (bytes for the whole video, approximate if that's all YouTube reports, `0` if unknown) and `note`.
 
 A clip request names either a `preset` or a `format`:
