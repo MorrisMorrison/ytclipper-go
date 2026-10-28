@@ -15,7 +15,7 @@ Besides `/`, the page is served for YouTube paths, so swapping the host of a You
 
 | Path | Same as |
 |---|---|
-| `/watch?v=ID` | `https://www.youtube.com/watch?v=ID` (other parameters such as `t` are kept) |
+| `/watch?v=ID` | `https://www.youtube.com/watch?v=ID` (other parameters are kept; `t=` sets the clip start) |
 | `/shorts/ID`, `/live/ID` | `https://www.youtube.com/shorts/ID`, `…/live/ID` |
 | `/ID` | `https://youtu.be/ID` |
 | `/?url=<YouTube link>` | that link |

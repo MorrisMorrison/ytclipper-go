@@ -18,7 +18,7 @@ ytclipper is a small self-hostable web app: a Go server with a plain HTML/JS pag
 
 ## Features
 - The YouTube player loads as soon as you paste a link; nothing waits on the server.
-- **Swap the domain:** replace `www.youtube.com` (or `youtu.be`) in any YouTube link with your ytclipper host, e.g. `https://ytclipper.example/watch?v=dQw4w9WgXcQ` or `https://ytclipper.example/shorts/…`, and the editor opens with that video.
+- **Swap the domain:** replace `www.youtube.com` (or `youtu.be`) in any YouTube link with your ytclipper host, e.g. `https://ytclipper.example/watch?v=dQw4w9WgXcQ` or `https://ytclipper.example/shorts/…`, and the editor opens with that video. A timestamp in the link (`t=90`, `t=1m30s`) becomes the clip start.
 - Pick the range with a two-handle slider under the player (drag, or arrow keys), by typing times (`34`, `1:28` or `1:09:24`), or with "Now" buttons that take the player's current time. **Preview selection** plays just that range.
 - One click for a video (H.264/AAC MP4) or audio (MP3) clip. **Advanced** lists every format YouTube offers (resolution, fps, codec, estimated clip size) so you can combine a video and an audio stream yourself.
 - Downloads get a readable name: `<title> [from - to].<ext>`.

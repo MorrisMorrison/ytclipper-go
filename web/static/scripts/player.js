@@ -76,7 +76,8 @@ export class Player {
         this.container.replaceChildren();
     }
 
-    async load(videoId) {
+    // load shows videoId, cued at start seconds (without playing it).
+    async load(videoId, start = 0) {
         // A fresh player per video: cueing into an old one briefly reports the
         // previous video's duration.
         this.destroy();
@@ -104,7 +105,7 @@ export class Player {
         const yt = new YT.Player(mount, {
             host: "https://www.youtube-nocookie.com",
             videoId,
-            playerVars: { playsinline: 1, rel: 0, modestbranding: 1 },
+            playerVars: { playsinline: 1, rel: 0, modestbranding: 1, ...(start > 0 ? { start: Math.floor(start) } : {}) },
             events: {
                 onReady: () => {
                     if (this.yt !== yt) return;

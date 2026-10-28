@@ -3,10 +3,13 @@
 package e2e
 
 import (
+	"encoding/json"
 	"fmt"
+	"maps"
 	"math"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -484,6 +487,71 @@ func TestDomainSwap(t *testing.T) {
 			infos := p.fetches("/api/v1/video/info?")
 			if len(infos) != 1 || !strings.Contains(infos[0].URL, "watch%3Fv%3D"+tc.id) {
 				t.Fatalf("expected one info request for %s, got %+v", tc.id, infos)
+			}
+		})
+	}
+}
+
+// TestLinkStartTime runs the page's own t= parser (youtube-url.js) in the
+// browser.
+func TestLinkStartTime(t *testing.T) {
+	t.Parallel()
+	p := newPage(t)
+	p.navigate()
+
+	cases := map[string]int{ // link → seconds (-1: none)
+		"https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=90":      90,
+		"https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=90s":     90,
+		"https://youtu.be/dQw4w9WgXcQ?t=1m30s":                  90,
+		"https://youtu.be/dQw4w9WgXcQ?si=x&t=1h2m3s":            3723,
+		"https://www.youtube.com/watch?v=dQw4w9WgXcQ&start=42":  42,
+		"https://www.youtube.com/watch?v=dQw4w9WgXcQ#t=2m":      120,
+		"https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=1H5M":    3900,
+		"https://www.youtube.com/watch?v=dQw4w9WgXcQ":           -1,
+		"https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=0":       -1,
+		"https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=abc":     -1,
+		"https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=":        -1,
+		"https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=1m30s10": -1,
+		"not a link": -1,
+	}
+	links, err := json.Marshal(slices.Collect(maps.Keys(cases)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := chromedp.Run(p.ctx, chromedp.Evaluate[map[string]int](fmt.Sprintf(`
+		import("/static/scripts/youtube-url.js").then(({ linkStartTime }) =>
+			Object.fromEntries(%s.map((link) => [link, linkStartTime(link) ?? -1])))`, links),
+		chromedp.EvalAwaitPromise))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for link, want := range cases {
+		if got[link] != want {
+			t.Errorf("linkStartTime(%q) = %d; want %d", link, got[link], want)
+		}
+	}
+}
+
+// TestStartFromLinkTime: a link's t= sets the start of the default range,
+// whichever way the link arrives. The fake video is 30 s long.
+func TestStartFromLinkTime(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct{ name, path, link, from, to string }{
+		{"domain swap", "/watch?v=" + stubVideoID + "&t=12", "", "0:12", "0:30"},
+		{"pasted", "", "https://youtu.be/" + stubVideoID + "?t=8s", "0:08", "0:30"},
+		{"past the end", "/watch?v=" + stubVideoID + "&t=5m", "", "0:00", "0:30"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			p := newPage(t)
+			if tc.path != "" {
+				p.do("the editor did not appear", chromedp.Navigate(p.base+tc.path), chromedp.WaitVisible(editor))
+			} else {
+				p.enterURL(tc.link)
+			}
+			poll[bool](p, "the video length did not arrive", `document.getElementById("trimmer").dataset.ready === "true"`, 15*time.Second)
+			if from, to := p.value("#from"), p.value("#to"); from != tc.from || to != tc.to {
+				t.Errorf("range = %s–%s; want %s–%s", from, to, tc.from, tc.to)
 			}
 		})
 	}
