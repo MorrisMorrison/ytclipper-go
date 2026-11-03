@@ -174,9 +174,9 @@ function seekPlayer(seconds, final) {
     const now = performance.now();
     if (!final && now - lastSeek < 150) return;
     lastSeek = now;
-    player.seek(seconds, final);
-    // seekTo starts a cued video; keep it paused so dragging just shows the frame.
-    if (!state.previewing && state.playerState !== "playing") player.pause();
+    // While previewing, a plain seek; otherwise just show the frame there.
+    if (state.previewing) player.seek(seconds, final);
+    else player.scrub(seconds, final);
 }
 
 // ===== Trimmer =====

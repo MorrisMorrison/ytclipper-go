@@ -42,6 +42,7 @@ const ERROR_MESSAGES = {
 
 // YT.PlayerState values → names.
 const STATES = { "-1": "unstarted", 0: "ended", 1: "playing", 2: "paused", 3: "buffering", 5: "cued" };
+const PLAYING = 1;
 
 export class Player {
     // container: element the player iframe goes into (its children are replaced).
@@ -53,6 +54,11 @@ export class Player {
         this.ready = false;
         this.videoId = null;
         this.timers = [];
+        // A video that has never played only has its thumbnail: seeking it
+        // shows a black frame. hasPlayed flips on the first "playing";
+        // priming is set while scrub() plays it muted to get there.
+        this.hasPlayed = false;
+        this.priming = null; // { wasMuted }
     }
 
     clearTimers() {
@@ -64,6 +70,8 @@ export class Player {
     destroy() {
         this.videoId = null;
         this.ready = false;
+        this.hasPlayed = false;
+        this.priming = null;
         this.clearTimers();
         if (this.yt) {
             try {
@@ -114,7 +122,17 @@ export class Player {
                     this.pollDuration(videoId);
                 },
                 onStateChange: (event) => {
-                    if (this.yt === yt) this.callbacks.onStateChange(STATES[event.data] ?? "unknown");
+                    if (this.yt !== yt) return;
+                    const name = STATES[event.data] ?? "unknown";
+                    if (name === "playing") {
+                        this.hasPlayed = true;
+                        // Primed by scrub(): the frame is there now, stop again.
+                        if (this.priming) {
+                            yt.pauseVideo();
+                            this.endPriming();
+                        }
+                    }
+                    this.callbacks.onStateChange(name);
                 },
                 onError: (event) => {
                     if (this.yt !== yt) return;
@@ -151,11 +169,39 @@ export class Player {
         if (this.ready) this.yt.seekTo(seconds, final);
     }
 
+    // scrub shows the frame at seconds without leaving the video playing
+    // (dragging a trim handle). Playback that's already running continues.
+    // A video that hasn't played yet stays black after a seek, so the first
+    // scrub plays it muted and pauses again on "playing".
+    scrub(seconds, final = true) {
+        if (!this.ready) return;
+        this.yt.seekTo(seconds, final);
+        if (!this.hasPlayed) {
+            if (!this.priming) {
+                this.priming = { wasMuted: this.yt.isMuted() };
+                this.yt.mute();
+                this.yt.playVideo();
+            }
+            return;
+        }
+        if (this.yt.getPlayerState() !== PLAYING) this.yt.pauseVideo();
+    }
+
+    endPriming() {
+        if (!this.priming) return;
+        if (!this.priming.wasMuted) this.yt.unMute();
+        this.priming = null;
+    }
+
     play() {
-        if (this.ready) this.yt.playVideo();
+        if (!this.ready) return;
+        this.endPriming();
+        this.yt.playVideo();
     }
 
     pause() {
-        if (this.ready) this.yt.pauseVideo();
+        if (!this.ready) return;
+        this.endPriming();
+        this.yt.pauseVideo();
     }
 }
