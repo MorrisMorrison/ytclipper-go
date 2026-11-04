@@ -20,8 +20,10 @@ RUN apt-get update && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # yt-dlp from PyPI: Debian's package lags behind YouTube changes. The latest
-# release is installed at build time, so rebuilding the image picks up fixes.
-RUN python3 -m pip install --no-cache-dir --break-system-packages --upgrade "yt-dlp[default]"
+# release is installed at build time, so rebuilding the image picks up fixes
+# (docker-publish.yml rebuilds :latest weekly for that reason).
+RUN python3 -m pip install --no-cache-dir --break-system-packages --upgrade "yt-dlp[default]" && \
+    yt-dlp --version
 
 # deno is the JavaScript runtime yt-dlp uses to solve YouTube's JS challenges;
 # without it some formats go missing. Pinned for reproducible builds.
