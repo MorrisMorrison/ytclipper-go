@@ -1299,3 +1299,119 @@ code {
 .switch input:focus-visible + .switch-track {
     box-shadow: 0 0 0 1px var(--focus-ring), 0 0 0 4px var(--accent-soft);
 }
+
+/* ===== Recent clips ===== */
+.recent {
+    margin-top: var(--spacing-xl);
+}
+.recent[hidden] {
+    display: none;
+}
+.recent summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    list-style: none;
+    font-weight: 600;
+    border-radius: var(--radius);
+}
+.recent summary::-webkit-details-marker {
+    display: none;
+}
+.recent summary:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 1px var(--focus-ring), 0 0 0 4px var(--accent-soft);
+}
+.recent[open] summary {
+    margin-bottom: 12px;
+}
+.recent[open] summary .chevron {
+    transform: rotate(180deg);
+}
+.recent-count {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 0 8px;
+    border-radius: var(--radius-pill);
+    background: var(--accent-soft);
+    color: var(--accent-text);
+    font-size: var(--font-size-sm);
+}
+.recent-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.recent-item {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border: 1px solid var(--surface-border);
+    border-radius: var(--radius-lg);
+    background: var(--surface-raised);
+}
+.recent-text {
+    min-width: 0;
+}
+.recent-title {
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.recent-meta {
+    margin-top: 2px;
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+}
+.recent-expired {
+    color: var(--text-muted);
+    font-style: italic;
+}
+.recent-actions {
+    display: flex;
+    gap: 6px;
+    flex: none;
+}
+.button-quiet {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--surface-border);
+}
+.button-quiet:hover:not(:disabled) {
+    color: var(--text);
+    border-color: var(--accent-ring);
+}
+.link-button {
+    margin-top: 10px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: var(--font-size-sm);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+}
+.link-button:hover {
+    color: var(--text);
+}
+/* Phones: the buttons go under the text so titles stay readable. */
+@media (max-width: 520px) {
+    .recent-item {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+    .recent-actions {
+        justify-content: flex-end;
+    }
+}

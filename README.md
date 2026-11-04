@@ -23,6 +23,7 @@ ytclipper is a small self-hostable web app: a Go server with a plain HTML/JS pag
 - Pick the range with a two-handle slider under the player (drag, or arrow keys), by typing times (`34`, `1:28` or `1:09:24`), or with "Now" buttons that take the player's current time. **Preview selection** plays just that range. **Cut exactly at these times** (remembered in your browser) re-encodes so a video clip starts and ends exactly there instead of at the nearest keyframe; it's slower.
 - One click for a video (H.264/AAC MP4) or audio (MP3) clip. **Advanced** lists every format YouTube offers (resolution, fps, codec, estimated clip size) so you can combine a video and an audio stream yourself.
 - Downloads get a readable name: `<title> [from - to].<ext>`.
+- **Recent clips** (kept in your browser only, up to 10): download a clip again while the server still has it, or open the same video and range again.
 - Clips are processed as background jobs; the page shows their progress and starts the download when the job is done.
 - Works on phones; light and dark theme (follows the system until you pick one).
 - The page is plain HTML, CSS and ES modules: no framework, no build step.

@@ -40,3 +40,14 @@ export function formatTimeLeft(seconds) {
     if (s < 60) return `about ${s} s left`;
     return `about ${Math.ceil(s / 60)} min left`;
 }
+
+// formatAgo describes how long ago a timestamp (ms) was.
+export function formatAgo(then, now = Date.now()) {
+    const minutes = Math.floor((now - then) / 60000);
+    if (minutes < 1) return "just now";
+    if (minutes < 60) return `${minutes} min ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours} h ago`;
+    const days = Math.floor(hours / 24);
+    return days === 1 ? "yesterday" : `${days} days ago`;
+}

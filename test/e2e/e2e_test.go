@@ -137,6 +137,76 @@ func TestPreciseCut(t *testing.T) {
 	}
 }
 
+// TestRecentClips: a finished clip lands in the collapsible "Recent clips"
+// card (this browser only), survives a reload, offers its download while the
+// server has the job, marks unknown jobs as deleted, reopens the video with the
+// same range, and can be cleared. Its own server keeps the storage separate.
+func TestRecentClips(t *testing.T) {
+	t.Parallel()
+	s := ownServer(t, "recent", nil)
+	p := newPage(t, withServer(s.URL))
+	p.navigate()
+	if !p.hidden("recent") {
+		t.Fatal("recent clips shown before any clip was made")
+	}
+
+	p.openVideo(watchURL(stubVideoID))
+	p.setRange("0:05", "0:15")
+	_, href := p.clip()
+	jobID := strings.TrimPrefix(href, "/api/v1/clip?jobId=")
+	if p.hidden("recent") || p.text("#recentCount") != "1" {
+		t.Fatalf("expected one recent clip, count %q", p.text("#recentCount"))
+	}
+	if eval[bool](p, `document.getElementById("recent").open`) {
+		t.Fatal("the recent clips card should start collapsed")
+	}
+
+	// After a reload, plus an entry for a job the server doesn't know.
+	eval[bool](p, `(() => {
+		const list = JSON.parse(localStorage.getItem("ytclipper.recentClips"));
+		list.push({ jobId: "gone-job", videoId: "aqz-KE-bpKQ", title: "Old clip", from: 30, to: 65, kind: "MP3", fileName: "old.mp3", at: Date.now() - 86400000 });
+		localStorage.setItem("ytclipper.recentClips", JSON.stringify(list));
+		return true;
+	})()`)
+	p.navigate()
+	p.do("opening recent clips", chromedp.Click(chromedp.CSS(`#recent summary`)))
+	poll[bool](p, "the old clip was not marked as deleted",
+		`document.querySelector('[data-job-id="gone-job"] .recent-expired') !== null`, 10*time.Second)
+
+	first := fmt.Sprintf(`document.querySelector('[data-job-id=%q]')`, jobID)
+	if title := eval[string](p, first+`.querySelector(".recent-title").textContent`); title != "Stub Video" {
+		t.Fatalf("unexpected recent title %q", title)
+	}
+	if meta := eval[string](p, first+`.querySelector(".recent-meta").textContent`); meta != "0:05 – 0:15 · MP4 · just now" {
+		t.Fatalf("unexpected recent meta %q", meta)
+	}
+	if got := eval[string](p, first+`.querySelector(".recent-download")?.getAttribute("href") || ""`); got != href {
+		t.Fatalf("expected a download link %q for the kept clip, got %q", href, got)
+	}
+	if eval[bool](p, `document.querySelector('[data-job-id="gone-job"] .recent-download') !== null`) {
+		t.Fatal("download offered for a clip the server no longer has")
+	}
+
+	p.do("clicking Clip again", chromedp.Click(chromedp.CSS(fmt.Sprintf(`[data-job-id=%q] .recent-again`, jobID))))
+	poll[bool](p, "the editor did not open with the clip's range",
+		`!document.getElementById("editor").hidden && document.getElementById("from").value === "0:05" && document.getElementById("to").value === "0:15"`, 10*time.Second)
+	if url := p.value("#url"); url != watchURL(stubVideoID) {
+		t.Fatalf("Clip again did not fill the link: %q", url)
+	}
+
+	if eval[bool](p, `document.getElementById("recent").open`) {
+		t.Fatal("Clip again should fold the recent clips card")
+	}
+	p.do("clearing recent clips", chromedp.Click(chromedp.CSS(`#recent summary`)), chromedp.Click(chromedp.CSS(`#recentClear`)))
+	if !p.hidden("recent") {
+		t.Fatal("recent clips still shown after clearing")
+	}
+	p.navigate()
+	if !p.hidden("recent") {
+		t.Fatal("cleared recent clips came back after a reload")
+	}
+}
+
 func TestAdvancedFormats(t *testing.T) {
 	t.Parallel()
 	p := newPage(t)
