@@ -359,11 +359,12 @@ func (p *page) fetches(substr string) []fetchEntry {
 }
 
 type clipPayload struct {
-	URL    string `json:"url"`
-	Preset string `json:"preset"`
-	Format string `json:"format"`
-	From   string `json:"from"`
-	To     string `json:"to"`
+	URL        string `json:"url"`
+	Preset     string `json:"preset"`
+	Format     string `json:"format"`
+	From       string `json:"from"`
+	To         string `json:"to"`
+	PreciseCut bool   `json:"preciseCut"`
 }
 
 // clipPosts returns the bodies of every POST /api/v1/clip.

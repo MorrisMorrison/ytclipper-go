@@ -166,6 +166,26 @@ func TestValidateCreateClipDto(t *testing.T) {
 	}
 }
 
+func TestValidateCreateClipDtoPreciseCut(t *testing.T) {
+	for _, tt := range []struct {
+		preset, format string
+		precise, want  bool
+	}{
+		{"video", "", true, true},
+		{"", "137+140", true, true},
+		{"audio", "", true, false}, // MP3 is re-encoded anyway
+		{"video", "", false, false},
+	} {
+		req, err := validateCreateClipDto(&CreateClipDTO{Url: "https://youtu.be/dQw4w9WgXcQ", From: "00:00:01", To: "00:00:05", Preset: tt.preset, Format: tt.format, PreciseCut: tt.precise})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if req.PreciseCut != tt.want {
+			t.Errorf("preset %q format %q preciseCut %v: got %v, want %v", tt.preset, tt.format, tt.precise, req.PreciseCut, tt.want)
+		}
+	}
+}
+
 func TestValidateCreateClipDtoNormalizesTimes(t *testing.T) {
 	req, err := validateCreateClipDto(&CreateClipDTO{Url: "https://youtu.be/dQw4w9WgXcQ", From: "1:02:03", To: "1:02:13", Preset: "audio"})
 	if err != nil {

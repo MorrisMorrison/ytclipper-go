@@ -59,6 +59,9 @@ const el = {
     previewLabel: $("previewLabel"),
     outputSection: $("outputSection"),
     presetOverride: $("presetOverride"),
+    presetGroup: $("presetGroup"),
+    preciseRow: $("preciseRow"),
+    preciseCut: $("preciseCut"),
     advanced: $("advanced"),
     advancedLoading: $("advancedLoading"),
     advancedError: $("advancedError"),
@@ -536,7 +539,35 @@ function updateOutputMode() {
     const active = Boolean(advancedFormat());
     el.outputSection.dataset.advanced = active ? "on" : "off";
     el.presetOverride.hidden = !active;
+    updatePreciseCut();
 }
+
+// cutsVideo tells whether the clip has a video stream, the only case where a
+// precise cut changes anything (MP3 clips are re-encoded anyway).
+function cutsVideo() {
+    if (advancedFormat()) return !el.streamsA.checked;
+    return (el.form.elements.preset.value || "video") === "video";
+}
+
+function updatePreciseCut() {
+    el.preciseRow.hidden = !cutsVideo();
+}
+
+// The precise-cut switch is remembered in this browser.
+const PRECISE_CUT_KEY = "ytclipper.preciseCut";
+try {
+    el.preciseCut.checked = localStorage.getItem(PRECISE_CUT_KEY) === "1";
+} catch {
+    // storage unavailable: start with the switch off
+}
+el.preciseCut.addEventListener("change", () => {
+    try {
+        localStorage.setItem(PRECISE_CUT_KEY, el.preciseCut.checked ? "1" : "0");
+    } catch {
+        // not remembered, that's fine
+    }
+});
+el.presetGroup.addEventListener("change", updatePreciseCut);
 
 function updateAdvancedState() {
     const { audioOnly, video, audioIncluded } = chosenFormats();
@@ -828,6 +859,7 @@ el.form.addEventListener("submit", (event) => {
     const format = advancedFormat();
     if (format) payload.format = format;
     else payload.preset = el.form.elements.preset.value || "video";
+    if (el.preciseCut.checked && cutsVideo()) payload.preciseCut = true;
     startJob(payload);
 });
 
