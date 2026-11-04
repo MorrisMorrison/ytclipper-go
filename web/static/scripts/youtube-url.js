@@ -54,13 +54,16 @@ export function extractVideoId(raw) {
 // for, or null on the plain page:
 //   - a domain swap: /watch?v=ID, /shorts/ID, /live/ID (youtube.com) or /ID
 //     (youtu.be), with the rest of the address (t=, si=, …) kept;
-//   - /?url=<YouTube link>.
+//   - /?url=<YouTube link>, or a link shared to the installed app (the share
+//     target sends ?title=…&text=…&url=…; the YouTube app puts the link in
+//     text, often after a title).
 // The server only serves the swap paths for valid video IDs.
 export function linkFromLocation(loc) {
     const path = loc.pathname.replace(/^\/+|\/+$/g, "");
     let link;
     if (path === "") {
-        link = new URLSearchParams(loc.search).get("url");
+        const params = new URLSearchParams(loc.search);
+        return ["url", "text", "title"].map((name) => findYouTubeLink(params.get(name))).find(Boolean) ?? null;
     } else {
         const parts = path.split("/");
         const youtubePath = (parts.length === 1 && parts[0] === "watch") ||
@@ -69,4 +72,14 @@ export function linkFromLocation(loc) {
         if (host) link = host + path + loc.search + loc.hash;
     }
     return link && extractVideoId(link) ? link : null;
+}
+
+// findYouTubeLink returns the first YouTube link in a piece of text (a link on
+// its own, or "Some title https://youtu.be/ID?si=…"), or null.
+export function findYouTubeLink(text) {
+    for (const word of String(text ?? "").split(/\s+/)) {
+        const candidate = word.replace(/^[<("']+|[>)"'.,!?]+$/g, "");
+        if (extractVideoId(candidate)) return candidate;
+    }
+    return null;
 }

@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"io/fs"
 	"log/slog"
+	"net/http"
 
 	"github.com/MorrisMorrison/ytclipper-go/internal/videoprocessing"
 	"github.com/MorrisMorrison/ytclipper-go/web"
@@ -23,6 +24,11 @@ func registerWeb(e *echo.Echo, devDir string) error {
 		return fmt.Errorf("static files: %w", err)
 	}
 	e.StaticFS("/static", static)
+
+	// Installable app: the manifest (with the share target) and the service
+	// worker live at the root, so the worker's scope covers the whole site.
+	e.GET("/manifest.webmanifest", rootFile(static, "manifest.webmanifest", "application/manifest+json"))
+	e.GET("/sw.js", rootFile(static, "sw.js", "text/javascript; charset=utf-8"))
 
 	var homePage func() (*template.Template, error)
 	if devDir != "" {
@@ -59,6 +65,20 @@ func registerWeb(e *echo.Echo, devDir string) error {
 }
 
 func idParam(c echo.Context) string { return c.Param("id") }
+
+// rootFile serves one file from the static assets at a fixed path. It is read
+// on every request (cheap, and current in dev mode) and revalidated by the
+// browser, so a new deploy's worker and manifest are picked up.
+func rootFile(static fs.FS, name, contentType string) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		data, err := fs.ReadFile(static, name)
+		if err != nil {
+			return err
+		}
+		c.Response().Header().Set(echo.HeaderCacheControl, "no-cache")
+		return c.Blob(http.StatusOK, contentType, data)
+	}
+}
 
 // videoPage serves page when videoID(c) is a valid YouTube video ID, and 404
 // otherwise, so unrelated paths keep failing as before.

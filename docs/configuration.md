@@ -37,6 +37,9 @@ Use an **HTTP proxy** that supports `CONNECT` (for example tinyproxy, privoxy or
 
 With a residential exit, no cookies or other workarounds are needed.
 
+## Behind an authenticating proxy
+The page links its manifest with `crossorigin="use-credentials"`, so a cookie-based login in front of the app (forward auth such as Authelia, tinyauth or oauth2-proxy) also covers the manifest and the service worker. To install the app or use the share target on a phone, log in once in that phone's browser first. The home-screen icon is fetched by the browser and may fall back to a generic one if the proxy blocks `/static/icons/`.
+
 ## Behind a reverse proxy
 By default the client IP (for rate limiting and logs) is the address of the TCP connection, and `X-Forwarded-For` is ignored, because any client can send that header. Behind a reverse proxy (Caddy, nginx, Traefik, a Docker network), every request then comes from the proxy and all users share one rate limit. Set `YTCLIPPER_TRUSTED_PROXIES` to the proxy's address or network:
 

@@ -19,8 +19,11 @@ Besides `/`, the page is served for YouTube paths, so swapping the host of a You
 | `/shorts/ID`, `/live/ID` | `https://www.youtube.com/shorts/ID`, `…/live/ID` |
 | `/ID` | `https://youtu.be/ID` |
 | `/?url=<YouTube link>` | that link |
+| `/?title=…&text=…&url=…` | the first YouTube link in `url`, `text` or `title`: what the installed app's share target sends (the YouTube app puts the link in `text`) |
 
 Only valid 11-character video IDs match; other paths return `404`. The API, `/static/…` and `/health` routes take precedence.
+
+For installing the page as an app, `/manifest.webmanifest` (with the `share_target`) and `/sw.js` (a minimal service worker that caches nothing) are served at the root with `Cache-Control: no-cache`.
 
 Video info comes from one `yt-dlp -J` call and is cached in memory per video for 10 minutes, so the formats, duration and clip endpoints don't ask YouTube again. Each format has `id`, `ext`, `kind` (`video` = video only, `audio` = audio only, `both`), `width`, `height`, `fps`, `vcodec`, `acodec`, `tbr`, `abr` (kbit/s), `filesize` (bytes for the whole video, approximate if that's all YouTube reports, `0` if unknown) and `note`.
 

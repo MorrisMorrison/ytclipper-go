@@ -6,6 +6,14 @@
     <meta name="color-scheme" content="light dark">
     <title>ytclipper: clip any YouTube video</title>
     <link rel="icon" href="/static/icons/favicon.ico" type="image/x-icon">
+    <link rel="icon" href="/static/icons/icon.svg" type="image/svg+xml">
+    <!-- use-credentials: browsers fetch the manifest without cookies otherwise,
+         which an auth proxy in front of the app would turn into a login redirect. -->
+    <link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials">
+    <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+    <meta name="apple-mobile-web-app-title" content="ytclipper">
+    <meta name="theme-color" content="#eef2f7" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#0b1220" media="(prefers-color-scheme: dark)">
     <script>
         // Set the theme before first paint: a stored choice wins, otherwise the OS preference.
         (function () {

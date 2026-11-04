@@ -810,11 +810,18 @@ el.form.addEventListener("submit", (event) => {
 // ===== Start =====
 initTheme($("themeToggle"));
 
-// Opened through a domain swap (/watch?v=…, /shorts/…, /<id>) or /?url=…:
-// load that video, then show the plain address so a reload starts fresh.
+// Opened through a domain swap (/watch?v=…, /shorts/…, /<id>), /?url=… or a
+// link shared to the installed app: load that video, then show the plain
+// address so a reload starts fresh.
 const linked = linkFromLocation(window.location);
 if (linked) {
     el.url.value = linked;
     history.replaceState(null, "", "/");
 }
 if (el.url.value) applyUrl();
+
+// Installable app with a share target (manifest.webmanifest). Not needed
+// for the page itself, so failures are ignored.
+if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+}

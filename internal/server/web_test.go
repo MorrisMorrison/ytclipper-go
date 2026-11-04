@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -142,5 +143,49 @@ func TestDomainSwapRoutes(t *testing.T) {
 	// Static routes win over the /:id catch-all.
 	if rec := get(t, "", "/health"); rec.Code != http.StatusOK || !strings.HasPrefix(rec.Body.String(), "Server is running") {
 		t.Errorf("/health = %d %q", rec.Code, rec.Body.String())
+	}
+}
+
+// The installable-app files are served at the root with the right types.
+func TestServesManifestAndServiceWorker(t *testing.T) {
+	rec := get(t, "", "/manifest.webmanifest")
+	if rec.Code != http.StatusOK || rec.Header().Get("Content-Type") != "application/manifest+json" {
+		t.Fatalf("manifest: %d %q", rec.Code, rec.Header().Get("Content-Type"))
+	}
+	var manifest struct {
+		StartURL    string `json:"start_url"`
+		Display     string `json:"display"`
+		Icons       []struct{ Src, Sizes, Purpose string }
+		ShareTarget struct {
+			Action, Method string
+			Params         map[string]string
+		} `json:"share_target"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &manifest); err != nil {
+		t.Fatalf("manifest is not JSON: %v", err)
+	}
+	if manifest.StartURL != "/" || manifest.Display != "standalone" {
+		t.Errorf("start_url/display = %q/%q", manifest.StartURL, manifest.Display)
+	}
+	st := manifest.ShareTarget
+	if st.Action != "/" || st.Method != "GET" || st.Params["text"] != "text" || st.Params["url"] != "url" {
+		t.Errorf("share_target = %+v", st)
+	}
+	// Every icon the manifest names must exist.
+	for _, icon := range manifest.Icons {
+		if rec := get(t, "", icon.Src); rec.Code != http.StatusOK {
+			t.Errorf("icon %s: %d", icon.Src, rec.Code)
+		}
+	}
+
+	rec = get(t, "", "/sw.js")
+	if rec.Code != http.StatusOK || !strings.HasPrefix(rec.Header().Get("Content-Type"), "text/javascript") ||
+		rec.Header().Get("Cache-Control") != "no-cache" {
+		t.Errorf("sw.js: %d %q %q", rec.Code, rec.Header().Get("Content-Type"), rec.Header().Get("Cache-Control"))
+	}
+
+	page := get(t, "", "/").Body.String()
+	if !strings.Contains(page, `rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials"`) {
+		t.Error("the page must link the manifest with crossorigin=use-credentials (auth proxies)")
 	}
 }
