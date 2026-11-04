@@ -37,7 +37,7 @@ The image bundles yt-dlp, FFmpeg and deno.
 docker run -d -p 8080:8080 ghcr.io/morrismorrison/ytclipper-go:latest
 ```
 
-**Image tags.** `:latest` follows `main` (every merged change). To stay on a release instead, pin its version, e.g. `ghcr.io/morrismorrison/ytclipper-go:0.0.1`; see the [releases](https://github.com/MorrisMorrison/ytclipper-go/releases). ytclipper is pre-1.0: releases are snapshots on the way to a stable 1.0, not long-term-supported versions.
+**Image tags.** `:latest` follows `main` (every merged change) and is also rebuilt weekly, so it picks up the newest yt-dlp when YouTube changes something. To stay on a release instead, pin its version, e.g. `ghcr.io/morrismorrison/ytclipper-go:0.0.1`; see the [releases](https://github.com/MorrisMorrison/ytclipper-go/releases). ytclipper is pre-1.0: releases are snapshots on the way to a stable 1.0, not long-term-supported versions.
 
 Then open http://localhost:8080. With Docker Compose, `docker compose up -d` uses the included `docker-compose.yml` (port 8080, clips in a named volume). The container runs as a non-root user.
 

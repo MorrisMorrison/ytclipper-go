@@ -4,6 +4,12 @@ on:
   push:
     branches: [ main ]   # :latest on every main commit
     tags: [ 'v*' ]       # :<version> on a release tag (v0.0.1 → :0.0.1)
+  # Weekly rebuild of main → :latest. yt-dlp is installed at build time, and
+  # YouTube changes break old versions; this keeps :latest on a current yt-dlp
+  # (and base image) even when main is quiet. Scheduled runs use the default
+  # branch; GitHub pauses them after 60 days without repo activity.
+  schedule:
+    - cron: '23 4 * * 1'   # Mondays 04:23 UTC
   workflow_dispatch:
     inputs:
       tag:
@@ -33,8 +39,9 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    # latest=false: only a push to main moves :latest, so tagging an older
-    # commit never rolls it back.
+    # latest=false: only a push to main (or the weekly rebuild of main) moves
+    # :latest, so tagging an older commit never rolls it back. The weekly run
+    # skips main-<sha>, so that tag keeps pointing at the image built on merge.
     - name: Extract metadata
       id: meta
       uses: docker/metadata-action@v6
@@ -43,10 +50,10 @@ jobs:
         flavor: |
           latest=false
         tags: |
-          type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
+          type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule') }}
           type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag != '' }}
           type=semver,pattern={{version}}
-          type=sha,prefix={{branch}}-,enable=${{ github.ref_type == 'branch' }}
+          type=sha,prefix={{branch}}-,enable=${{ github.ref_type == 'branch' && github.event_name != 'schedule' }}
 
     - name: Build and push Docker image
       uses: docker/build-push-action@v7
