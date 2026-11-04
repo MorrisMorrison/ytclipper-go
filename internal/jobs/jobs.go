@@ -25,7 +25,22 @@ type Job struct {
 	CreatedAt   time.Time `json:"createdAt"`
 	StartedAt   time.Time `json:"startedAt"`
 	CompletedAt time.Time `json:"completedAt"`
+
+	// While processing, once the download reports progress: Phase is
+	// "downloading" or "finishing" (post-processing such as the MP3
+	// conversion), Progress is 0–100 and ETASeconds the estimated time left.
+	// Nil or empty means unknown.
+	Phase      Phase `json:"phase,omitempty"`
+	Progress   *int  `json:"progress,omitempty"`
+	ETASeconds *int  `json:"etaSeconds,omitempty"`
 }
+
+type Phase string
+
+const (
+	PhaseDownloading Phase = "downloading"
+	PhaseFinishing   Phase = "finishing"
+)
 
 var (
 	jobs     = make(map[string]*Job)
@@ -100,8 +115,38 @@ func StartJob(jobID string) bool {
 	return started
 }
 
+// SetProgress records the progress of a processing job; it is ignored once
+// the job finished. progress and eta may be nil when unknown. The pointers are
+// copied, so callers may reuse theirs.
+func SetProgress(jobID string, phase Phase, progress, eta *int) {
+	update(jobID, func(job *Job) {
+		if job.Status != StatusProcessing {
+			return
+		}
+		job.Phase = phase
+		job.Progress = copyInt(progress)
+		job.ETASeconds = copyInt(eta)
+	})
+}
+
+func copyInt(v *int) *int {
+	if v == nil {
+		return nil
+	}
+	c := *v
+	return &c
+}
+
+// clearProgress drops the progress fields of a finished job.
+func clearProgress(job *Job) {
+	job.Phase = ""
+	job.Progress = nil
+	job.ETASeconds = nil
+}
+
 func FailJob(jobID, errorMsg string) {
 	update(jobID, func(job *Job) {
+		clearProgress(job)
 		job.Status = StatusError
 		job.Error = errorMsg
 		job.CompletedAt = time.Now()
@@ -110,6 +155,7 @@ func FailJob(jobID, errorMsg string) {
 
 func CompleteJob(jobID, filePath, fileName string) {
 	update(jobID, func(job *Job) {
+		clearProgress(job)
 		job.Status = StatusCompleted
 		job.FilePath = filePath
 		job.FileName = fileName

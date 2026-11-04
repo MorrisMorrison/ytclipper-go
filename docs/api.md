@@ -5,7 +5,7 @@ The page uses a small JSON API, which you can also call directly. The [`http/`](
 |---|---|---|
 | `GET` | `/api/v1/video/info?youtubeUrl=…` | Title, uploader, duration (s), thumbnail and the format list |
 | `POST` | `/api/v1/clip` | Start a clip job; returns the job id as plain text (201) |
-| `GET` | `/api/v1/jobs/{id}` | Job state as JSON; `fileName` and `downloadUrl` once completed |
+| `GET` | `/api/v1/jobs/{id}` | Job state as JSON; `phase`, `progress` and `etaSeconds` while processing; `fileName` and `downloadUrl` once completed |
 | `GET` | `/api/v1/clip?jobId=…` | Download the finished clip as `<title> [h-mm-ss - h-mm-ss].<ext>` |
 | `GET` | `/api/v1/jobs/status?jobId=…` | Legacy: job state as status code (201 running, 200 done, 500 failed) |
 | `GET` | `/health` | Health check (never behind auth): `Server is running (v0.0.1)`, with the running version (`dev-<sha>` for main builds) |
@@ -44,12 +44,23 @@ A clip request names either a `preset` or a `format`:
 | `429` `{"error": "The server is busy, try again in a minute."}` | The job queue is full (`YTCLIPPER_MAX_QUEUED_JOBS`) |
 | `429` `{"message": "rate limit exceeded"}` | The per-IP rate limit was hit (any endpoint) |
 
+While a job is `processing`, it reports progress once the download does:
+
+| Field | Value |
+|---|---|
+| `phase` | `downloading`, then `finishing` while yt-dlp post-processes (MP3 conversion, merging) |
+| `progress` | `0`–`100`: how far ffmpeg is into the requested range; `100` while finishing |
+| `etaSeconds` | Estimated seconds left in the download, from ffmpeg's speed |
+
+Each field is left out while unknown (queued, the first seconds of a download, or if yt-dlp prints no ffmpeg stats), and all three are dropped once the job finishes.
+
 A job can fail later (`status: "error"`) with, among yt-dlp's own errors: `The end time is after the end of the video (3:32).`, `The clip is larger than the 300 MB limit. Choose a shorter range or a smaller format.`, `Timed out while downloading the clip` or `The server was too busy to start the clip. Try again later.`
 
 ```bash
 curl -X POST localhost:8080/api/v1/clip   -H 'Content-Type: application/json'   -d '{"url":"https://www.youtube.com/watch?v=dQw4w9WgXcQ","from":"00:00:10","to":"00:00:20","preset":"video"}'
 # -> 3f1c...  (job id)
 curl localhost:8080/api/v1/jobs/3f1c...
+# -> {"id":"3f1c...","status":"processing","error":"","phase":"downloading","progress":42,"etaSeconds":12}
 # -> {"id":"3f1c...","status":"completed","error":"","fileName":"Video title [0-00-10 - 0-00-20].mp4","downloadUrl":"/api/v1/clip?jobId=3f1c..."}
 ```
 

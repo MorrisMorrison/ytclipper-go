@@ -9,6 +9,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -245,6 +246,42 @@ func TestQueueFull(t *testing.T) {
 	}
 	if n := second.toastCount(); n != 0 {
 		t.Fatalf("expected no toast, got %d", n)
+	}
+}
+
+// TestJobProgress follows a slow clip through its phases: the fake yt-dlp
+// prints ffmpeg-style progress, then a post-processor line, so the panel shows
+// "Downloading" with a filling bar and the time left, then "Finishing up",
+// then the finished clip without a bar.
+func TestJobProgress(t *testing.T) {
+	t.Parallel()
+	s := ownServer(t, "progress", map[string]string{"FAKE_YTDLP_SLOW_SECONDS": "8"})
+	p := newPage(t, withServer(s.URL))
+	p.openVideo(watchURL(slowDownloadID))
+	p.setRange("0:05", "0:25")
+	p.do("clicking Create clip", chromedp.Click(clipButton))
+
+	detail := poll[string](p, "no download progress shown", `(() => {
+		const bar = document.getElementById("jobProgress");
+		const value = Number(bar.getAttribute("aria-valuenow"));
+		return document.getElementById("jobTitle").textContent === "Downloading your clip…" &&
+			!bar.hidden && value > 0 && value < 100 &&
+			bar.style.getPropertyValue("--progress") === value + "%" &&
+			document.getElementById("jobDetail").textContent;
+	})()`, 15*time.Second)
+	if !regexp.MustCompile(`^\d+ % · (about \d+ (s|min) left|almost done)$`).MatchString(detail) {
+		t.Fatalf("unexpected progress text %q", detail)
+	}
+
+	poll[bool](p, "the finishing phase was not shown", `document.getElementById("jobTitle").textContent === "Finishing up…" &&
+		document.getElementById("jobProgress").getAttribute("aria-valuenow") === "100"`, 15*time.Second)
+
+	poll[bool](p, "the job did not complete", `document.getElementById("job").dataset.state === "completed"`, 15*time.Second)
+	if !p.hidden("jobProgress") {
+		t.Fatal("progress bar still shown for a completed job")
+	}
+	if announced := p.text("#jobAnnounce"); announced != "Your clip is ready" {
+		t.Fatalf("live region should announce the result only, got %q", announced)
 	}
 }
 

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -80,6 +81,10 @@ func TestHelperProcess(t *testing.T) {
 		fmt.Print(os.Getenv("YTCLIPPER_TEST_HELPER_OUTPUT"))
 		os.Exit(0)
 	case mode == "download":
+		// Like yt-dlp with --download-sections: ffmpeg's stats line on
+		// stderr, redrawn with \r, and yt-dlp's own lines on stdout.
+		fmt.Fprint(os.Stderr, "frame=1 size=1KiB time=00:00:15.00 bitrate=1kbits/s speed=3x\rframe=2 size=2KiB time=00:00:30.00 bitrate=1kbits/s speed=3x\n")
+		fmt.Println("[Merger] Merging formats into \"clip.mp4\"")
 		if out, ok := flagValue(args, "-o"); ok {
 			if err := os.WriteFile(strings.ReplaceAll(out, "%(ext)s", "mp4"), []byte("clip"), 0o644); err != nil {
 				os.Exit(2)
@@ -122,6 +127,46 @@ func useClipDir(t *testing.T) string {
 	return dir
 }
 
+func TestDownloadAndCutVideoStreamsOutputLines(t *testing.T) {
+	fakeYtDlp(t, "download", "")
+	var mu sync.Mutex
+	var lines []string
+	_, err := DownloadAndCutVideo(filepath.Join(t.TempDir(), "x.%(ext)s"), nil, 1000, "00:00:30", "00:01:00", WatchURL("dQw4w9WgXcQ"), func(line string) {
+		mu.Lock()
+		defer mu.Unlock()
+		lines = append(lines, line)
+	})
+	if err != nil {
+		t.Fatalf("DownloadAndCutVideo: %v", err)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	for _, want := range []string{
+		"frame=1 size=1KiB time=00:00:15.00 bitrate=1kbits/s speed=3x",
+		"frame=2 size=2KiB time=00:00:30.00 bitrate=1kbits/s speed=3x",
+		`[Merger] Merging formats into "clip.mp4"`,
+	} {
+		if !slices.Contains(lines, want) {
+			t.Errorf("line %q not passed on; got %q", want, lines)
+		}
+	}
+}
+
+func TestClipSeconds(t *testing.T) {
+	for _, tt := range []struct {
+		from, to string
+		want     float64
+	}{
+		{"00:00:30", "00:01:00", 30},
+		{"00:01:00", "00:00:30", 0},
+		{"bad", "00:00:30", 0},
+	} {
+		if got := clipSeconds(ClipRequest{From: tt.from, To: tt.to}); got != tt.want {
+			t.Errorf("clipSeconds(%s-%s) = %v, want %v", tt.from, tt.to, got, tt.want)
+		}
+	}
+}
+
 func TestDownloadAndCutVideo(t *testing.T) {
 	calls := fakeYtDlp(t, "download", "")
 
@@ -130,7 +175,7 @@ func TestDownloadAndCutVideo(t *testing.T) {
 	to := "00:01:00"
 	url := "https://www.youtube.com/watch?v=example"
 
-	if _, err := DownloadAndCutVideo(outputPath, []string{"-f", "22"}, 500000000, from, to, url); err != nil {
+	if _, err := DownloadAndCutVideo(outputPath, []string{"-f", "22"}, 500000000, from, to, url, nil); err != nil {
 		t.Fatalf("DownloadAndCutVideo: %v", err)
 	}
 
@@ -339,7 +384,7 @@ func TestDownloadUsesDownloadTimeout(t *testing.T) {
 
 	fakeYtDlp(t, "sleep", "")
 	start := time.Now()
-	_, err := DownloadAndCutVideo(filepath.Join(t.TempDir(), "x.%(ext)s"), nil, 1, "00:00:01", "00:00:02", WatchURL("dQw4w9WgXcQ"))
+	_, err := DownloadAndCutVideo(filepath.Join(t.TempDir(), "x.%(ext)s"), nil, 1, "00:00:01", "00:00:02", WatchURL("dQw4w9WgXcQ"), nil)
 	if !errors.Is(err, errTimeout) {
 		t.Fatalf("err = %v; want a timeout", err)
 	}

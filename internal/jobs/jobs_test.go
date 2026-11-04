@@ -168,3 +168,52 @@ func TestFailQueuedBefore(t *testing.T) {
 		t.Errorf("fresh queued job = %s; want queued", got.Status)
 	}
 }
+
+func intPtr(v int) *int { return &v }
+
+func TestSetProgress(t *testing.T) {
+	job := NewJob()
+
+	// Ignored while queued.
+	SetProgress(job.ID, PhaseDownloading, intPtr(10), intPtr(5))
+	if got, _ := GetJobById(job.ID); got.Progress != nil || got.Phase != "" {
+		t.Fatalf("progress set on a queued job: %+v", got)
+	}
+
+	StartJob(job.ID)
+	progress, eta := intPtr(42), intPtr(12)
+	SetProgress(job.ID, PhaseDownloading, progress, eta)
+	*progress = 99 // the job keeps its own copy
+
+	got, _ := GetJobById(job.ID)
+	if got.Phase != PhaseDownloading || got.Progress == nil || *got.Progress != 42 || got.ETASeconds == nil || *got.ETASeconds != 12 {
+		t.Fatalf("unexpected progress: %+v", got)
+	}
+
+	SetProgress(job.ID, PhaseFinishing, intPtr(100), nil)
+	got, _ = GetJobById(job.ID)
+	if got.Phase != PhaseFinishing || *got.Progress != 100 || got.ETASeconds != nil {
+		t.Fatalf("unexpected finishing progress: %+v", got)
+	}
+
+	CompleteJob(job.ID, "/tmp/x.mp4", "x.mp4")
+	got, _ = GetJobById(job.ID)
+	if got.Phase != "" || got.Progress != nil || got.ETASeconds != nil {
+		t.Fatalf("progress kept after completion: %+v", got)
+	}
+
+	SetProgress(job.ID, PhaseDownloading, intPtr(5), nil)
+	if got, _ := GetJobById(job.ID); got.Progress != nil {
+		t.Fatalf("progress set on a completed job: %+v", got)
+	}
+}
+
+func TestFailJobClearsProgress(t *testing.T) {
+	job := NewJob()
+	StartJob(job.ID)
+	SetProgress(job.ID, PhaseDownloading, intPtr(30), intPtr(4))
+	FailJob(job.ID, "boom")
+	if got, _ := GetJobById(job.ID); got.Phase != "" || got.Progress != nil || got.ETASeconds != nil {
+		t.Fatalf("progress kept after failure: %+v", got)
+	}
+}
