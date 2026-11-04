@@ -143,6 +143,18 @@
                         </button>
                     </div>
                     <p id="timeHint" class="helper-text">Type <code>34</code>, <code>1:28</code> or <code>1:09:24</code>. Drag the handles, or focus one and use the arrow keys (Shift for 10&nbsp;s).</p>
+
+                    <!-- Video only: MP3 clips are re-encoded anyway, so they are already exact. -->
+                    <label id="preciseRow" class="precise-row">
+                        <span class="switch">
+                            <input type="checkbox" id="preciseCut" role="switch" aria-describedby="preciseHint">
+                            <span class="switch-track" aria-hidden="true"></span>
+                        </span>
+                        <span class="precise-text">
+                            <span class="precise-title">Cut exactly at these times</span>
+                            <span id="preciseHint" class="helper-text">Slower: the clip is re-encoded. Off, it starts at the nearest keyframe (up to a few seconds earlier).</span>
+                        </span>
+                    </label>
                 </fieldset>
 
                 <fieldset id="outputSection" class="section">

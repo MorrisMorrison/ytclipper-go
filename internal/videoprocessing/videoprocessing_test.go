@@ -223,6 +223,20 @@ func TestFormatArgsPresets(t *testing.T) {
 	}
 }
 
+func TestFormatArgsPreciseCut(t *testing.T) {
+	video := formatArgs(ClipRequest{VideoID: "dQw4w9WgXcQ", Preset: PresetVideo, PreciseCut: true}, nil)
+	if video[len(video)-1] != "--force-keyframes-at-cuts" || video[0] != "-f" {
+		t.Errorf("video preset with precise cut = %v", video)
+	}
+	format := formatArgs(ClipRequest{VideoID: "dQw4w9WgXcQ", Format: "137+140", PreciseCut: true}, nil)
+	if !slices.Equal(format, []string{"-f", "137+140", "--force-keyframes-at-cuts"}) {
+		t.Errorf("format with precise cut = %v", format)
+	}
+	if plain := formatArgs(ClipRequest{VideoID: "dQw4w9WgXcQ", Format: "137+140"}, nil); hasFlag(plain, "--force-keyframes-at-cuts") {
+		t.Errorf("precise cut added without being asked for: %v", plain)
+	}
+}
+
 func TestFormatArgsAddsAudioToVideoOnlyFormat(t *testing.T) {
 	info, err := parseVideoInfo([]byte(infoFixture))
 	if err != nil {

@@ -113,5 +113,7 @@ func validateCreateClipDto(createClipDto *CreateClipDTO) (videoprocessing.ClipRe
 		To:      toHHMMSS,
 		Preset:  preset,
 		Format:  format,
+		// MP3 clips are re-encoded anyway, so they are already exact.
+		PreciseCut: createClipDto.PreciseCut && preset != videoprocessing.PresetAudio,
 	}, nil
 }

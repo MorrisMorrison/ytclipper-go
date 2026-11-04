@@ -28,6 +28,8 @@ const (
 	toInput        = chromedp.CSS(`#to`)
 	timeError      = chromedp.CSS(`#timeError`)
 	presetAudio    = chromedp.CSS(`#presetAudio`)
+	presetVideo    = chromedp.CSS(`#presetVideo`)
+	preciseCut     = chromedp.CSS(`#preciseCut`)
 	advancedToggle = chromedp.CSS(`#advanced summary`)
 	videoFormat136 = chromedp.CSS(`#videoFormats input[value="136"]`)
 	videoFormat18  = chromedp.CSS(`#videoFormats input[value="18"]`)
@@ -88,6 +90,50 @@ func TestAudioPreset(t *testing.T) {
 	}
 	if !strings.HasSuffix(fileName, ".mp3") {
 		t.Fatalf("expected an .mp3 file, got %q", fileName)
+	}
+}
+
+// TestPreciseCut: the switch is off by default, sends preciseCut when on,
+// disappears for the audio preset (MP3 is exact anyway) and is remembered in
+// the browser. Its own server gives it its own origin, so the remembered
+// switch can't leak into other tests.
+func TestPreciseCut(t *testing.T) {
+	t.Parallel()
+	s := ownServer(t, "precise", nil)
+	p := newPage(t, withServer(s.URL))
+	p.openVideo(watchURL(stubVideoID))
+	p.setRange("0:05", "0:15")
+
+	if p.hidden("preciseRow") || eval[bool](p, `document.getElementById("preciseCut").checked`) {
+		t.Fatal("expected the precise-cut switch to be shown and off for the video preset")
+	}
+	p.clip()
+	if post := p.lastClipPost(); post.PreciseCut {
+		t.Fatalf("preciseCut sent while the switch is off: %+v", post)
+	}
+
+	p.do("turning on precise cut", chromedp.Click(preciseCut))
+	p.clip()
+	if post := p.lastClipPost(); !post.PreciseCut || post.Preset != "video" {
+		t.Fatalf("expected preciseCut with the video preset, sent %+v", post)
+	}
+
+	p.do("choosing the audio preset", chromedp.Click(presetAudio))
+	if !p.hidden("preciseRow") {
+		t.Fatal("precise-cut switch shown for the audio preset")
+	}
+	p.clip()
+	if post := p.lastClipPost(); post.PreciseCut || post.Preset != "audio" {
+		t.Fatalf("expected no preciseCut for audio, sent %+v", post)
+	}
+	p.do("choosing the video preset", chromedp.Click(presetVideo))
+	if p.hidden("preciseRow") {
+		t.Fatal("precise-cut switch not shown again for the video preset")
+	}
+
+	p.openVideo(watchURL(stubVideoID)) // reloads the page
+	if !eval[bool](p, `document.getElementById("preciseCut").checked`) {
+		t.Fatal("the precise-cut switch was not remembered")
 	}
 }
 

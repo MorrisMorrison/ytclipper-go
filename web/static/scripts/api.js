@@ -37,7 +37,8 @@ export async function getVideoInfo(youtubeUrl) {
     return response.json();
 }
 
-// createClip posts { url, from, to, preset | format } and returns the job id.
+// createClip posts { url, from, to, preset | format, preciseCut? } and returns
+// the job id.
 export async function createClip(payload) {
     const response = await send("/api/v1/clip", {
         method: "POST",

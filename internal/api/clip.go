@@ -17,12 +17,15 @@ const errServerBusy = "The server is busy, try again in a minute."
 
 // CreateClipDTO is the clip request. Exactly one of Preset ("video" or
 // "audio") and Format (a yt-dlp format id such as "137" or "137+140") is set.
+// PreciseCut re-encodes so the clip starts and ends exactly at From and To
+// instead of the nearest keyframe; it is ignored for the audio preset.
 type CreateClipDTO struct {
-	Url    string `json:"url" form:"url"`
-	From   string `json:"from" form:"from"`
-	To     string `json:"to" form:"to"`
-	Preset string `json:"preset" form:"preset"`
-	Format string `json:"format" form:"format"`
+	Url        string `json:"url" form:"url"`
+	From       string `json:"from" form:"from"`
+	To         string `json:"to" form:"to"`
+	Preset     string `json:"preset" form:"preset"`
+	Format     string `json:"format" form:"format"`
+	PreciseCut bool   `json:"preciseCut" form:"preciseCut"`
 }
 
 func CreateClip(c echo.Context) error {

@@ -37,6 +37,8 @@ A clip request names either a `preset` or a `format`:
 
 `from` and `to` are `H:MM:SS` (1 to 3 hour digits, e.g. `0:01:30` or `00:01:30`).
 
+`preciseCut: true` (optional) cuts exactly at `from` and `to` (yt-dlp `--force-keyframes-at-cuts`). Without it, a video clip starts at the keyframe before `from`, up to a few seconds early. A precise cut re-encodes the video, so it is slower and uses more CPU; long high-resolution clips can then hit `YTCLIPPER_YT_DLP_DOWNLOAD_TIMEOUT_IN_SECONDS`. It is ignored for the `audio` preset, whose MP3 is re-encoded anyway.
+
 | Response | When |
 |---|---|
 | `201` + job id | Job queued |

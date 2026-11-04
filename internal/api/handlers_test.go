@@ -106,6 +106,16 @@ func TestGetVideoInfoRejectsInvalidURL(t *testing.T) {
 	}
 }
 
+func TestCreateClipAcceptsPreciseCut(t *testing.T) {
+	var dto CreateClipDTO
+	if err := json.Unmarshal([]byte(`{"url":"https://youtu.be/dQw4w9WgXcQ","from":"00:00:01","to":"00:00:05","preset":"video","preciseCut":true}`), &dto); err != nil {
+		t.Fatal(err)
+	}
+	if !dto.PreciseCut {
+		t.Fatal("preciseCut not read from the JSON body")
+	}
+}
+
 func TestCreateClipRejectsWhenQueueIsFull(t *testing.T) {
 	original := config.CONFIG.MaxQueuedJobs
 	config.CONFIG.MaxQueuedJobs = jobs.ActiveCount() // already full

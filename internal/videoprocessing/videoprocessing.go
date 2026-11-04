@@ -45,6 +45,9 @@ type ClipRequest struct {
 	To      string // HH:MM:SS
 	Preset  string // PresetVideo or PresetAudio
 	Format  string // yt-dlp format id, "137" or "137+140"
+	// PreciseCut re-encodes at the cut points so the clip starts and ends
+	// exactly at From and To, not at the nearest keyframe. Slower.
+	PreciseCut bool
 }
 
 // jobSlots limits how many clips are processed at once; further jobs wait in
@@ -56,13 +59,19 @@ var jobSlots = sync.OnceValue(func() chan struct{} {
 // formatArgs returns the yt-dlp arguments that select what to download. info
 // may be nil when the video info could not be loaded.
 func formatArgs(req ClipRequest, info *VideoInfo) []string {
+	var args []string
 	switch req.Preset {
 	case PresetVideo:
-		return []string{"-f", videoPresetFormat, "--merge-output-format", "mp4"}
+		args = []string{"-f", videoPresetFormat, "--merge-output-format", "mp4"}
 	case PresetAudio:
-		return []string{"-f", audioPresetFormat, "-x", "--audio-format", "mp3", "--audio-quality", "192K"}
+		args = []string{"-f", audioPresetFormat, "-x", "--audio-format", "mp3", "--audio-quality", "192K"}
+	default:
+		args = []string{"-f", resolveFormat(req.Format, info)}
 	}
-	return []string{"-f", resolveFormat(req.Format, info)}
+	if req.PreciseCut {
+		args = append(args, "--force-keyframes-at-cuts")
+	}
+	return args
 }
 
 // resolveFormat merges best audio into a single video-only format, so a
