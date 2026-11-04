@@ -32,3 +32,11 @@ export function toHHMMSS(seconds) {
     const pad = (n) => String(n).padStart(2, "0");
     return `${pad(Math.floor(total / 3600))}:${pad(Math.floor((total % 3600) / 60))}:${pad(total % 60)}`;
 }
+
+// formatTimeLeft describes an estimated number of seconds left.
+export function formatTimeLeft(seconds) {
+    const s = Math.max(0, Math.ceil(seconds));
+    if (s <= 1) return "almost done";
+    if (s < 60) return `about ${s} s left`;
+    return `about ${Math.ceil(s / 60)} min left`;
+}

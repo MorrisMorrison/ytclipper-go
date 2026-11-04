@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -84,8 +85,9 @@ func resolveFormat(format string, info *VideoInfo) string {
 // DownloadAndCutVideo downloads the section from-to of url. fileSizeLimit is
 // enforced by ffmpeg (-fs), which yt-dlp always uses for sections and which
 // ignores --max-filesize; ffmpeg stops writing at the limit, so callers check
-// the size of the result. It returns stdout and stderr combined.
-func DownloadAndCutVideo(outputTemplate string, formatArgs []string, fileSizeLimit int64, from string, to string, url string) ([]byte, error) {
+// the size of the result. onLine, if not nil, gets every output line while
+// the command runs (for progress). It returns stdout and stderr combined.
+func DownloadAndCutVideo(outputTemplate string, formatArgs []string, fileSizeLimit int64, from string, to string, url string, onLine func(string)) ([]byte, error) {
 	cmdArgs := []string{"-o", outputTemplate}
 	cmdArgs = append(cmdArgs, formatArgs...)
 	cmdArgs = append(cmdArgs,
@@ -96,7 +98,7 @@ func DownloadAndCutVideo(outputTemplate string, formatArgs []string, fileSizeLim
 	)
 
 	timeout := time.Duration(config.CONFIG.YtDlpConfig.DownloadTimeoutInSeconds) * time.Second
-	out, err := execute(timeout, "yt-dlp", cmdArgs)
+	out, err := runCommand(timeout, onLine, "yt-dlp", append(commonArgs(), cmdArgs...)...)
 	return out.combined(), err
 }
 
@@ -133,7 +135,10 @@ func ProcessClip(jobID string, req ClipRequest) {
 	// yt-dlp picks the extension; the job ID keeps the name unique.
 	sizeLimit := config.CONFIG.YtDlpConfig.ClipSizeInMb
 	outputTemplate := filepath.Join(clipDir, jobID+".%(ext)s")
-	output, err := DownloadAndCutVideo(outputTemplate, formatArgs(req, info), sizeLimit, req.From, req.To, WatchURL(req.VideoID))
+	tracker := newProgressTracker(clipSeconds(req), func(phase jobs.Phase, progress, eta *int) {
+		jobs.SetProgress(jobID, phase, progress, eta)
+	})
+	output, err := DownloadAndCutVideo(outputTemplate, formatArgs(req, info), sizeLimit, req.From, req.To, WatchURL(req.VideoID), tracker.Line)
 	if err != nil {
 		slog.Error("Clip download failed", "job", jobID, "err", err, "output", string(output))
 		jobs.FailJob(jobID, summarizeError(output, err))
@@ -169,6 +174,16 @@ func ProcessClip(jobID string, req ClipRequest) {
 // checkAgainstDuration returns an error message when the clip ends after the
 // video does. Without info, or for videos without a known duration (live
 // streams), it accepts the request.
+// clipSeconds is the length of the requested range, 0 if it can't be parsed.
+func clipSeconds(req ClipRequest) float64 {
+	from, err1 := ToSeconds(req.From)
+	to, err2 := ToSeconds(req.To)
+	if err1 != nil || err2 != nil || to <= from {
+		return 0
+	}
+	return float64(to - from)
+}
+
 func checkAgainstDuration(req ClipRequest, info *VideoInfo) string {
 	if info == nil || info.Duration <= 0 {
 		return ""
@@ -279,12 +294,22 @@ var errTimeout = errors.New("command timed out")
 // waitDelay keeps a surviving child that holds the output pipes from blocking
 // the caller.
 func executeWithTimeout(timeout time.Duration, name string, args ...string) (cmdOutput, error) {
+	return runCommand(timeout, nil, name, args...)
+}
+
+// runCommand is executeWithTimeout that also passes every output line (stdout
+// and stderr) to onLine while the command runs, when onLine is not nil.
+func runCommand(timeout time.Duration, onLine func(string), name string, args ...string) (cmdOutput, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	cmd := execContext(ctx, name, args...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	if onLine != nil {
+		cmd.Stdout = io.MultiWriter(&stdout, &lineWriter{fn: onLine})
+		cmd.Stderr = io.MultiWriter(&stderr, &lineWriter{fn: onLine})
+	}
 	cmd.WaitDelay = waitDelay
 	killProcessGroupOnCancel(cmd)
 

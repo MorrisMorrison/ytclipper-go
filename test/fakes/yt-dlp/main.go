@@ -5,7 +5,12 @@
 //	yt-dlp -J <url>         -> fixed video info JSON ("Stub Video", 30 s,
 //	                           formats 137/136 video only, 18 both, 140/251 audio)
 //	yt-dlp -o <tpl> ... url -> writes a small file; %(ext)s becomes mp3 with -x,
-//	                           else the --merge-output-format value, else mp4
+//	                           else the --merge-output-format value, else mp4.
+//	                           Before that it prints ffmpeg-style stats lines
+//	                           for the --download-sections range on stderr
+//	                           (\r-separated, like ffmpeg) and then a
+//	                           post-processor line ([ExtractAudio] or [Merger])
+//	                           on stdout, the way real yt-dlp does.
 //
 // Every other flag the app passes (--proxy, -f, --download-sections,
 // --max-filesize, --downloader-args, ...) is accepted and ignored. URLs that
@@ -14,7 +19,9 @@
 // Magic video IDs switch on failure modes, so one shared server can test them:
 //
 //	failfailfai  the download fails with "ERROR: [youtube] <id>: Video unavailable"
-//	slowslowslo  the download takes FAKE_YTDLP_SLOW_SECONDS (default 4)
+//	slowslowslo  the download takes FAKE_YTDLP_SLOW_SECONDS (default 4): 60 %
+//	             spent "downloading" (progress lines spread out), 40 %
+//	             "finishing" after the post-processor line
 //	slowinfoslo  -J takes FAKE_YTDLP_SLOW_SECONDS
 //	infofailinf  -J fails with "ERROR: [youtube] <id>: Video unavailable"
 //	notitlenoti  -J reports an empty title
@@ -68,6 +75,7 @@ func run(args []string) int {
 	var (
 		info, extractAudio bool
 		output, mergeExt   string
+		sections           string
 		positional         []string
 	)
 	for i := 0; i < len(args); i++ {
@@ -90,6 +98,8 @@ func run(args []string) int {
 					output = args[i+1]
 				case "--merge-output-format":
 					mergeExt = args[i+1]
+				case "--download-sections":
+					sections = args[i+1]
 				}
 			}
 			i++
@@ -115,7 +125,7 @@ func run(args []string) int {
 	if info {
 		return printInfo(id)
 	}
-	return download(id, output, extractAudio, mergeExt)
+	return download(id, output, extractAudio, mergeExt, sections)
 }
 
 // videoID returns the video ID of a watch, youtu.be or Shorts link.
@@ -142,12 +152,63 @@ func videoID(raw string) (string, bool) {
 	return id, id != "" && !strings.Contains(id, "/")
 }
 
-func slow() {
+func slowSeconds() float64 {
 	seconds := 4.0
 	if v, err := strconv.ParseFloat(os.Getenv("FAKE_YTDLP_SLOW_SECONDS"), 64); err == nil && v >= 0 {
 		seconds = v
 	}
-	time.Sleep(time.Duration(seconds * float64(time.Second)))
+	return seconds
+}
+
+func slow() { sleep(slowSeconds()) }
+
+func sleep(seconds float64) { time.Sleep(time.Duration(seconds * float64(time.Second))) }
+
+// sectionSeconds returns the length of a --download-sections value such as
+// "*00:00:10-00:00:20", or 10 if it can't be read.
+func sectionSeconds(sections string) float64 {
+	from, to, ok := strings.Cut(strings.TrimPrefix(sections, "*"), "-")
+	if !ok {
+		return 10
+	}
+	a, errA := timecode(from)
+	b, errB := timecode(to)
+	if errA != nil || errB != nil || b <= a {
+		return 10
+	}
+	return b - a
+}
+
+func timecode(s string) (float64, error) {
+	var seconds float64
+	for _, part := range strings.Split(s, ":") {
+		v, err := strconv.ParseFloat(part, 64)
+		if err != nil {
+			return 0, err
+		}
+		seconds = seconds*60 + v
+	}
+	return seconds, nil
+}
+
+func clock(seconds float64) string {
+	whole := int(seconds)
+	return fmt.Sprintf("%02d:%02d:%05.2f", whole/3600, whole/60%60, seconds-float64(whole/60*60))
+}
+
+// printProgress prints ffmpeg's stats line for a section of length seconds,
+// steps times, spread over wall seconds.
+func printProgress(length, wall float64, steps int) {
+	speed := "N/A"
+	if wall > 0 {
+		speed = fmt.Sprintf("%.2fx", length/wall)
+	}
+	for i := 1; i <= steps; i++ {
+		sleep(wall / float64(steps))
+		fmt.Fprintf(os.Stderr, "frame=%5d fps= 30 q=-1.0 size=%8dKiB time=%s bitrate=1398.1kbits/s speed=%s    \r",
+			i*30, i*256, clock(length*float64(i)/float64(steps)), speed)
+	}
+	fmt.Fprintln(os.Stderr)
 }
 
 func env(key, fallback string) string {
@@ -217,13 +278,10 @@ func printInfo(id string) int {
 	return 0
 }
 
-func download(id, output string, extractAudio bool, mergeExt string) int {
-	switch id {
-	case idFailDownload:
+func download(id, output string, extractAudio bool, mergeExt string, sections string) int {
+	if id == idFailDownload {
 		fmt.Fprintf(os.Stderr, "ERROR: [youtube] %s: Video unavailable\n", id)
 		return 1
-	case idSlowDownload:
-		slow()
 	}
 	if output == "" {
 		return 0
@@ -235,6 +293,19 @@ func download(id, output string, extractAudio bool, mergeExt string) int {
 		ext = mergeExt
 	}
 	path := strings.ReplaceAll(output, "%(ext)s", ext)
+
+	total := 0.0
+	if id == idSlowDownload {
+		total = slowSeconds()
+	}
+	printProgress(sectionSeconds(sections), total*0.6, 10)
+	if extractAudio {
+		fmt.Printf("[ExtractAudio] Destination: %s\n", path)
+	} else {
+		fmt.Printf("[Merger] Merging formats into \"%s\"\n", path)
+	}
+	sleep(total * 0.4)
+
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		fmt.Fprintln(os.Stderr, "ERROR:", err)
 		return 1

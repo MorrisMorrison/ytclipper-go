@@ -20,7 +20,7 @@ import {
 } from "./formats.js";
 import { Player } from "./player.js";
 import { initTheme } from "./theme.js";
-import { formatTime, parseTime, toHHMMSS } from "./time.js";
+import { formatTime, formatTimeLeft, parseTime, toHHMMSS } from "./time.js";
 import { toast } from "./toast.js";
 import { Trimmer } from "./trimmer.js";
 import { extractVideoId, linkFromLocation, linkStartTime } from "./youtube-url.js";
@@ -80,6 +80,7 @@ const el = {
     job: $("job"),
     jobTitle: $("jobTitle"),
     jobDetail: $("jobDetail"),
+    jobProgress: $("jobProgress"),
     jobAnnounce: $("jobAnnounce"),
     jobKeepWaiting: $("jobKeepWaiting"),
     downloadButton: $("downloadButton"),
@@ -659,11 +660,13 @@ function setBusy(busy) {
 
 // showJob updates the status panel. Only the title (and an error's message)
 // goes to the live region, so screen readers hear state changes, not every
-// elapsed-time update.
-function showJob(status, title, detail = "") {
+// elapsed-time or progress update. progress (0-100) shows the progress bar,
+// null hides it and undefined leaves it as it is.
+function showJob(status, title, detail = "", progress = null) {
     el.job.hidden = false;
     el.job.dataset.state = status;
     el.jobDetail.textContent = detail;
+    if (progress !== undefined) setProgress(progress);
     el.downloadButton.hidden = status !== "completed";
     el.jobKeepWaiting.hidden = status !== "stalled";
     if (el.jobTitle.textContent !== title || status === "error") {
@@ -673,6 +676,27 @@ function showJob(status, title, detail = "") {
     if (status === "completed" || status === "error" || status === "stalled") {
         el.job.scrollIntoView({ block: "nearest", behavior: "smooth" });
     }
+}
+
+function setProgress(progress) {
+    el.jobProgress.hidden = progress === null;
+    if (progress === null) return;
+    const value = Math.max(0, Math.min(100, Math.round(progress)));
+    el.jobProgress.setAttribute("aria-valuenow", String(value));
+    el.jobProgress.style.setProperty("--progress", `${value}%`);
+}
+
+// processingView is what the panel shows for a processing job: its phase as
+// the title, with progress and time left once the download reports them.
+function processingView(job, seconds) {
+    if (job.phase === "finishing") {
+        return ["Finishing up…", "Saving the file. Almost done.", 100];
+    }
+    if (typeof job.progress === "number") {
+        const left = typeof job.etaSeconds === "number" ? ` · ${formatTimeLeft(job.etaSeconds)}` : "";
+        return ["Downloading your clip…", `${job.progress} %${left}`, job.progress];
+    }
+    return ["Creating your clip…", `${seconds} s so far. This usually takes a few seconds to a minute.`, null];
 }
 
 function failJob(message) {
@@ -722,7 +746,7 @@ async function pollJob(poll) {
         } else if (TRANSIENT_STATUSES.has(err.status)) {
             poll.failures++;
             const delay = Math.min(POLL_MAX_BACKOFF_MS, POLL_MS * 2 ** poll.failures);
-            showJob(el.job.dataset.state === "processing" ? "processing" : "queued", el.jobTitle.textContent || "Queued", `${err.message} Retrying…`);
+            showJob(el.job.dataset.state === "processing" ? "processing" : "queued", el.jobTitle.textContent || "Waiting for a free worker…", `${err.message} Retrying…`, undefined);
             setTimeout(() => pollJob(poll), delay);
         } else {
             failJob(err.message);
@@ -741,10 +765,10 @@ async function pollJob(poll) {
             failJob(job.error || "Something went wrong while creating the clip.");
             return;
         case "processing":
-            showJob("processing", "Creating your clip…", `${seconds} s so far. This usually takes a few seconds to a minute.`);
+            showJob("processing", ...processingView(job, seconds));
             break;
         default:
-            showJob("queued", "Queued", "Waiting for a free worker…");
+            showJob("queued", "Waiting for a free worker…", "Your clip starts as soon as one is free.");
     }
     setTimeout(() => pollJob(poll), POLL_MS);
 }
@@ -755,7 +779,7 @@ el.jobKeepWaiting.addEventListener("click", () => {
     state.stalledPoll = null;
     poll.deadline = Date.now() + JOB_DEADLINE_MS;
     setBusy(true);
-    showJob("processing", "Creating your clip…", "Still waiting for the server…");
+    showJob("processing", "Creating your clip…", "Still waiting for the server…", undefined);
     pollJob(poll);
 });
 
@@ -771,7 +795,7 @@ async function startJob(payload) {
         if (token === state.jobToken) failJob(err.message);
         return;
     }
-    showJob("queued", "Queued", "Waiting for a free worker…");
+    showJob("queued", "Waiting for a free worker…", "Your clip starts as soon as one is free.");
     const now = Date.now();
     pollJob({ jobId, token, startedAt: now, deadline: now + JOB_DEADLINE_MS, failures: 0 });
 }

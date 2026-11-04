@@ -57,6 +57,21 @@ func TestGetJob(t *testing.T) {
 		t.Errorf("fileName must be absent until completed: %v", got)
 	}
 
+	for _, key := range []string{"phase", "progress", "etaSeconds"} {
+		if _, ok := got[key]; ok {
+			t.Errorf("%s must be absent while queued: %v", key, got)
+		}
+	}
+
+	running := jobs.NewJob()
+	jobs.StartJob(running.ID)
+	progress, eta := 42, 12
+	jobs.SetProgress(running.ID, jobs.PhaseDownloading, &progress, &eta)
+	got = decode(t, serve(t, http.MethodGet, "/api/v1/jobs/"+running.ID, ""))
+	if got["status"] != "processing" || got["phase"] != "downloading" || got["progress"] != float64(42) || got["etaSeconds"] != float64(12) {
+		t.Errorf("processing job: %v", got)
+	}
+
 	done := jobs.NewJob()
 	jobs.CompleteJob(done.ID, "/clips/x.mp4", "Title [0-00-01 - 0-00-02].mp4")
 	got = decode(t, serve(t, http.MethodGet, "/api/v1/jobs/"+done.ID, ""))

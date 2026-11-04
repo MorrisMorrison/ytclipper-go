@@ -31,13 +31,17 @@ func GetJobStatus(c echo.Context) error {
 }
 
 // JobDTO is a job as GET /api/v1/jobs/:id returns it. FileName and
-// DownloadURL are set only once the job completed.
+// DownloadURL are set only once the job completed. Phase, Progress (0–100)
+// and ETASeconds are set while processing, once the download reports them.
 type JobDTO struct {
 	ID          string         `json:"id"`
 	Status      jobs.JobStatus `json:"status"`
 	Error       string         `json:"error"`
 	FileName    string         `json:"fileName,omitempty"`
 	DownloadURL string         `json:"downloadUrl,omitempty"`
+	Phase       jobs.Phase     `json:"phase,omitempty"`
+	Progress    *int           `json:"progress,omitempty"`
+	ETASeconds  *int           `json:"etaSeconds,omitempty"`
 }
 
 // GetJob returns a job's state as JSON.
@@ -48,6 +52,9 @@ func GetJob(c echo.Context) error {
 	}
 
 	dto := JobDTO{ID: job.ID, Status: job.Status, Error: job.Error}
+	if job.Status == jobs.StatusProcessing {
+		dto.Phase, dto.Progress, dto.ETASeconds = job.Phase, job.Progress, job.ETASeconds
+	}
 	if job.Status == jobs.StatusCompleted {
 		dto.FileName = job.FileName
 		dto.DownloadURL = "/api/v1/clip?jobId=" + url.QueryEscape(job.ID)

@@ -34,7 +34,7 @@ Running the server locally needs `yt-dlp`, `ffmpeg` and (for current YouTube) `d
 
 ## How tests isolate yt-dlp
 - **Unit tests** never run yt-dlp: `internal/videoprocessing` executes commands through the package variable `execContext`, which tests replace with a fake (see `videoprocessing_test.go`). Follow that pattern for any new command.
-- **The e2e suite** (`test/e2e`) builds `test/fakes/yt-dlp` and `test/fakes/ffmpeg` and starts the app with them first on `PATH`. The fake yt-dlp answers the handful of invocations the app makes with fixed output, writes a small file for downloads, and has magic video IDs for failure modes (failed or slow download, slow or failed `-J`). **If you change how the app calls yt-dlp, update the fake in the same PR**, or CI breaks.
+- **The e2e suite** (`test/e2e`) builds `test/fakes/yt-dlp` and `test/fakes/ffmpeg` and starts the app with them first on `PATH`. The fake yt-dlp answers the handful of invocations the app makes with fixed output, prints ffmpeg-style progress and a post-processor line for downloads (what job progress is parsed from) and writes a small file, and has magic video IDs for failure modes (failed or slow download, slow or failed `-J`). **If you change how the app calls yt-dlp, update the fake in the same PR**, or CI breaks.
 - Nothing in CI talks to real YouTube (datacenter IPs get bot-blocked, so it would be flaky and meaningless), and the e2e browser can't resolve YouTube hosts. Say so in PRs: "verified against the fakes, not real YouTube".
 
 ## Conventions
