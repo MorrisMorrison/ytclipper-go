@@ -252,6 +252,16 @@
             </section>
         </form>
 
+        <!-- Kept in this browser only (localStorage); hidden while empty. -->
+        <details id="recent" class="recent card" hidden>
+            <summary>
+                <span class="recent-summary">Recent clips <span id="recentCount" class="recent-count"></span></span>
+                <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+            </summary>
+            <ul id="recentList" class="recent-list"></ul>
+            <button id="recentClear" class="link-button" type="button">Clear list</button>
+        </details>
+
         <p class="footnote">Only the selected part is downloaded. Clips are deleted from the server after a while.</p>
     </main>
 </body>

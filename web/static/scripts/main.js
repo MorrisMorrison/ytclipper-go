@@ -20,7 +20,8 @@ import {
 } from "./formats.js";
 import { Player } from "./player.js";
 import { initTheme } from "./theme.js";
-import { formatTime, formatTimeLeft, parseTime, toHHMMSS } from "./time.js";
+import { addRecent, clearRecent, loadRecent } from "./recent.js";
+import { formatAgo, formatTime, formatTimeLeft, parseTime, toHHMMSS } from "./time.js";
 import { toast } from "./toast.js";
 import { Trimmer } from "./trimmer.js";
 import { extractVideoId, linkFromLocation, linkStartTime } from "./youtube-url.js";
@@ -86,6 +87,10 @@ const el = {
     jobProgress: $("jobProgress"),
     jobAnnounce: $("jobAnnounce"),
     jobKeepWaiting: $("jobKeepWaiting"),
+    recent: $("recent"),
+    recentCount: $("recentCount"),
+    recentList: $("recentList"),
+    recentClear: $("recentClear"),
     downloadButton: $("downloadButton"),
     trimmerHint: $("trimmerHint"),
 };
@@ -746,8 +751,9 @@ function startDownload(url, fileName) {
     link.remove();
 }
 
-function completeJob(job) {
+function completeJob(job, clip) {
     const url = job.downloadUrl || `/api/v1/clip?jobId=${encodeURIComponent(job.id)}`;
+    rememberClip(job, clip);
     el.downloadButton.href = url;
     el.downloadButton.download = job.fileName || "";
     showJob("completed", "Your clip is ready", job.fileName || "");
@@ -790,7 +796,7 @@ async function pollJob(poll) {
     const seconds = Math.round((Date.now() - poll.startedAt) / 1000);
     switch (job.status) {
         case "completed":
-            completeJob(job);
+            completeJob(job, poll.clip);
             return;
         case "error":
             failJob(job.error || "Something went wrong while creating the clip.");
@@ -814,7 +820,7 @@ el.jobKeepWaiting.addEventListener("click", () => {
     pollJob(poll);
 });
 
-async function startJob(payload) {
+async function startJob(payload, clip) {
     const token = ++state.jobToken;
     state.stalledPoll = null;
     setBusy(true);
@@ -828,7 +834,7 @@ async function startJob(payload) {
     }
     showJob("queued", "Waiting for a free worker…", "Your clip starts as soon as one is free.");
     const now = Date.now();
-    pollJob({ jobId, token, startedAt: now, deadline: now + JOB_DEADLINE_MS, failures: 0 });
+    pollJob({ jobId, token, clip, startedAt: now, deadline: now + JOB_DEADLINE_MS, failures: 0 });
 }
 
 el.form.addEventListener("submit", (event) => {
@@ -860,8 +866,135 @@ el.form.addEventListener("submit", (event) => {
     if (format) payload.format = format;
     else payload.preset = el.form.elements.preset.value || "video";
     if (el.preciseCut.checked && cutsVideo()) payload.preciseCut = true;
-    startJob(payload);
+    startJob(payload, { videoId, from: state.start, to: state.end });
 });
+
+// ===== Recent clips =====
+// Downloadable state per job id, checked once per page load when the list is
+// opened: "available", "expired" or undefined (not checked yet).
+const recentState = new Map();
+
+function rememberClip(job, clip) {
+    if (!clip) return;
+    const title = (state.videoId === clip.videoId && state.info?.title) || "";
+    const ext = (job.fileName || "").split(".").pop();
+    addRecent({
+        jobId: job.id,
+        videoId: clip.videoId,
+        title,
+        from: clip.from,
+        to: clip.to,
+        kind: ext && ext !== job.fileName ? ext.toUpperCase() : "",
+        fileName: job.fileName || "",
+        at: Date.now(),
+    });
+    recentState.set(job.id, "available");
+    renderRecent();
+}
+
+function recentButton(label, icon) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "button button-quiet button-sm";
+    button.innerHTML = icon;
+    button.append(label);
+    return button;
+}
+
+const ICON_DOWNLOAD = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>';
+const ICON_AGAIN = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>';
+
+function renderRecent() {
+    const list = loadRecent();
+    el.recent.hidden = list.length === 0;
+    el.recentCount.textContent = String(list.length);
+    el.recentList.replaceChildren(
+        ...list.map((entry) => {
+            const item = document.createElement("li");
+            item.className = "recent-item";
+            item.dataset.jobId = entry.jobId;
+
+            const text = document.createElement("div");
+            text.className = "recent-text";
+            const title = document.createElement("p");
+            title.className = "recent-title";
+            title.textContent = entry.title || `Video ${entry.videoId}`;
+            title.title = title.textContent;
+            const meta = document.createElement("p");
+            meta.className = "recent-meta";
+            const withHours = entry.to >= 3600;
+            const parts = [`${formatTime(entry.from, withHours)} – ${formatTime(entry.to, withHours)}`];
+            if (entry.kind) parts.push(entry.kind);
+            parts.push(formatAgo(entry.at));
+            meta.textContent = parts.join(" · ");
+            if (recentState.get(entry.jobId) === "expired") {
+                const gone = document.createElement("span");
+                gone.className = "recent-expired";
+                gone.textContent = " · deleted from the server";
+                meta.append(gone);
+            }
+            text.append(title, meta);
+
+            const actions = document.createElement("div");
+            actions.className = "recent-actions";
+            if (recentState.get(entry.jobId) === "available") {
+                const download = document.createElement("a");
+                download.className = "button button-secondary button-sm recent-download";
+                download.href = `/api/v1/clip?jobId=${encodeURIComponent(entry.jobId)}`;
+                download.download = entry.fileName || "";
+                download.innerHTML = ICON_DOWNLOAD;
+                download.append("Download");
+                actions.append(download);
+            }
+            const again = recentButton("Clip again", ICON_AGAIN);
+            again.classList.add("recent-again");
+            again.title = "Open this video with the same range";
+            again.addEventListener("click", () => clipAgain(entry));
+            actions.append(again);
+
+            item.append(text, actions);
+            return item;
+        }),
+    );
+}
+
+// checkRecent asks the server which clips it still has. It only runs when the
+// list is opened, never on the main flow.
+async function checkRecent() {
+    const unknown = loadRecent().filter((entry) => !recentState.has(entry.jobId));
+    if (!unknown.length) return;
+    await Promise.all(
+        unknown.map(async (entry) => {
+            try {
+                const job = await getJob(entry.jobId);
+                recentState.set(entry.jobId, job.status === "completed" ? "available" : "expired");
+            } catch (err) {
+                // 404: the job (and its file) is gone. Anything else: try again next time.
+                if (err.status === 404) recentState.set(entry.jobId, "expired");
+            }
+        }),
+    );
+    renderRecent();
+}
+
+function clipAgain(entry) {
+    el.url.value = canonicalUrl(entry.videoId);
+    showUrlError(null);
+    if (entry.videoId !== state.videoId) openVideo(entry.videoId, entry.from);
+    applyRange(entry.from, entry.to);
+    el.recent.open = false;
+    el.form.scrollIntoView({ block: "start", behavior: "smooth" });
+}
+
+el.recent.addEventListener("toggle", () => {
+    if (el.recent.open) checkRecent();
+});
+el.recentClear.addEventListener("click", () => {
+    clearRecent();
+    recentState.clear();
+    renderRecent();
+});
+renderRecent();
 
 // ===== Start =====
 initTheme($("themeToggle"));
