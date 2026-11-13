@@ -29,9 +29,10 @@ What `TestMain` does: builds the app (`./cmd/ytclipper`) and `test/fakes/yt-dlp`
 - A selector timeout usually means the page changed: update the selectors at the top of `e2e_test.go`.
 - A job that never completes, or "format not found", usually means the app calls yt-dlp differently than the fake expects.
 - Flaky only in CI? Tests run in parallel, each in its own browser context; don't share state between tests, and poll (`poll[T]`) instead of sleeping.
+- A click that does nothing: `chromedp.Click` measures the element, then clicks that spot, so a click while the page scrolls (a finished job smooth-scrolls its panel into view) can miss. `p.submit()` waits for scrolling to stop (`p.settle()`) before and after a job; call `p.settle()` yourself before clicking after anything else that scrolls.
 
 ## Writing a test
-`p := newPage(t, ...options)` opens a fresh tab (own storage, downloads denied, fetch log in `window.__fetches`). Helpers: `p.openVideo(url)`, `p.setRange(from, to)`, `p.submit()` / `p.clip()`, `p.clipPosts()`, `p.fetches(substr)`, `eval[T]`, `poll[T]`. Call `t.Parallel()` unless the test needs exclusive state. Prefer a magic ID in the fake over a new server.
+`p := newPage(t, ...options)` opens a fresh tab (own storage, downloads denied, fetch log in `window.__fetches`). Helpers: `p.openVideo(url)`, `p.setRange(from, to)`, `p.submit()` / `p.clip()` (each waits for the new clip request, so clipping several times on one page is safe), `p.clipPosts()` / `p.lastClipPost()`, `p.settle()`, `p.fetches(substr)`, `eval[T]`, `poll[T]`. Call `t.Parallel()` unless the test needs exclusive state. Prefer a magic ID in the fake over a new server.
 
 ## README screenshots
 `make screenshots` (or `E2E_SCREENSHOTS=<dir> go test -tags e2e -run TestScreenshots ./test/e2e/`) writes `<dir>/docs/screenshot-light.png` and `-dark.png` at 1280 px. This mode lets the browser reach YouTube, so the real player shows Big Buck Bunny (`aqz-KE-bpKQ`, CC BY 3.0, Blender Foundation); the fake gives the server its title and length. Check the images before committing them.

@@ -370,8 +370,11 @@ type clipPayload struct {
 // clipPosts returns the bodies of every POST /api/v1/clip.
 func (p *page) clipPosts() []clipPayload {
 	p.t.Helper()
-	return eval[[]clipPayload](p, `(window.__fetches || []).filter(f => f.method === "POST" && f.url.endsWith("/api/v1/clip")).map(f => f.body)`)
+	return eval[[]clipPayload](p, clipPostsJS+`.map(f => f.body)`)
 }
+
+// clipPostsJS is the fetch log's POST /api/v1/clip entries.
+const clipPostsJS = `(window.__fetches || []).filter(f => f.method === "POST" && f.url.endsWith("/api/v1/clip"))`
 
 func (p *page) lastClipPost() clipPayload {
 	p.t.Helper()
@@ -382,13 +385,33 @@ func (p *page) lastClipPost() clipPayload {
 	return posts[len(posts)-1]
 }
 
-// submit clicks "Create clip" and waits for the job to end. It returns the
-// final state ("completed" or "error") and the job detail text.
+// settle waits until the page has stopped scrolling. A finished job scrolls
+// its panel into view smoothly; chromedp.Click reads an element's position
+// first and then sends the mouse event there, so a click during that scroll
+// can land next to the button and do nothing.
+func (p *page) settle() {
+	p.t.Helper()
+	poll[bool](p, "the page kept scrolling", `(() => {
+		const y = window.scrollY, same = window.__settleY === y;
+		window.__settleY = y;
+		return same;
+	})()`, 5*time.Second)
+	eval[bool](p, `(window.__settleY = undefined, true)`)
+}
+
+// submit clicks "Create clip" and waits for the job it starts to end. It
+// returns the final state ("completed" or "error") and the job detail text.
+// On a page that already clipped, the panel still shows the previous job, so
+// a finished state only counts once a new clip request has been sent.
 func (p *page) submit() (state, detail string) {
 	p.t.Helper()
+	p.settle()
+	before := len(p.clipPosts())
 	p.do("clicking Create clip", chromedp.Click(clipButton))
+	poll[bool](p, "clicking Create clip sent no clip request", fmt.Sprintf(clipPostsJS+`.length > %d`, before), 10*time.Second)
 	state = poll[string](p, "the job did not finish",
 		`(s => s === "completed" || s === "error" ? s : false)(document.getElementById("job").dataset.state)`, 40*time.Second)
+	p.settle()
 	return state, p.text("#jobDetail")
 }
 
