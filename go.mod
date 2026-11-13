@@ -3,7 +3,7 @@ module github.com/MorrisMorrison/ytclipper-go
 go 1.26.0
 
 require (
-	github.com/chromedp/chromedp v0.21.1
+	github.com/chromedp/chromedp v0.23.0
 	github.com/google/uuid v1.6.0
 	github.com/labstack/echo/v4 v4.16.3
 	golang.org/x/time v0.16.0
@@ -12,7 +12,7 @@ require (
 require github.com/go-json-experiment/json v0.0.0-20260820222146-c27c302e5fc3 // indirect
 
 require (
-	github.com/chromedp/cdproto v0.159.0
+	github.com/chromedp/cdproto v0.159.2
 	github.com/labstack/gommon v0.5.0 // indirect
 	github.com/mattn/go-colorable v0.1.16 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
